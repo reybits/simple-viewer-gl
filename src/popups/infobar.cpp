@@ -96,14 +96,17 @@ void cInfoBar::setInfo(const sInfo& p)
         ::snprintf(sub_image, sizeof(sub_image), " | %u / %u", p.current + 1, p.images);
     }
 
-    float file_size = p.file_size;
-    std::string file_s = getHumanSize(file_size);
-    float mem_size = p.mem_size;
-    std::string mem_s = getHumanSize(mem_size);
+    auto file_size = static_cast<float>(p.file_size);
+    auto file_s = getHumanSize(file_size);
+    auto mem_size = static_cast<float>(p.mem_size);
+    auto mem_s = getHumanSize(mem_size);
 
     char title[1000] = { 0 };
     const auto shortName = shortenFilename(fileName);
-    ::snprintf(title, sizeof(title), "%s%s%s | %s | %u x %u x %u bpp (%.1f%%) | %.1f %s (%.1f %s)", idx_img, shortName.c_str(), sub_image, p.type, p.width, p.height, p.bpp, p.scale * 100.0f, file_size, file_s.c_str(), mem_size, mem_s.c_str());
+    ::snprintf(title, sizeof(title), "%s%s%s | %s | %u x %u x %u bpp (%u) | %.1f%% | %.1f %s (%.1f %s)",
+               idx_img, shortName.c_str(), sub_image,
+               p.type, p.width, p.height, p.bpp, p.precision, p.scale * 100.0f,
+               file_size, file_s, mem_size, mem_s);
 
     m_bottominfo = title;
 }
