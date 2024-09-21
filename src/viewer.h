@@ -12,10 +12,10 @@
 #include "common/callbacks.h"
 #include "common/scale.h"
 #include "gui.h"
+#include "types/types.h"
 #include "types/vector.h"
 
 #include <memory>
-#include <vector>
 
 class cCheckerboard;
 class cDeletionMark;
@@ -41,7 +41,7 @@ public:
 
     void setWindow(GLFWwindow* window);
 
-    void addPaths(const char** paths, int count);
+    void addPaths(const StringsList& paths);
 
     bool isUploading() const;
 

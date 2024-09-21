@@ -9,6 +9,7 @@
 
 #include "common/config.h"
 #include "common/helpers.h"
+#include "types/types.h"
 #include "version.h"
 #include "viewer.h"
 
@@ -149,7 +150,12 @@ namespace
 #if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 1
     void callbackDrop(GLFWwindow* /*window*/, int count, const char** paths)
     {
-        m_viewer->addPaths(paths, count);
+        StringsList imagesList;
+        for (int i = 0; i < count; i++)
+        {
+            imagesList.push_back(paths[i]);
+        }
+        m_viewer->addPaths(imagesList);
     }
 #endif
 
@@ -252,29 +258,7 @@ namespace
         (void)window;
     }
 
-    class cOpenWrapper
-    {
-    public:
-        void addFile(const char* filename)
-        {
-            if (filename != nullptr)
-            {
-                m_files.push_back(filename);
-            }
-        }
-
-        using FilesList = std::vector<std::string>;
-
-        const FilesList& getList() const
-        {
-            return m_files;
-        }
-
-    private:
-        FilesList m_files;
-    };
-
-    cOpenWrapper OpenWrapper;
+    StringsList ImagesList;
 
 } // namespace
 
@@ -283,12 +267,16 @@ void AddFile(const char* filename)
 {
     if (m_viewer == nullptr)
     {
-        OpenWrapper.addFile(filename);
+        if (filename != nullptr)
+        {
+            ImagesList.push_back(filename);
+        }
     }
     else
     {
-        const char* paths[] = { filename };
-        m_viewer->addPaths(paths, 1);
+        StringsList imagesList;
+        imagesList.push_back(filename);
+        m_viewer->addPaths(imagesList);
     }
 }
 
@@ -317,9 +305,6 @@ int main(int argc, char* argv[])
 
     cConfig fileConfig;
     fileConfig.read(config);
-
-    std::vector<const char*> pathsList;
-    std::vector<std::string> stdinPaths;
 
     for (int i = 1; i < argc; i++)
     {
@@ -417,7 +402,7 @@ int main(int argc, char* argv[])
                 }
                 else if (c == 0)
                 {
-                    stdinPaths.push_back(path);
+                    ImagesList.push_back(path);
                     path.clear();
                 }
                 else
@@ -428,10 +413,10 @@ int main(int argc, char* argv[])
         }
         else
         {
-            const char* path = argv[i];
+            auto path = argv[i];
             if (path[0] != '-')
             {
-                pathsList.push_back(path);
+                ImagesList.push_back(path);
             }
         }
     }
@@ -446,17 +431,8 @@ int main(int argc, char* argv[])
         cViewer viewer(config);
         m_viewer = &viewer;
 
-        for (auto& p : stdinPaths)
-        {
-            pathsList.push_back(p.c_str());
-        }
-
-        for (auto& p : OpenWrapper.getList())
-        {
-            pathsList.push_back(p.c_str());
-        }
-
-        viewer.addPaths(pathsList.data(), pathsList.size());
+        viewer.addPaths(ImagesList);
+        ImagesList.clear();
 
         GLFWwindow* window = nullptr;
         if (config.fullScreen)
