@@ -13,9 +13,9 @@ master | development
 :----: | :----:
 [![Build status: master](https://ci.appveyor.com/api/projects/status/55qlv1c7ca5vp7y4/branch/master?svg=true)](https://ci.appveyor.com/project/andreyugolnik/simple-viewer-gl/branch/master "Branch: master") ![GitHub last commit (master)](https://img.shields.io/github/last-commit/andreyugolnik/simple-viewer-gl/master) | [![Build status: development](https://ci.appveyor.com/api/projects/status/55qlv1c7ca5vp7y4/branch/development?svg=true)](https://ci.appveyor.com/project/andreyugolnik/simple-viewer-gl/branch/development "Branch: development") ![GitHub last commit (development)](https://img.shields.io/github/last-commit/andreyugolnik/simple-viewer-gl/development)
 
-The primary goal for writing **Simple Viewer GL** is to create an image viewer, which only has the most basic features required for fast image viewing. It has some `vi`-like key bindings and works nicely with tiling window managers (such as ion3/notion, i3wm, dwm, xmonad, hyprland, sway, etc).
+The primary goal of **Simple Viewer GL** is to provide a fast, efficient image viewer with only the essential features required for quick image browsing. It includes *vi*-like key bindings and integrates seamlessly with tiling window managers such as *ion3*/*notion*, *i3wm*, *dwm*, *xmonad*, *hyprland*, *sway*, and others.
 
-Supported formats: `PNG`, `JPEG`, `JPEG 2000`, `PSD` (Adobe Photoshop), `AI` (Adobe Illustrator), `EPS`, `XCF` (GIMP image format), `GIF`, `SVG`, `TIFF`, `TARGA`, `ICO`, `ICNS` (Apple Icon Image), `BMP`, `PNM`, `DDS`, `XWD`, `SCR` (ZX-Spectrum screen), `XPM`, `WebP`, `OpenEXR` and more.
+Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photoshop), **AI** (Adobe Illustrator), **EPS**, **XCF** (GIMP), **GIF**, **SVG**, **TIFF**, **TARGA**, **ICO**, **ICNS** (Apple Icon Image), **BMP**, **PNM**, **DDS**, **XWD**, **SCR** (ZX-Spectrum screen), **XPM**, **WebP**, **OpenEXR**, and many more.
 
 ***
 ## Screenshots
@@ -43,7 +43,7 @@ Supported formats: `PNG`, `JPEG`, `JPEG 2000`, `PSD` (Adobe Photoshop), `AI` (Ad
 ***
 ## Usage
 
-**Simple Viewer GL** has two modes of operation: image viewer and image info mode. The default is image mode, in which only the current image is shown. In image info mode pixel info and rectangular selection available. This mode useful for brief resource description.
+**Simple Viewer GL** offers two modes: Image Viewer and Image Info mode. By default, it opens in Image Viewer mode, displaying only the current image. In Image Info mode, additional features such as pixel information and rectangular selection are available, making it useful for quickly reviewing image details and metadata.
 
 ***
 ## Key bindings
