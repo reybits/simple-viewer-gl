@@ -173,9 +173,9 @@ bool cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescripti
     else
     {
         desc.bpp = cinfo.output_components * 8;
-        desc.bppImage = cinfo.num_components * 8;
+        auto precision = static_cast<uint32_t>(cinfo.data_precision);
+        desc.bppImage = cinfo.num_components * precision;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-        desc.precision = static_cast<uint32_t>(cinfo.data_precision);
         desc.bitmap.resize(desc.pitch * desc.height);
 
         auto out = desc.bitmap.data();

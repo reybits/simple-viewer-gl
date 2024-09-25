@@ -103,9 +103,9 @@ void cInfoBar::setInfo(const sInfo& p)
 
     char title[1000] = { 0 };
     const auto shortName = shortenFilename(fileName);
-    ::snprintf(title, sizeof(title), "%s%s%s | %s | %u x %u x %u bpp (%u) | %.1f%% | %.1f %s (%.1f %s)",
+    ::snprintf(title, sizeof(title), "%s%s%s | %s | %u x %u x %u bpp | %.1f%% | %.1f %s (%.1f %s)",
                idx_img, shortName.c_str(), sub_image,
-               p.type, p.width, p.height, p.bpp, p.precision, p.scale * 100.0f,
+               p.type, p.width, p.height, p.bpp, p.scale * 100.0f,
                file_size, file_s, mem_size, mem_s);
 
     m_bottominfo = title;

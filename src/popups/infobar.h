@@ -39,7 +39,6 @@ public:
         unsigned images = 0;
         unsigned current = 0;
         long file_size = 0;
-        unsigned precision = 0;
         size_t mem_size = 0;
         unsigned files_count = 0;
     };

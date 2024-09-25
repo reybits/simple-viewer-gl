@@ -29,7 +29,6 @@ bool cNotAvailable::LoadImpl(const char* /*filename*/, sBitmapDescription& desc)
     desc.height   = imgNa.height;
     desc.bpp      = imgNa.bytes_per_pixel * 8;
     desc.bppImage = 0;
-    desc.precision = 0u;
     desc.pitch    = desc.width * imgNa.bytes_per_pixel;
 
     const unsigned size = desc.pitch * desc.height;

@@ -819,7 +819,6 @@ void cViewer::updateInfobar()
         s.images = desc.images;
         s.current = desc.current;
         s.file_size = desc.size;
-        s.precision = desc.precision;
         s.mem_size = desc.bitmap.size();
         s.type = m_loader->getImageType();
     }

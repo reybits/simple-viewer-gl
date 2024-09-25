@@ -27,7 +27,6 @@ struct sBitmapDescription
 
         bppImage    = 0;
         size        = -1;
-        precision   = 8;
 
         images      = 0;
         current     = 0;
@@ -49,7 +48,6 @@ struct sBitmapDescription
     // file related
     uint32_t bppImage = 0;  // bit per pixel of original image
     long size         = -1; // file size on disk
-    uint32_t precision = 8; // precision of the original image
 
     uint32_t images   = 0;
     uint32_t current  = 0;
