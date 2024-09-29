@@ -182,6 +182,7 @@ bool cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescripti
 
         if (cinfo.data_precision == 12)
         {
+#if defined(jpeg12_read_scanlines) || defined(HAVE_JPEG12)
             std::vector<uint16_t> scanline(desc.pitch);
             while (cinfo.output_scanline < cinfo.output_height && m_stop == false)
             {
@@ -197,9 +198,13 @@ bool cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescripti
                 auto progress = static_cast<float>(cinfo.output_scanline) / cinfo.output_height;
                 updateProgress(progress);
             }
+#else
+
+#endif
         }
         else if (cinfo.data_precision == 16)
         {
+#if defined(jpeg16_read_scanlines) || defined(HAVE_JPEG16)
             std::vector<uint16_t> scanline(desc.pitch);
             while (cinfo.output_scanline < cinfo.output_height && m_stop == false)
             {
@@ -215,6 +220,9 @@ bool cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescripti
                 auto progress = static_cast<float>(cinfo.output_scanline) / cinfo.output_height;
                 updateProgress(progress);
             }
+#else
+
+#endif
         }
         else
         {
