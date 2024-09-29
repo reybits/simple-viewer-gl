@@ -133,24 +133,18 @@ sudo make rpm
 ***
 ## Dependencies
 
-Name           | Debian package                     | Description / Notes
-:------------- | :--------------------------------- | :-------------------
-`CMake`        | *cmake*                            | Cross-platform family of tools designed to build, test and package software.
-`GLFW3`        | *libglfw3-dev*                     | Multi-platform library for creating windows with OpenGL contexts and receiving input and events.
-`JPEG`         | *libjpeg-dev*                      | JPEG format support.
-`PNG`          | *libpng12-dev*                     | PNG format support.
-`Little CMS 2` | *liblcms2-dev*                     | Color management engine supporting ICC profiles.
-`Zlib`         | *zlib1g-dev*                       | Compression support.
-`Exif`         | *libexif-dev*                      | Exif support.
-`X11`          | *libxrandr-dev*, *libxcursor-dev*  | X11 related libraries (Linux only)
-`GIF`          | *libgif-dev*                       | (Optional) GIF format support.
-`TIFF`         | *libtiff5-dev*                     | (Optional) TIFF format support.
-`WebP`         | *libwebp-dev*                      | (Optional) WebP format support.
-`OpenEXR`      | *libilmbase-dev*, *libopenexr-dev* | (Optional) OpenEXR is a high dynamic-range (HDR) image file format developed by Industrial Light & Magic for use in computer imaging applications.
-`OpenJPEG`     | *libopenjpeg-dev*,                 | (Optional) JPEG 2000 support.
-`ImLib2`       | *libimlib2-dev*                    | (Optional) Common formats support.
-`curl`         | *libcurl-dev*                      | (Optional) Support loading via http/https/ftp protocols.
-
+Name     | Debian package       | Description / Notes
+:------- | :------------------- | :------------------------------------------------------
+Make     | make                 | Utility for directing compilation.
+Cmake    | cmake                | Cross-platform, open-source make system.
+Mesa     | libgl1-mesa-dev      | Transitional dummy package.
+GLFW3    | libglfw3-dev         | Portable library for OpenGL, window and input.
+Zlib     | zlib1g-dev           | Compression support.
+PNG      | libpng-dev           | PNG format support.
+JPEG     | libjpeg-turbo8-dev   | JPEG format support.
+TIFF     | libtiff-dev          | (optional) TIFF format support.
+OpenJPEG | libopenjp2-7-dev     | (optional) JPEG 2000 support.
+curl     | libcurl4-openssl-dev | (optional) Support loading via http/https/ftp protocols.
 
 > Copyright © 2008-2024 Andrey A. Ugolnik. All Rights Reserved.
 > https://www.ugolnik.info
