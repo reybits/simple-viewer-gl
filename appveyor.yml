@@ -22,4 +22,5 @@ init:
 platform: x64
 
 build_script:
-- sh: make -j release
+- sh: >-
+    make -j release
