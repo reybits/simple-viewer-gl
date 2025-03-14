@@ -146,9 +146,11 @@ TIFF     | libtiff-dev          | (optional) TIFF format support.
 OpenJPEG | libopenjp2-7-dev     | (optional) JPEG 2000 support.
 curl     | libcurl4-openssl-dev | (optional) Support loading via http/https/ftp protocols.
 
-> Copyright © 2008-2024 Andrey A. Ugolnik. All Rights Reserved.
-> https://www.ugolnik.info
-> andrey@ugolnik.info
->
-> Icon was created by
-> Iryna Poliakova (Iryna.poliakova@icloud.com).
+```
+Copyright © 2008-2024 Andrey A. Ugolnik. All Rights Reserved.
+https://www.ugolnik.info
+andrey@ugolnik.info
+
+Icon was created by
+Iryna Poliakova (Iryna.poliakova@icloud.com).
+```
