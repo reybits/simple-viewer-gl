@@ -8,7 +8,6 @@
 \**********************************************/
 
 #include "jpegdecoder.h"
-#include "cms/cms.h"
 #include "common/bitmap_description.h"
 #include "common/buffer.h"
 #include "common/helpers.h"
@@ -38,7 +37,7 @@ namespace
     struct sErrorMgr
     {
         struct jpeg_error_mgr pub; /* "public" fields */
-        jmp_buf setjmp_buffer; /* for return to caller */
+        jmp_buf setjmp_buffer;     /* for return to caller */
     };
 
     void ErrorExit(j_common_ptr cinfo)
@@ -54,8 +53,9 @@ namespace
         longjmp(errMgr->setjmp_buffer, 1);
     }
 
-    const uint32_t maxMarkerLength = 0xffff;
-}
+    const uint32_t MaxMarkerLength = 0xffff;
+
+} // namespace
 
 cJpegDecoder::cJpegDecoder(iCallbacks* callbacks)
     : cFormat(callbacks)
@@ -166,28 +166,78 @@ bool cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescripti
 
             out += desc.pitch;
 
-            updateProgress(cinfo.output_scanline / cinfo.output_height);
+            auto progress = static_cast<float>(cinfo.output_scanline) / cinfo.output_height;
+            updateProgress(progress);
         }
     }
     else
     {
         desc.bpp = cinfo.output_components * 8;
-        desc.bppImage = cinfo.num_components * 8;
+        auto precision = static_cast<uint32_t>(cinfo.data_precision);
+        desc.bppImage = cinfo.num_components * precision;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
         desc.bitmap.resize(desc.pitch * desc.height);
 
         auto out = desc.bitmap.data();
 
-        while (cinfo.output_scanline < cinfo.output_height && m_stop == false)
+        if (cinfo.data_precision == 12)
         {
-            /* jpeg_read_scanlines expects an array of pointers to scanlines.
-             * Here the array is only one element long, but you could ask for
-             * more than one scanline at a time if that's more convenient.
-             */
-            jpeg_read_scanlines(&cinfo, &out, 1);
-            out += desc.pitch;
+#if defined(jpeg12_read_scanlines) || defined(HAVE_JPEG12)
+            std::vector<uint16_t> scanline(desc.pitch);
+            while (cinfo.output_scanline < cinfo.output_height && m_stop == false)
+            {
+                auto s = scanline.data();
+                jpeg12_read_scanlines(&cinfo, (J12SAMPARRAY)&s, 1);
+                for (uint32_t i = 0u; i < desc.pitch; i++)
+                {
+                    out[i] = static_cast<uint8_t>(scanline[i] >> 4);
+                }
 
-            updateProgress(cinfo.output_scanline / cinfo.output_height);
+                out += desc.pitch;
+
+                auto progress = static_cast<float>(cinfo.output_scanline) / cinfo.output_height;
+                updateProgress(progress);
+            }
+#else
+
+#endif
+        }
+        else if (cinfo.data_precision == 16)
+        {
+#if defined(jpeg16_read_scanlines) || defined(HAVE_JPEG16)
+            std::vector<uint16_t> scanline(desc.pitch);
+            while (cinfo.output_scanline < cinfo.output_height && m_stop == false)
+            {
+                auto s = scanline.data();
+                jpeg16_read_scanlines(&cinfo, (J16SAMPARRAY)&s, 1);
+                for (uint32_t i = 0u; i < desc.pitch; i++)
+                {
+                    out[i] = static_cast<uint8_t>(scanline[i] >> 8);
+                }
+
+                out += desc.pitch;
+
+                auto progress = static_cast<float>(cinfo.output_scanline) / cinfo.output_height;
+                updateProgress(progress);
+            }
+#else
+
+#endif
+        }
+        else
+        {
+            while (cinfo.output_scanline < cinfo.output_height && m_stop == false)
+            {
+                /* jpeg_read_scanlines expects an array of pointers to scanlines.
+                 * Here the array is only one element long, but you could ask for
+                 * more than one scanline at a time if that's more convenient.
+                 */
+                jpeg_read_scanlines(&cinfo, &out, 1);
+                out += desc.pitch;
+
+                auto progress = static_cast<float>(cinfo.output_scanline) / cinfo.output_height;
+                updateProgress(progress);
+            }
         }
     }
 
@@ -222,8 +272,8 @@ bool cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescripti
 
 void cJpegDecoder::setupMarkers(jpeg_decompress_struct* cinfo)
 {
-    jpeg_save_markers(cinfo, JPEG_EXIF, maxMarkerLength);
-    jpeg_save_markers(cinfo, JPEG_ICCP, maxMarkerLength);
+    jpeg_save_markers(cinfo, JPEG_EXIF, MaxMarkerLength);
+    jpeg_save_markers(cinfo, JPEG_ICCP, MaxMarkerLength);
 }
 
 bool cJpegDecoder::locateICCProfile(const jpeg_decompress_struct& cinfo, Icc& icc) const

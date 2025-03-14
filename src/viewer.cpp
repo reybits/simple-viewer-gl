@@ -95,18 +95,18 @@ void cViewer::setWindow(GLFWwindow* window)
     onResize(winSize, fbSize);
 }
 
-void cViewer::addPaths(const char** paths, int count)
+void cViewer::addPaths(const StringsList& paths)
 {
-    if (count != 0)
+    if (paths.size() != 0)
     {
-        for (int i = 0; i < count; i++)
+        for (auto& path : paths)
         {
-            m_filesList->addFile(paths[i]);
+            m_filesList->addFile(path.c_str());
             // ::printf("path added: %s\n", paths[i]);
         }
 
         m_filesList->sortList();
-        m_filesList->locateFile(paths[0]);
+        m_filesList->locateFile(paths[0].c_str());
 
         loadImage(0);
     }

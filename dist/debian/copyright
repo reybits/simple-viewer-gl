@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: 
-Source: https://github.com/andreyugolnik/simple-viewer-gl
+Upstream-Name:
+Source: https://github.com/reybits/simple-viewer-gl
 
 Files: *
 Copyright: Andrey Ugolnik andrey@ugolnik.info

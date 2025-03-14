@@ -383,7 +383,6 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
     ::printf("\n");
     ::printf("Components: %u\n", numcomps);
     ::printf("  Colorspace: %s\n", getColorSpaceName(colorspace));
-    ::printf("  Comp: %u\n", image->comps[0].bpp);
     ::printf("  Prec: %u\n", image->comps[0].prec);
     ::printf("  Signed: %u\n", image->comps[0].sgnd);
     ::printf("  Factor: %u\n", image->comps[0].factor);
@@ -592,7 +591,7 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
 
             for (uint32_t y = 0; y < desc.height; y++)
             {
-                auto bits = (uint8_t*)getScanLine(desc, y); //desc.height - 1 - y);
+                auto bits = (uint8_t*)getScanLine(desc, y); // desc.height - 1 - y);
 
                 for (uint32_t x = 0; x < desc.width; x++)
                 {

@@ -9,5 +9,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
+
+using StringsList = std::vector<std::string>;
