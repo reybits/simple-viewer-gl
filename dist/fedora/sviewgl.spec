@@ -6,7 +6,7 @@ Summary: Simple Viewer GL - simple and tiny image viewer based on OpenGL
 
 Group: LOR/stuff
 License: GPLv2
-URL: https://github.com/andreyugolnik/simple-viewer-gl.git
+URL: https://github.com/reybits/simple-viewer-gl.git
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++, make, cmake

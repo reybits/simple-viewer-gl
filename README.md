@@ -20,8 +20,8 @@ Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photo
 ***
 ## Screenshots
 
-![Simple Viewer GL on macOS with Pixel Info](https://raw.githubusercontent.com/andreyugolnik/simple-viewer-gl/master/res/Screenshot-PixelInfo.png "Simple Viewer GL")
-![Simple Viewer GL on macOS with EXIF](https://raw.githubusercontent.com/andreyugolnik/simple-viewer-gl/master/res/Screenshot-EXIF.png "Simple Viewer GL")
+![Simple Viewer GL on macOS with Pixel Info](https://raw.githubusercontent.com/reybits/simple-viewer-gl/master/res/Screenshot-PixelInfo.png "Simple Viewer GL")
+![Simple Viewer GL on macOS with EXIF](https://raw.githubusercontent.com/reybits/simple-viewer-gl/master/res/Screenshot-EXIF.png "Simple Viewer GL")
 
 ***
 ## Features
@@ -83,7 +83,7 @@ Hotkey                    | Action
 You can browse the source code repository on GitHub or get a copy using git with the following command:
 
 ```sh
-git clone https://github.com/andreyugolnik/simple-viewer-gl.git
+git clone https://github.com/reybits/simple-viewer-gl.git
 cd simple-viewer-gl
 make release
 ```
@@ -106,7 +106,7 @@ sudo apt-get install libglfw3-dev libexif-dev libilmbase-dev libopenexr-dev
 
 Clone and make DEB:
 ```sh
-git clone https://github.com/andreyugolnik/simple-viewer-gl.git
+git clone https://github.com/reybits/simple-viewer-gl.git
 cd simple-viewer-gl
 make deb
 ```
@@ -125,7 +125,7 @@ sudo dnf install libwebp-devel libexif-devel imlib2-devel zlib-devel ilmbase-dev
 
 Clone and make source for RPM:
 ```sh
-git clone https://github.com/andreyugolnik/simple-viewer-gl.git
+git clone https://github.com/reybits/simple-viewer-gl.git
 cd simple-viewer-gl
 sudo make rpm
 ```

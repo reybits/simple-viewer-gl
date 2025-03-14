@@ -5,8 +5,8 @@ Maintainer: Andrey Ugolnik <andrey@ugolnik.info>
 Build-Depends: debhelper (>=9)
 Standards-Version: 3.9.10
 Homepage: https://www.ugolnik.info
-Vcs-Git: https://github.com/andreyugolnik/simple-viewer-gl.git
-Vcs-Browser: https://github.com/andreyugolnik/simple-viewer-gl
+Vcs-Git: https://github.com/reybits/simple-viewer-gl.git
+Vcs-Browser: https://github.com/reybits/simple-viewer-gl
 
 Package: sviewgl
 Architecture: any
