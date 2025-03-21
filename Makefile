@@ -91,7 +91,7 @@ install:
 
 dist:   clean
 	install -d $(BUNDLE_NAME)-$(VERSION)
-	cp -R cmake src res dist/debian INSTALL README.md CMakeLists.txt Makefile sviewgl.desktop res/Icon-1024.png dist/fedora/* dist/gentoo/* $(BUNDLE_NAME)-$(VERSION)
+	cp -R cmake src res third-party dist/debian INSTALL README.md CMakeLists.txt Makefile sviewgl.desktop res/Icon-1024.png dist/fedora/* dist/gentoo/* $(BUNDLE_NAME)-$(VERSION)
 	mv $(BUNDLE_NAME)-$(VERSION)/simpleviewer-gl-_VERSION_.ebuild $(BUNDLE_NAME)-$(VERSION)/simpleviewer-gl-$(VERSION).ebuild
 	sed "s/_VERSION_/$(VERSION)/" -i $(BUNDLE_NAME)-$(VERSION)/$(BUNDLE_NAME).spec
 	sed "s/_VERSION_/$(VERSION)/" -i $(BUNDLE_NAME)-$(VERSION)/debian/changelog
