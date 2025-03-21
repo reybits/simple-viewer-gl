@@ -19,16 +19,14 @@ ifeq ($(UNAME), Darwin)
 	OUT_NAME="Simple Viewer GL.app"
 endif
 
-all:    release
-
-help:
+all:
 	@echo "Usage:"
 	@echo "    make <release | debug>    - make release or debug application"
 	@echo "    make install              - install application"
 	@echo "    make <cppcheck>           - do static code verification"
-	@echo "    make <dist>               - make tar.gz source package"
-	@echo "    make <deb>                - make DEB package"
-	@echo "    make <rpm>                - make RPM package"
+	@echo "    make <make_tar>           - make tar.gz source package"
+	@echo "    make <make_deb>           - make DEB package"
+	@echo "    make <make_rpm>           - make RPM package"
 	@echo "    make <clean>              - cleanup directory"
 
 release:
@@ -89,7 +87,7 @@ install:
 	install -m 755 -d $(DESTDIR)$(PREFIX)/bin
 	install -m 755 $(BUNDLE_NAME) $(DESTDIR)$(PREFIX)/bin
 
-dist:   clean
+make_tar: clean
 	install -d $(BUNDLE_NAME)-$(VERSION)
 	cp -R cmake src res third-party dist/debian INSTALL README.md CMakeLists.txt Makefile sviewgl.desktop res/Icon-1024.png dist/fedora/* dist/gentoo/* $(BUNDLE_NAME)-$(VERSION)
 	mv $(BUNDLE_NAME)-$(VERSION)/simpleviewer-gl-_VERSION_.ebuild $(BUNDLE_NAME)-$(VERSION)/simpleviewer-gl-$(VERSION).ebuild
@@ -97,9 +95,9 @@ dist:   clean
 	sed "s/_VERSION_/$(VERSION)/" -i $(BUNDLE_NAME)-$(VERSION)/debian/changelog
 	tar -zf $(BUNDLE_NAME)-$(VERSION).tar.gz -c $(BUNDLE_NAME)-$(VERSION)
 
-deb:    dist
+make_deb: make_tar
 	mv $(BUNDLE_NAME)-$(VERSION).tar.gz $(BUNDLE_NAME)_$(VERSION).orig.tar.gz
 	cd $(BUNDLE_NAME)-$(VERSION) ; PREFIX=/usr dpkg-buildpackage -F -tc
 
-rpm:    dist
+make_rpm: make_tar
 	rpmbuild -ta $(BUNDLE_NAME)-$(VERSION).tar.gz
