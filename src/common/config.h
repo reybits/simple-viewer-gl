@@ -49,8 +49,6 @@ struct sConfig
 
     float panRatio = 10.0f; // if wheelZoom is false
 
-    float fontRatio = 0.5f;
-
     float shiftInPixels = 10.0f;
     float shiftInPercent = 0.5f;
 

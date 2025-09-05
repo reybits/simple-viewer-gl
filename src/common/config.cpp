@@ -199,8 +199,6 @@ void cConfig::read(sConfig& config) const
 
     readValue(m_ini, CommonSection, "pan_ratio", config.panRatio);
 
-    readValue(m_ini, CommonSection, "font_ratio", config.fontRatio);
-
     readValue(m_ini, CommonSection, "shift_in_pixels", config.shiftInPixels);
     readValue(m_ini, CommonSection, "shift_in_percent", config.shiftInPercent);
 

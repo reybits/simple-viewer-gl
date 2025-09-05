@@ -15,6 +15,7 @@
 #include "types/vector.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdio>
 
 namespace
@@ -31,6 +32,18 @@ namespace
     uint32_t TextureSizeLimit = 1024;
     bool IsMipmapEnabled = false;
 
+    struct GLState
+    {
+        GLint texture = 0;
+        GLint polygon_mode[2] = { 0 };
+        GLint viewport[4] = { 0 };
+        GLint scissor_box[4] = { 0 };
+        GLint shade_model = 0;
+        GLint tex_env_mode = 0;
+    };
+
+    std::vector<GLState> GLStates;
+
 } // namespace
 
 void cRenderer::init(GLFWwindow* window, uint32_t maxTextureSize)
@@ -39,7 +52,7 @@ void cRenderer::init(GLFWwindow* window, uint32_t maxTextureSize)
     CurrentTextureId = 0;
 
     int maxSize = maxTextureSize;
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
+    GL(glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize));
     // ::printf("(II) Max texture size: %d.\n", maxSize);
 
     TextureSizeLimit = std::min<uint32_t>(maxSize, maxTextureSize);
@@ -58,27 +71,29 @@ void cRenderer::shutdown()
     Npot = false;
     TextureSizeLimit = 1024;
     IsMipmapEnabled = false;
+
+    assert(GLStates.empty() == true);
 }
 
 void cRenderer::beginFrame()
 {
-    glEnable(GL_BLEND);
-    glEnable(GL_TEXTURE_2D);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
+    GL(glEnable(GL_BLEND));
+    GL(glEnable(GL_TEXTURE_2D));
+    GL(glDisable(GL_DEPTH_TEST));
+    GL(glDisable(GL_CULL_FACE));
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    GL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
+    GL(glClearColor(0, 0, 0, 0));
+    GL(glClear(GL_COLOR_BUFFER_BIT));
 
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    GL(glEnableClientState(GL_VERTEX_ARRAY));
+    GL(glEnableClientState(GL_COLOR_ARRAY));
+    GL(glEnableClientState(GL_TEXTURE_COORD_ARRAY));
 
-    glVertexPointer(2, GL_FLOAT, sizeof(sVertex), &Vb->x);
-    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(sVertex), &Vb->color);
-    glTexCoordPointer(2, GL_FLOAT, sizeof(sVertex), &Vb->tx);
+    GL(glVertexPointer(2, GL_FLOAT, sizeof(sVertex), &Vb->x));
+    GL(glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(sVertex), &Vb->color));
+    GL(glTexCoordPointer(2, GL_FLOAT, sizeof(sVertex), &Vb->tx));
 }
 
 void cRenderer::endFrame()
@@ -88,6 +103,42 @@ void cRenderer::endFrame()
 GLFWwindow* cRenderer::getWindow()
 {
     return Window;
+}
+
+void cRenderer::pushState()
+{
+    GLState state;
+    state.texture = cRenderer::getCurrentTexture(); // glGetIntegerv(GL_TEXTURE_BINDING_2D, &state.texture);
+
+    GL(glGetIntegerv(GL_POLYGON_MODE, state.polygon_mode));
+    GL(glGetIntegerv(GL_VIEWPORT, state.viewport));
+    GL(glGetIntegerv(GL_SCISSOR_BOX, state.scissor_box));
+    GL(glGetIntegerv(GL_SHADE_MODEL, &state.shade_model));
+    GL(glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &state.tex_env_mode));
+    GL(glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_TRANSFORM_BIT));
+
+    GLStates.push_back(state);
+    // ::printf("(II) Storing GL state. Stack size: %zu.\n", GLStates.size());
+}
+
+void cRenderer::popState()
+{
+    assert(GLStates.empty() == false);
+
+    auto& state = GLStates.back();
+
+    GL(glPopAttrib());
+    GL(glPolygonMode(GL_FRONT, (GLenum)state.polygon_mode[0]));
+    GL(glPolygonMode(GL_BACK, (GLenum)state.polygon_mode[1]));
+    GL(glViewport(state.viewport[0], state.viewport[1], (GLsizei)state.viewport[2], (GLsizei)state.viewport[3]));
+    GL(glScissor(state.scissor_box[0], state.scissor_box[1], (GLsizei)state.scissor_box[2], (GLsizei)state.scissor_box[3]));
+    GL(glShadeModel(state.shade_model));
+    GL(glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, state.tex_env_mode));
+
+    bindTexture((GLuint)state.texture);
+
+    GLStates.pop_back();
+    // ::printf("(II) Restoring GL state. Stack size: %zu.\n", GLStates.size());
 }
 
 void cRenderer::enableMipmap(bool enable)
@@ -108,18 +159,18 @@ void cRenderer::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h,
     {
         if (isMipmapEnabled())
         {
-            glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
-            glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            GL(glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST));
+            GL(glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE));
+            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
         }
         else
         {
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
         }
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
         // std::cout << "creating " << tw << " x " << th << " texture" << std::endl;
         GLenum type = 0;
@@ -157,16 +208,15 @@ void cRenderer::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h,
             type = GL_UNSIGNED_BYTE;
         }
 
-        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, format, type, data);
-        glCheckError("setData");
+        GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
+        GL(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, format, type, data));
     }
 }
 
 GLuint cRenderer::createTexture()
 {
     GLuint tex = 0;
-    glGenTextures(1, &tex);
-    glCheckError("createTexture");
+    GL(glGenTextures(1, &tex));
 
     return tex;
 }
@@ -189,7 +239,12 @@ void cRenderer::deleteTexture(GLuint tex)
     {
         bindTexture(0);
     }
-    glDeleteTextures(1, &tex);
+    GL(glDeleteTextures(1, &tex));
+}
+
+GLuint cRenderer::getCurrentTexture()
+{
+    return CurrentTextureId;
 }
 
 void cRenderer::bindTexture(GLuint tex)
@@ -197,7 +252,7 @@ void cRenderer::bindTexture(GLuint tex)
     if (CurrentTextureId != tex)
     {
         CurrentTextureId = tex;
-        glBindTexture(GL_TEXTURE_2D, CurrentTextureId);
+        GL(glBindTexture(GL_TEXTURE_2D, tex));
     }
 }
 
@@ -232,7 +287,7 @@ void cRenderer::render(const sLine& line)
     Vb[0] = line.v[0];
     Vb[1] = line.v[1];
 
-    glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, Ib);
+    GL(glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, Ib));
 }
 
 void cRenderer::render(const sQuad& quad)
@@ -244,7 +299,7 @@ void cRenderer::render(const sQuad& quad)
     Vb[2] = quad.v[2];
     Vb[3] = quad.v[3];
 
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, Ib);
+    GL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, Ib));
 }
 
 const Vectori& cRenderer::getViewportSize()
@@ -254,7 +309,7 @@ const Vectori& cRenderer::getViewportSize()
 
 void cRenderer::setViewportSize(const Vectori& size)
 {
-    glViewport(0, 0, (GLsizei)size.x, (GLsizei)size.y);
+    GL(glViewport(0, 0, (GLsizei)size.x, (GLsizei)size.y));
     ViewportSize = size;
 }
 
@@ -263,16 +318,16 @@ void cRenderer::resetGlobals()
     ViewRect = { { 0.0f, 0.0f }, { (float)ViewportSize.x, (float)ViewportSize.y } };
     ViewZoom = 1.0f;
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(
+    GL(glMatrixMode(GL_PROJECTION));
+    GL(glLoadIdentity());
+    GL(glOrtho(
         0.0f,
         0.0f + ViewportSize.x,
         0.0f + ViewportSize.y,
         0.0f,
-        -1.0f, 1.0f);
+        -1.0f, 1.0f));
 
-    glRotatef(0.0f, 0.0f, 0.0f, -1.0f);
+    GL(glRotatef(0.0f, 0.0f, 0.0f, -1.0f));
 }
 
 const Rectf& cRenderer::getRect()
@@ -303,14 +358,14 @@ void cRenderer::setGlobals(const Vectorf& offset, int angle, float zoom)
     ViewZoom = zoom;
     ViewAngle = angle;
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(
+    GL(glMatrixMode(GL_PROJECTION));
+    GL(glLoadIdentity());
+    GL(glOrtho(
         x,
         x + w,
         y + h,
         y,
-        -1.0f, 1.0f);
+        -1.0f, 1.0f));
 
-    glRotatef((float)angle, 0.0f, 0.0f, -1.0f);
+    GL(glRotatef((float)angle, 0.0f, 0.0f, -1.0f));
 }

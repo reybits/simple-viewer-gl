@@ -13,8 +13,8 @@
 
 namespace
 {
-    const ImVec4 keyColor{ 1.0f, 1.0f, 0.5, 1.0f };
-    const ImVec4 descriptionColor{ 1.0f, 1.0f, 1.0f, 1.0f };
+    const ImVec4 ColorKey{ 1.0f, 1.0f, 0.5, 1.0f };
+    const ImVec4 ColorDesc{ 1.0f, 1.0f, 1.0f, 1.0f };
 
     struct KeyBinding
     {
@@ -42,35 +42,23 @@ namespace
         { "<p>", "hide / show pixel info" },
         { "<b>", "hide / show border around image" },
     };
-}
+
+} // namespace
 
 void cHelpPopup::render()
 {
     if (m_isVisible)
     {
-        const int flags = ImGuiWindowFlags_NoCollapse
-            | ImGuiWindowFlags_AlwaysAutoResize
-            | ImGuiWindowFlags_NoSavedSettings;
-
-        ImGui::SetNextWindowPos({ 0.0f, 0.0f }, ImGuiCond_Appearing, { 0.5f, 0.5f });
+        constexpr auto flags = ImGuiWindowFlags_NoCollapse
+            | ImGuiWindowFlags_AlwaysAutoResize;
         if (ImGui::Begin("Help", nullptr, flags))
         {
-            // ImGui::Columns(2);
-
-            // ImGui::TextColored(keyColor, "Key");
-            // ImGui::NextColumn();
-            // ImGui::TextColored(descriptionColor, "Description");
-            // ImGui::Separator();
-            // ImGui::NextColumn();
-
             for (const auto& s : KeyBindingsList)
             {
-                ImGui::TextColored(keyColor, "%s", s.key);
-                // ImGui::NextColumn();
+                ImGui::TextColored(ColorKey, "%s", s.key);
                 ImGui::SameLine(120.0f);
                 ImGui::Bullet();
-                ImGui::TextColored(descriptionColor, "%s", s.description);
-                // ImGui::NextColumn();
+                ImGui::TextColored(ColorDesc, "%s", s.description);
             }
         }
         ImGui::End();

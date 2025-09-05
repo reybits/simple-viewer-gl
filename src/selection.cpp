@@ -26,7 +26,7 @@ namespace
     const uint32_t m_cellSize = 8;
     const uint32_t m_texSize = m_cellSize * 2;
 
-}
+} // namespace
 
 void cSelection::init()
 {
@@ -52,8 +52,8 @@ void cSelection::init()
         }
 
         m_vert.reset(new cQuad(m_cellSize, m_texSize, buffer.data(), GL_LUMINANCE));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
         m_vert->useFilter(false);
     }
 
@@ -76,8 +76,8 @@ void cSelection::init()
         }
 
         m_hori.reset(new cQuad(m_texSize, m_cellSize, buffer.data(), GL_LUMINANCE));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
         m_hori->useFilter(false);
     }
 }
@@ -96,7 +96,7 @@ void cSelection::updateTestRect(float scale)
     {
         m_rc.normalize();
         auto& rc = m_rc;
-        const Vectorf d { delta2 / scale, delta2 / scale };
+        const Vectorf d{ delta2 / scale, delta2 / scale };
         m_rcTest.set(rc.tl - d, rc.br + d);
     }
 }
@@ -289,13 +289,12 @@ const Rectf& cSelection::getRect() const
 
 int cSelection::getCursor() const
 {
-    static const int cursor[16 + 1] =
-    {
-        //                                 1  1  1  1  1
-        //0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    static const int cursor[16 + 1] = {
+        //                                  1  1  1  1  1
+        // 0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
         0, 3, 2, 5, 3, 0, 4, 2, 2, 4, 0, 3, 5, 2, 3, 1, 1
     };
-    //printf("corner: %u , cursor: %d\n", m_corner, cursor[m_corner]);
+    // printf("corner: %u , cursor: %d\n", m_corner, cursor[m_corner]);
     return cursor[m_corner];
 }
 

@@ -33,7 +33,7 @@ namespace
                version::getMajor(),
                version::getMinor(),
                version::getRelease());
-        printf("Copyright © 2008-2024 Andrey A. Ugolnik. All Rights Reserved.\n");
+        printf("Copyright © 2008-2025 Andrey A. Ugolnik. All Rights Reserved.\n");
         printf("https://www.ugolnik.info\n");
         printf("andrey@ugolnik.info\n");
     }

@@ -63,9 +63,6 @@
 ; background cell size (power of two, default: 16)
 ;background_cell_size = 16
 
-; font ratio (default 0.5)
-;font_ratio = 0.5
-
 ; shift image step in pixels / percents (default: 10 / 50%)
 ;shift_in_pixels = 10.0
 ;shift_in_percent = 0.5

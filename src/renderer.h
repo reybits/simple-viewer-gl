@@ -42,12 +42,16 @@ public:
 
     static GLFWwindow* getWindow();
 
+    static void pushState();
+    static void popState();
+
     static void enableMipmap(bool enable);
     static bool isMipmapEnabled();
 
     static GLuint createTexture();
     static void setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format);
     static void deleteTexture(GLuint tex);
+    static GLuint getCurrentTexture();
     static void bindTexture(GLuint tex);
 
     static uint32_t calculateTextureSize(uint32_t size);
@@ -73,4 +77,15 @@ public:
     static bool checkError(const char* msg, const char* file, int line);
 };
 
-#define glCheckError(msg) cRenderer::checkError(msg, __FILE__, __LINE__)
+#define glCheckError(msg)                               \
+    do                                                  \
+    {                                                   \
+        cRenderer::checkError(msg, __FILE__, __LINE__); \
+    } while (0)
+
+#define GL(glFunction)                                          \
+    do                                                          \
+    {                                                           \
+        glFunction;                                             \
+        cRenderer::checkError(#glFunction, __FILE__, __LINE__); \
+    } while (0)

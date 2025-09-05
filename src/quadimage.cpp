@@ -9,11 +9,9 @@
 
 #include "quadimage.h"
 #include "common/helpers.h"
-#include "imageborder.h"
 #include "quad.h"
 
 #include <cassert>
-#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -38,7 +36,7 @@ void cQuadImage::clear()
     m_height = 0;
     m_pitch = 0;
     m_format = 0;
-    m_bpp = 0;
+    m_bitsPerPixel = 0;
     m_image = nullptr;
 
     clearOld();
@@ -70,8 +68,8 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint
     m_texPitch = helpers::calculatePitch(m_texWidth, bpp);
     // ::printf("(II) Textue pitch: %u.\n", m_texPitch);
 
-    m_cols = (uint32_t)::ceilf((float)width / m_texWidth);
-    m_rows = (uint32_t)::ceilf((float)height / m_texHeight);
+    m_cols = (width + m_texWidth - 1) / m_texWidth;
+    m_rows = (height + m_texHeight - 1) / m_texHeight;
     // ::printf("(II) Image size: %u x %u.\n", width, height);
     // ::printf("(II) Textures: %u (%u x %u) required\n", m_cols * m_rows, m_cols, m_rows);
 
@@ -81,7 +79,7 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint
     m_height = height;
     m_pitch = pitch;
     m_format = format;
-    m_bpp = bpp;
+    m_bitsPerPixel = bpp;
     m_image = image;
 
     m_buffer.resize(m_texPitch * m_texHeight);
@@ -104,7 +102,7 @@ bool cQuadImage::upload(uint32_t mipmapTextureSize)
 
     const uint32_t sx = col * m_texPitch;
     const uint32_t sy = row * m_texHeight;
-    const uint32_t dstPitch = helpers::calculatePitch(w, m_bpp);
+    const uint32_t dstPitch = helpers::calculatePitch(w, m_bitsPerPixel);
 
     auto out = m_buffer.data();
     const auto in = m_image;
@@ -121,7 +119,7 @@ bool cQuadImage::upload(uint32_t mipmapTextureSize)
         {
             ::printf("cols %u : col %u : w %u\n", m_cols, col, w);
             ::printf("rows %u : row %u : h %u\n", m_rows, row, h);
-            ::printf("out at line %u sx %u sy %u bpp: %u\n", y, sx, sy, m_bpp);
+            ::printf("out at line %u sx %u sy %u bpp: %u\n", y, sx, sy, m_bitsPerPixel);
             break;
         }
     }
@@ -168,7 +166,7 @@ bool cQuadImage::isUploading() const
 
 float cQuadImage::getProgress() const
 {
-    return m_chunks.size() / (float)(m_rows * m_cols);
+    return m_chunks.size() / static_cast<float>(m_rows * m_cols);
 }
 
 void cQuadImage::useFilter(bool filter)
@@ -190,8 +188,11 @@ bool cQuadImage::isInsideViewport(const sChunk& chunk, const Vectorf& pos) const
 
 void cQuadImage::render()
 {
-    const float halfWidth = ::ceilf(m_width * 0.5f);
-    const float halfHeight = ::ceilf(m_height * 0.5f);
+    // const float halfWidth = ::ceilf(m_width * 0.5f);
+    // const float halfHeight = ::ceilf(m_height * 0.5f);
+    // TODO: Check why ceilf() cause gaps between chunks.
+    const float halfWidth = static_cast<float>(m_width >> 1);
+    const float halfHeight = static_cast<float>(m_height >> 1);
     const float texWidth = m_texWidth;
     const float texHeight = m_texHeight;
 
@@ -199,8 +200,7 @@ void cQuadImage::render()
 
     for (const auto& chunk : m_chunksOld)
     {
-        const Vectorf pos
-        {
+        const Vectorf pos{
             chunk.col * texWidth - halfWidth,
             chunk.row * texHeight - halfHeight
         };
@@ -212,8 +212,7 @@ void cQuadImage::render()
 
     for (const auto& chunk : m_chunks)
     {
-        const Vectorf pos
-        {
+        const Vectorf pos{
             chunk.col * texWidth - halfWidth,
             chunk.row * texHeight - halfHeight
         };
@@ -276,19 +275,16 @@ void cQuadImage::moveToOld()
 {
     clearOld();
 
-    for (size_t i = 0, size = m_chunks.size(); i < size;)
+    for (size_t i = 0, size = m_chunks.size(); i < size; i++)
     {
-        const auto& chunk = m_chunks[i];
+        auto idx = size - i - 1;
+        const auto& chunk = m_chunks[idx];
         if (chunk.col >= m_cols || chunk.row >= m_rows)
         {
             // printf("removed: %u x %u\n", chunk.col, chunk.row);
             delete chunk.quad;
-            m_chunks[i] = m_chunks[--size];
+            m_chunks[idx] = m_chunks.back();
             m_chunks.pop_back();
-        }
-        else
-        {
-            i++;
         }
     }
 
@@ -302,11 +298,12 @@ cQuad* cQuadImage::findAndRemoveOld(uint32_t col, uint32_t row)
 
     for (size_t i = 0, size = m_chunksOld.size(); i < size; i++)
     {
-        const auto& chunk = m_chunksOld[i];
+        auto idx = size - i - 1;
+        const auto& chunk = m_chunksOld[idx];
         if (chunk.col == col && chunk.row == row)
         {
             quad = chunk.quad;
-            m_chunksOld[i] = m_chunksOld.back();
+            m_chunksOld[idx] = m_chunksOld.back();
             m_chunksOld.pop_back();
             break;
         }

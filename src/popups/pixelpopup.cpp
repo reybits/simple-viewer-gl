@@ -10,15 +10,16 @@
 #include "pixelpopup.h"
 #include "img-icons.c"
 #include "img-pointer-cross.c"
-#include "types/math.h"
 
 #include <cstring>
 
 namespace
 {
-    const ImVec4 GrayColor{ 0.6f, 0.6f, 0.6f, 1.0f };
-    const ImVec4 WhiteColor{ 1.0f, 1.0f, 1.0f, 1.0f };
-}
+    constexpr ImVec4 ColorTransparent{ 0.0f, 0.0f, 0.0f, 0.0f };
+    constexpr ImVec4 ColorGray{ 0.6f, 0.6f, 0.6f, 1.0f };
+    constexpr ImVec4 ColorWhite{ 1.0f, 1.0f, 1.0f, 1.0f };
+
+} // namespace
 
 void cPixelPopup::init()
 {
@@ -42,17 +43,17 @@ void cPixelPopup::setPixelInfo(const sPixelInfo& pi)
     m_info.clear();
 
     ::snprintf(buffer, sizeof(buffer), "%d x %d", (int)pi.point.x, (int)pi.point.y);
-    m_info.push_back({ Info::Icon::Position, isInside ? WhiteColor : GrayColor, buffer, {} });
+    m_info.push_back({ Info::Icon::Position, isInside ? ColorWhite : ColorGray, buffer, {} });
 
     if (isInside)
     {
         const auto& c = pi.color;
         ::snprintf(buffer, sizeof(buffer), "rgba %.2X %.2X %.2X %.2X", c.r, c.g, c.b, c.a);
-        m_info.push_back({ Info::Icon::Color, WhiteColor, buffer, {} });
+        m_info.push_back({ Info::Icon::Color, ColorWhite, buffer, {} });
     }
     else
     {
-        m_info.push_back({ Info::Icon::Color, GrayColor, "rgba - - - -", {} });
+        m_info.push_back({ Info::Icon::Color, ColorGray, "rgba - - - -", {} });
     }
 
     auto& rc = m_pixelInfo.rc;
@@ -65,10 +66,10 @@ void cPixelPopup::setPixelInfo(const sPixelInfo& pi)
         const int h = (int)rc.height();
 
         ::snprintf(buffer, sizeof(buffer), "%d x %d", w, h);
-        m_info.push_back({ Info::Icon::Size, WhiteColor, buffer, {} });
+        m_info.push_back({ Info::Icon::Size, ColorWhite, buffer, {} });
 
         ::snprintf(buffer, sizeof(buffer), "%d, %d -> %d, %d", x, y, x + w - 1, y + h - 1);
-        m_info.push_back({ Info::Icon::Rect, WhiteColor, buffer, {} });
+        m_info.push_back({ Info::Icon::Rect, ColorWhite, buffer, {} });
     }
 }
 
@@ -91,8 +92,8 @@ void cPixelPopup::setCursor(int cursor)
 void cPixelPopup::renderCursor()
 {
     auto& pointerSize = m_pointer->getSize();
-    const float x = ::roundf(m_pixelInfo.mouse.x - pointerSize.x * 0.5f);
-    const float y = ::roundf(m_pixelInfo.mouse.y - pointerSize.y * 0.5f);
+    const float x = std::round(m_pixelInfo.mouse.x - pointerSize.x * 0.5f);
+    const float y = std::round(m_pixelInfo.mouse.y - pointerSize.y * 0.5f);
     m_pointer->render({ x, y });
 }
 
@@ -126,7 +127,7 @@ void cPixelPopup::renderInfo()
         {
             m_icons->setFrame((uint32_t)s.icon);
             auto& quad = m_icons->getQuad();
-            ImGui::Image((void*)(uintptr_t)quad.tex, size, { quad.v[0].tx, quad.v[0].ty }, { quad.v[2].tx, quad.v[2].ty }, GrayColor);
+            ImGui::ImageWithBg((void*)(uintptr_t)quad.tex, size, { quad.v[0].tx, quad.v[0].ty }, { quad.v[2].tx, quad.v[2].ty }, ColorTransparent, ColorGray);
             ImGui::SameLine();
             ImGui::TextColored(s.color, "%s", s.text.c_str());
         }

@@ -13,12 +13,11 @@
 #include "imgui/imgui.h"
 #include "renderer.h"
 
-#include <cmath>
 #include <cstring>
 
 namespace
 {
-    const ImVec4 Color = { 1.0f, 1.0f, 0.0f, 1.0f };
+    const ImVec4 ColorYellow = { 1.0f, 1.0f, 0.0f, 1.0f };
 }
 
 cInfoBar::cInfoBar(const sConfig& config)
@@ -34,21 +33,21 @@ void cInfoBar::render()
 
     auto& s = ImGui::GetStyle();
     auto font = ImGui::GetFont();
-    const float h = s.WindowPadding.y * 2.0f + font->FontSize;
+    const float h = s.WindowPadding.y * 2.0f + font->LegacySize;
 
     ImGui::SetNextWindowPos({ 0.0f, height - h }, ImGuiCond_Always);
     ImGui::SetNextWindowSize({ (float)width, h }, ImGuiCond_Always);
-    const int flags = ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoScrollbar |
-        ImGuiWindowFlags_NoSavedSettings;
+    constexpr auto flags = ImGuiWindowFlags_NoTitleBar
+        | ImGuiWindowFlags_NoResize
+        | ImGuiWindowFlags_NoMove
+        | ImGuiWindowFlags_NoScrollbar
+        | ImGuiWindowFlags_NoSavedSettings;
 
     const auto oldRounding = s.WindowRounding;
     s.WindowRounding = 0.0f;
     if (ImGui::Begin("infobar", nullptr, flags))
     {
-        ImGui::TextColored(Color, "%s", m_bottominfo.c_str());
+        ImGui::TextColored(ColorYellow, "%s", m_bottominfo.c_str());
     }
     ImGui::End();
 
@@ -71,7 +70,7 @@ void cInfoBar::render()
         ImGui::SetNextWindowPos({ 0.0f, 0.0f }, ImGuiCond_Always);
         if (ImGui::Begin("debug", nullptr, flags | ImGuiWindowFlags_AlwaysAutoResize))
         {
-            ImGui::TextColored(Color, "fps: %.1f", fps);
+            ImGui::TextColored(ColorYellow, "fps: %.1f", fps);
         }
         ImGui::End();
     }

@@ -71,7 +71,7 @@ private:
     uint32_t m_height = 0;
     uint32_t m_pitch = 0;
     uint32_t m_format = 0;
-    uint32_t m_bpp = 0;
+    uint32_t m_bitsPerPixel = 0;
     const uint8_t* m_image = nullptr;
 
     std::vector<sChunk> m_chunks;

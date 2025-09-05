@@ -24,7 +24,6 @@
 #include "quadimage.h"
 #include "selection.h"
 
-#include "types/vector.h"
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
@@ -162,7 +161,10 @@ void cViewer::onRender()
 
     if (m_config.showPixelInfo && m_cursorInside && m_angle == 0)
     {
-        m_pixelPopup->render();
+        if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) == false)
+        {
+            m_pixelPopup->render();
+        }
     }
 
     m_helpPopup->render();
@@ -312,8 +314,9 @@ void cViewer::onMouse(const Vectorf& pos)
         }
     }
 
-    showCursor(m_config.showPixelInfo == false);
-    if (m_config.showPixelInfo)
+    auto isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
+    showCursor(isHovered || m_config.showPixelInfo == false);
+    if (m_config.showPixelInfo && isHovered == false)
     {
         const int cursor = m_selection->getCursor();
         m_pixelPopup->setCursor(cursor);
@@ -356,8 +359,9 @@ void cViewer::onMouseButtons(int button, int action, int /*mods*/)
     case GLFW_MOUSE_BUTTON_LEFT:
         m_mouseLB = (action == GLFW_PRESS);
         {
+            auto isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
             const Vectorf point = screenToImage(m_lastMouse);
-            m_selection->mouseButton(point, m_scale.getScale(), m_mouseLB);
+            m_selection->mouseButton(point, m_scale.getScale(), m_mouseLB && isHovered == false);
 
             auto& rect = m_selection->getRect();
             if (rect.isSet() == false)

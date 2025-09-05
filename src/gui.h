@@ -28,12 +28,7 @@ public:
     void onKey(int key, int scancode, int action);
     void onChar(uint32_t c);
 
-public:
-    void invalidateDeviceObjects();
-    bool createDeviceObjects();
-
 private:
     GLFWwindow* m_window = nullptr;
     double m_time = 0.0f;
-    uint32_t m_fontTexture = 0;
 };
