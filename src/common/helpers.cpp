@@ -86,19 +86,26 @@ namespace helpers
 
     uint32_t nextPot(uint32_t n)
     {
-        n = n - 1;
-        n = n | (n >> 1);
-        n = n | (n >> 2);
-        n = n | (n >> 4);
-        n = n | (n >> 8);
-        n = n | (n >> 16);
+        if (n <= 1)
+        {
+            return 1;
+        }
+
+        n--;
+        n |= n >> 1;
+        n |= n >> 2;
+        n |= n >> 4;
+        n |= n >> 8;
+        n |= n >> 16;
         return n + 1;
     }
 
-    uint32_t calculatePitch(uint32_t width, uint32_t bpp)
+    uint32_t calculatePitch(uint32_t width, uint32_t bitsPerPixel)
     {
         // texture pitch should be multiple by 4
-        return (uint32_t)::ceilf(width * (bpp / 8) / 4.0f) * 4;
+        auto bytesPerPixel = (bitsPerPixel + 7) / 8;
+        auto rawPitch = width * bytesPerPixel;
+        return (rawPitch + 3) & ~3u;
     }
 
     uint64_t getTime()

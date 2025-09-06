@@ -47,7 +47,7 @@ namespace helpers
     }
 
     uint32_t nextPot(uint32_t n);
-    uint32_t calculatePitch(uint32_t width, uint32_t bpp);
+    uint32_t calculatePitch(uint32_t width, uint32_t bitsPerPixel);
 
     uint64_t getTime();
 
