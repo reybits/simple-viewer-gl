@@ -246,7 +246,8 @@ void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
 
     if (m_isWindowed)
     {
-        m_config.windowSize = winSize;
+        m_config.windowSize.x = std::max(DefaultWindowSize.x, winSize.x);
+        m_config.windowSize.y = std::max(DefaultWindowSize.y, winSize.y);
 
         if (helpers::getPlatform() != helpers::Platform::Wayland)
         {
@@ -491,7 +492,19 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
         break;
 
     case GLFW_KEY_C:
-        m_config.backgroundIndex = (m_config.backgroundIndex + 1) % 5;
+        if (mods & GLFW_MOD_SHIFT)
+        {
+            m_config.centerWindow = !m_config.centerWindow;
+            if (m_config.centerWindow)
+            {
+                m_scale.setScalePercent(100);
+                centerWindow();
+            }
+        }
+        else
+        {
+            m_config.backgroundIndex = (m_config.backgroundIndex + 1) % 5;
+        }
         break;
 
     case GLFW_KEY_ENTER:
@@ -725,36 +738,40 @@ void cViewer::centerWindow()
 
     if (m_isWindowed)
     {
-        if (m_config.centerWindow)
+        if (helpers::getPlatform() != helpers::Platform::Wayland)
         {
-            // calculate window size
-            int imgw = m_image->getWidth() + (m_config.showImageBorder ? m_border->getThickness() * 2 : 0);
-            int imgh = m_image->getHeight() + (m_config.showImageBorder ? m_border->getThickness() * 2 : 0);
-            imgw = std::max<int>(imgw / m_ratio.x, std::max<int>(m_config.windowSize.w, DefaultWindowSize.w));
-            imgh = std::max<int>(imgh / m_ratio.y, std::max<int>(m_config.windowSize.h, DefaultWindowSize.h));
+            auto width = m_config.windowSize.w;
+            auto height = m_config.windowSize.h;
 
-            auto monitor = glfwGetPrimaryMonitor();
-            auto mode = glfwGetVideoMode(monitor);
-
-            const int width = m_fitImage
-                ? m_config.windowSize.w
-                : std::min<int>(imgw, mode->width);
-            const int height = m_fitImage
-                ? m_config.windowSize.h
-                : std::min<int>(imgh, mode->height);
-
-            // calculate window position
-            const int x = (mode->width - width) / 2;
-            const int y = (mode->height - height) / 2;
-
-            if (helpers::getPlatform() != helpers::Platform::Wayland)
+            if (m_config.centerWindow)
             {
-                glfwSetWindowSize(window, width, height);
+                auto monitor = glfwGetPrimaryMonitor();
+                auto mode = glfwGetVideoMode(monitor);
+
+                // calculate image size with border
+                auto tickness = m_config.showImageBorder
+                    ? m_border->getThickness() * 2
+                    : 0;
+                auto imgw = (m_image->getWidth() + tickness);
+                auto imgh = (m_image->getHeight() + tickness);
+
+                width = std::max<int>(imgw / m_ratio.x, DefaultWindowSize.w);
+                height = std::max<int>(imgh / m_ratio.y, DefaultWindowSize.h);
+
+                // clamp to screen size and store window size
+                width = std::min<int>(width, mode->width);
+                height = std::min<int>(height, mode->height);
+
+                // calculate and store window position
+                auto x = (mode->width - width) / 2;
+                auto y = (mode->height - height) / 2;
+                m_config.windowPos = { x, y };
                 glfwSetWindowPos(window, x, y);
+
+                m_config.windowSize = { width, height };
             }
 
-            m_config.windowSize = { width, height };
-            m_config.windowPos = { x, y };
+            glfwSetWindowSize(window, width, height);
         }
 
         calculateScale();

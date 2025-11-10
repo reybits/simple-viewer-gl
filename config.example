@@ -46,6 +46,9 @@
 ; lookup for images in subfolder recursively on startup (default: false)
 ;lookup_recursive = false
 
+; center window on image loading (default: false)
+; center_window = false
+
 ; enables zooming using the mouse wheel (default on macOS: false, true otherwise).
 ;wheel_zoom = true
 
