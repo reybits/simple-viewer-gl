@@ -87,7 +87,12 @@ private:
     void loadImage(const char* path);
     void loadSubImage(int subStep);
     void calculateScale();
-    void updateScale(bool up);
+    enum class ScaleDirection
+    {
+        Up,
+        Down,
+    };
+    void updateScale(ScaleDirection direction);
     void updateFiltering();
     void updateInfobar();
     void updatePixelInfo(const Vectorf& pos);

@@ -339,7 +339,9 @@ void cViewer::onMouseScroll(const Vectorf& offset)
 
     if (m_config.wheelZoom)
     {
-        updateScale(offset.y > 0.0f);
+        updateScale(offset.y > 0.0f
+                        ? ScaleDirection::Up
+                        : ScaleDirection::Down);
     }
     else
     {
@@ -480,12 +482,12 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
 
     case GLFW_KEY_EQUAL:
     case GLFW_KEY_KP_ADD:
-        updateScale(true);
+        updateScale(ScaleDirection::Up);
         break;
 
     case GLFW_KEY_MINUS:
     case GLFW_KEY_KP_SUBTRACT:
-        updateScale(false);
+        updateScale(ScaleDirection::Down);
         break;
 
     case GLFW_KEY_C:
@@ -676,20 +678,20 @@ void cViewer::calculateScale()
     updateFiltering();
 }
 
-// TODO update m_camera_x / m_camera_y according current mouse position
-void cViewer::updateScale(bool up)
+// TODO: update m_camera_x / m_camera_y according current mouse position
+void cViewer::updateScale(ScaleDirection direction)
 {
     m_fitImage = false;
 
     int scale = m_scale.getScalePercent();
 
-    if (up == true)
+    if (direction == ScaleDirection::Up)
     {
         const int step = scale >= 100 ? 25 : (scale >= 50 ? 10 : (scale >= 30 ? 5 : 1));
         FixeScale(scale, step);
         scale += step;
     }
-    else
+    else if (direction == ScaleDirection::Down)
     {
         const int step = scale > 100 ? 25 : (scale > 50 ? 10 : (scale > 30 ? 5 : 1));
         if (FixeScale(scale, step) == false && scale > step)
@@ -697,6 +699,7 @@ void cViewer::updateScale(bool up)
             scale -= step;
         }
     }
+
     m_scale.setScalePercent(scale);
 
     updateFiltering();
