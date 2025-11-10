@@ -69,6 +69,7 @@ Hotkey                    | Action
 `<pgup>` / `<bgdn>`       | previous /next subimage
 `<s>`                     | fit image to window
 `<shift>` + `<s>`         | toggle 'keep scale' on image load
+`<shift>` + `<c>`         | toggle 'center image' mode
 `<c>`                     | hide / show chequerboard
 `<i>`                     | hide / show on-screen info
 `<e>`                     | hide / show exif
