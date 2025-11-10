@@ -3,7 +3,6 @@
 ; Default paths:
 ; - "$XDG_CONFIG_HOME/sviewgl/config"
 ; - "$HOME/.config/sviewgl/config"
-; - "$HOME/Library/Application Support/sviewgl/config" (macOS only)
 
 ; true values are: true, enable, 1
 ; all other treats as false

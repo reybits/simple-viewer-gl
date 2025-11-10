@@ -98,7 +98,6 @@ namespace
     {
         XDG,
         HOME,
-        MACOS
     };
 
     std::string makeProfilePath(const char* name, Location location)
@@ -117,12 +116,6 @@ namespace
         {
             path = strfmt("%s/.sviewgl/%s", ::getenv("HOME"), name);
         }
-#if defined(__APPLE__)
-        else if (location == Location::MACOS)
-        {
-            path = strfmt("%s/Library/Application Support/sviewgl/%s", ::getenv("HOME"), name);
-        }
-#endif
 
         return path;
     }
@@ -131,10 +124,9 @@ namespace
 
 cConfig::cConfig()
 {
-    static const Location Locations[] = {
+    static constexpr Location Locations[] = {
         Location::XDG,
         Location::HOME,
-        Location::MACOS
     };
 
     for (auto location : Locations)
