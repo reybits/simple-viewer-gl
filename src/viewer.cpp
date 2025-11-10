@@ -192,7 +192,7 @@ void cViewer::onUpdate()
             {
                 m_scale.setScalePercent(100);
                 m_angle = 0;
-                m_camera = { 0.0f, 0.0f };
+                m_camera = Vectorf();
             }
 
             m_selection->setImageDimension(desc.width, desc.height);
@@ -559,7 +559,7 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
         if (key == GLFW_KEY_0)
         {
             m_scale.setScalePercent(1000);
-            m_camera = { 0.0f, 0.0f };
+            m_camera = Vectorf();
             m_fitImage = false;
             centerWindow();
             updateInfobar();
@@ -567,7 +567,7 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
         else if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9)
         {
             m_scale.setScalePercent((key - GLFW_KEY_0) * 100);
-            m_camera = { 0.0f, 0.0f };
+            m_camera = Vectorf();
             m_fitImage = false;
             centerWindow();
             updateInfobar();
