@@ -191,8 +191,8 @@ void cQuadImage::render()
     // const float halfWidth = ::ceilf(m_width * 0.5f);
     // const float halfHeight = ::ceilf(m_height * 0.5f);
     // TODO: Check why ceilf() cause gaps between chunks.
-    const float halfWidth = static_cast<float>(m_width >> 1);
-    const float halfHeight = static_cast<float>(m_height >> 1);
+    const float halfWidth = static_cast<float>((m_width + 1) >> 1);
+    const float halfHeight = static_cast<float>((m_height + 1) >> 1);
     const float texWidth = m_texWidth;
     const float texHeight = m_texHeight;
 
