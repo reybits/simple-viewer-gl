@@ -17,8 +17,10 @@
 
 namespace
 {
-    const ImVec4 ColorYellow = { 1.0f, 1.0f, 0.0f, 1.0f };
-}
+    constexpr ImVec4 ColorCenter = { 0.1f, 1.0f, 0.1f, 1.0f };
+    constexpr ImVec4 ColorYellow = { 1.0f, 1.0f, 0.0f, 1.0f };
+
+} // namespace
 
 cInfoBar::cInfoBar(const sConfig& config)
     : m_config(config)
@@ -47,7 +49,10 @@ void cInfoBar::render()
     s.WindowRounding = 0.0f;
     if (ImGui::Begin("infobar", nullptr, flags))
     {
-        ImGui::TextColored(ColorYellow, "%s", m_bottominfo.c_str());
+        auto color = m_config.centerWindow
+            ? ColorCenter
+            : ColorYellow;
+        ImGui::TextColored(color, "%s", m_bottominfo.c_str());
     }
     ImGui::End();
 

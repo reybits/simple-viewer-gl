@@ -4,7 +4,7 @@
 
 ![Simple Viewer GL](https://raw.githubusercontent.com/reybits/simple-viewer-gl/master/res/Featured-1024x500.png)
 
-***
+---
 
 ![GitHub Release](https://img.shields.io/github/v/release/reybits/simple-viewer-gl)
 ![GitHub commits since latest release (development)](https://img.shields.io/github/commits-since/reybits/simple-viewer-gl/latest/development)
@@ -17,35 +17,44 @@ The primary goal of **Simple Viewer GL** is to provide a fast, efficient image v
 
 Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photoshop), **AI** (Adobe Illustrator), **EPS**, **XCF** (GIMP), **GIF**, **SVG**, **TIFF**, **TARGA**, **ICO**, **ICNS** (Apple Icon Image), **BMP**, **PNM**, **DDS**, **XWD**, **SCR** (ZX-Spectrum screen), **XPM**, **WebP**, **OpenEXR**, and many more.
 
-***
+---
+
 ## Screenshots
 
 ![Simple Viewer GL on macOS with Pixel Info](https://raw.githubusercontent.com/reybits/simple-viewer-gl/master/res/Screenshot-PixelInfo.png "Simple Viewer GL")
 ![Simple Viewer GL on macOS with EXIF](https://raw.githubusercontent.com/reybits/simple-viewer-gl/master/res/Screenshot-EXIF.png "Simple Viewer GL")
 
-***
+---
+
 ## Features
 
-- [x] Lightweight and fast: utilize hardware-accelerated video card;
-- [x] Support embedded ICC profiles;
-- [x] GIF animation support;
-- [x] GIMP XCF support;
-- [x] Adobe PSD format support;
-- [x] Adobe AI, EPS formats preview support;
-- [x] SVG format support;
-- [x] Exif support;
-- [x] Very simple interface;
-- [x] Suitable for default image viewer for the desktops and laptops;
-- [x] Minimal lib dependency: look library requirements below;
-- [x] Desktop independent: doesn't require any specific desktop environment;
-- [x] Open source, licensed under GNU GPL;
+- Lightweight and fast: utilize hardware-accelerated video card;
+- Support embedded ICC profiles;
+- GIF animation support;
+- GIMP XCF support;
+- Adobe PSD format support;
+- Adobe AI, EPS formats preview support;
+- SVG format support;
+- Exif support;
+- Very simple interface;
+- Suitable for default image viewer for the desktops and laptops;
+- Minimal lib dependency: look library requirements below;
+- Desktop independent: doesn't require any specific desktop environment;
+- Open source, licensed under GNU GPL;
 
-***
+---
+
 ## Usage
 
 **Simple Viewer GL** offers two modes: Image Viewer and Image Info mode. By default, it opens in Image Viewer mode, displaying only the current image. In Image Info mode, additional features such as pixel information and rectangular selection are available, making it useful for quickly reviewing image details and metadata.
 
-***
+### Statusbar
+
+- **Yellow** statusbar indicates the default mode.
+- **Green** statusbar indicates the mode where the image viewer resizes its window to the content size and centers itself on the screen.
+
+---
+
 ## Key bindings
 
 Hotkey                    | Action
@@ -78,7 +87,8 @@ Hotkey                    | Action
 `<g>`                     | hide / show image grid
 `<?>`                     | hide / show keybindings popup
 
-***
+---
+
 ## Download and build from sources
 
 You can browse the source code repository on GitHub or get a copy using git with the following command:
@@ -93,7 +103,8 @@ make release
 [Slackbuild by](https://github.com/saahriktu/saahriktu-slackbuilds/tree/master/simple-viewer-gl) [saahriktu](https://www.linux.org.ru/people/saahriktu/profile).
 [Gentoo ebuild by](https://gogs.lumi.pw/mike/portage/src/master/media-gfx/simpleviewer-gl) [imul](https://www.linux.org.ru/people/imul/profile)
 
-***
+---
+
 ## Make DEB package
 
 Update and install required dependencies:
@@ -114,7 +125,8 @@ make deb
 
 > You can purge installed packages with `apt-get purge PACKAGE_NAME && apt-get autoremove`
 
-***
+---
+
 ## Make RPM package
 
 Update and install required dependencies:
@@ -131,7 +143,8 @@ cd simple-viewer-gl
 sudo make rpm
 ```
 
-***
+---
+
 ## Dependencies
 
 Name     | Debian package       | Description / Notes
@@ -148,9 +161,9 @@ OpenJPEG | libopenjp2-7-dev     | (optional) JPEG 2000 support.
 curl     | libcurl4-openssl-dev | (optional) Support loading via http/https/ftp protocols.
 
 ```
-Copyright © 2008-2024 Andrey A. Ugolnik. All Rights Reserved.
-https://www.ugolnik.info
-andrey@ugolnik.info
+Copyright © 2008-2025 Andrey A. Ugolnik. All Rights Reserved.
+https://github.com/reybits
+and@reybits.dev
 
 Icon was created by
 Iryna Poliakova (Iryna.poliakova@icloud.com).
