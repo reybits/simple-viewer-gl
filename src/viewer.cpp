@@ -429,8 +429,7 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
         else
         {
             m_config.fitImage = !m_config.fitImage;
-            m_fitImage = m_config.fitImage;
-            if (m_fitImage == false)
+            if (m_config.fitImage == false)
             {
                 m_scale.setScalePercent(100);
             }
@@ -497,7 +496,7 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
             m_config.centerWindow = !m_config.centerWindow;
             if (m_config.centerWindow)
             {
-                m_scale.setScalePercent(100);
+                // m_scale.setScalePercent(100);
                 centerWindow();
             }
         }
@@ -560,7 +559,7 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
         {
             m_scale.setScalePercent(1000);
             m_camera = Vectorf();
-            m_fitImage = false;
+            m_config.fitImage = false;
             centerWindow();
             updateInfobar();
         }
@@ -568,7 +567,7 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
         {
             m_scale.setScalePercent((key - GLFW_KEY_0) * 100);
             m_camera = Vectorf();
-            m_fitImage = false;
+            m_config.fitImage = false;
             centerWindow();
             updateInfobar();
         }
@@ -642,7 +641,7 @@ void cViewer::shiftCamera(const Vectorf& delta)
 
 void cViewer::calculateScale()
 {
-    if (m_fitImage && m_loader->isLoaded())
+    if (m_config.fitImage && m_loader->isLoaded())
     {
         float w = static_cast<float>(m_image->getWidth());
         float h = static_cast<float>(m_image->getHeight());
@@ -694,7 +693,7 @@ void cViewer::calculateScale()
 // TODO: update m_camera_x / m_camera_y according current mouse position
 void cViewer::updateScale(ScaleDirection direction)
 {
-    m_fitImage = false;
+    m_config.fitImage = false;
 
     int scale = m_scale.getScalePercent();
 
@@ -752,8 +751,9 @@ void cViewer::centerWindow()
                 auto tickness = m_config.showImageBorder
                     ? m_border->getThickness() * 2
                     : 0;
-                auto imgw = (m_image->getWidth() + tickness);
-                auto imgh = (m_image->getHeight() + tickness);
+                auto scale = m_scale.getScale();
+                auto imgw = (m_image->getWidth() * scale + tickness);
+                auto imgh = (m_image->getHeight() * scale + tickness);
 
                 width = std::max<int>(imgw / m_ratio.x, DefaultWindowSize.w);
                 height = std::max<int>(imgh / m_ratio.y, DefaultWindowSize.h);
@@ -798,7 +798,7 @@ void cViewer::loadImage(int step)
 
 void cViewer::loadImage(const char* path)
 {
-    m_fitImage = m_config.keepScale
+    m_config.fitImage = m_config.keepScale
         ? false
         : m_config.fitImage;
 
