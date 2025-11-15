@@ -1,75 +1,75 @@
-; Example Simple Viewer GL configuration file.
+; Example configuration file for Simple Viewer GL.
 ;
-; Default paths:
+; Default configuration file locations:
 ; - "$XDG_CONFIG_HOME/sviewgl/config"
 ; - "$HOME/.config/sviewgl/config"
-
-; true values are: true, enable, 1
-; all other treats as false
+;
+; valid true values: true, enable, 1
+; all other values are treated as false
 
 [common]
 
-; class name (default: sviewgl)
+; application window class name (default: sviewgl)
 ;class_name = "sviewgl"
 
-; show or hide bottom infobar (default: false)
+; show or hide the bottom info bar (default: false)
 ;hide_infobar = false
 
-; show or hide pixel info (default: false)
+; show or hide pixel information (default: false)
 ;show_pixelinfo = false
 
-; show or hide Exif info (default: false)
+; show or hide Exif information (default: false)
 ;show_exif = false
 
 ; background index (default: 0)
 ; 0 - checkerboard
-; 1 - user defined color
+; 1 - user-defined color
 ; 2 - red
 ; 3 - green
 ; 4 - blue
 ;background_index = 0
 
-; color of user defined background (background_index = 1)
+; user-defined background color (used when background_index = 1)
 ;background_r = 90
 ;background_g = 90
 ;background_b = 90
 
-; fit lage image in to window preserving aspect ration (default: false)
+; fit large images to the window while preserving aspect ratio (default: false)
 ;fit_image = false
 
-; start viewer in fullscreen mode on startup (default: false)
+; start the viewer in fullscreen mode (default: false)
 ;full_screen = false
 
-; show or hide border around of image (default: false)
+; show or hide a border around the image (default: false)
 ;show_image_border = false
 
-; lookup for images in subfolder recursively on startup (default: false)
+; search for images in subfolders recursively on startup (default: false)
 ;lookup_recursive = false
 
-; center window on image loading (default: false)
-; center_window = false
+; center the window when loading an image (default: false)
+;center_window = false
 
-; enables zooming using the mouse wheel (default on macOS: false, true otherwise).
+; enable zooming with the mouse wheel (default on macOS: false, true otherwise)
 ;wheel_zoom = true
 
-; pan ratio (default 10.0)
+; pan ratio (default: 10.0)
 ; only valid if wheel_zoom is false
 ;pan_ratio = 10.0
 
-; minimum texture size to create mipmap levels (default: 4096)
+; minimum texture size for generating mipmap levels (default: 4096)
 ;mipmap_texture_size = 4096
 
-; set maximum file name length in infobar (default: 100)
+; maximum file name length displayed in the info bar (default: 100)
 ;file_max_length = 100
 
-; background cell size (power of two, default: 16)
+; background cell size (must be a power of two, default: 16)
 ;background_cell_size = 16
 
-; shift image step in pixels / percents (default: 10 / 50%)
+; image shift step in pixels / percent (default: 10 / 50%)
 ;shift_in_pixels = 10.0
 ;shift_in_percent = 0.5
 
-; minimal SVG image dimension (default: 256)
+; minimum SVG image dimension (default: 256)
 ;minSvgSize = 256.0
 
 [position]
