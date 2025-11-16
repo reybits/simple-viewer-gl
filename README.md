@@ -64,6 +64,7 @@ Hotkey                    | Action
 `<backspace>`             | previous image
 `<home>`                  | first file in list
 `<end>`                   | last file in list
+`<o>`                     | open file dialog
 `<+>` / `<->`             | scale image
 `<1>`...`<0>`             | set scale from 100% to 1000%
 `<enter>`                 | switch fullscreen / windowed mode
