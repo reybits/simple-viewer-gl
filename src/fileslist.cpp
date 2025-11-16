@@ -80,7 +80,13 @@ void cFilesList::addFile(const char* path)
 
     if (isValidExt(path) == true)
     {
-        m_files.push_back({ false, path });
+        auto it = std::find_if(m_files.begin(), m_files.end(), [path](const sFile& file) {
+            return file.path == path;
+        });
+        if (it == m_files.end())
+        {
+            m_files.push_back({ false, path });
+        }
     }
     else if (m_files.size() == 0)
     {
