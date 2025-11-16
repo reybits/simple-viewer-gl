@@ -16,6 +16,7 @@
 #include "imageborder.h"
 #include "imagegrid.h"
 #include "imageloader.h"
+#include "popups/FileBrowser.h"
 #include "popups/exifpopup.h"
 #include "popups/helppopup.h"
 #include "popups/infobar.h"
@@ -61,6 +62,7 @@ cViewer::cViewer(sConfig& config)
     m_grid.reset(new cImageGrid());
     m_selection.reset(new cSelection());
     m_filesList.reset(new cFilesList(config.skipFilter, config.recursiveScan));
+    m_fileSelector.reset(new cFileBrowser());
 }
 
 cViewer::~cViewer()
@@ -124,8 +126,8 @@ void cViewer::onRender()
 
     m_image->render();
 
-    const float half_w = ::roundf(m_image->getWidth() * 0.5f);
-    const float half_h = ::roundf(m_image->getHeight() * 0.5f);
+    const auto half_w = static_cast<float>((m_image->getWidth() + 1) >> 1u);
+    const auto half_h = static_cast<float>((m_image->getHeight() + 1) >> 1u);
 
     if (m_loader->isLoaded())
     {
@@ -166,6 +168,8 @@ void cViewer::onRender()
             m_pixelPopup->render();
         }
     }
+
+    m_fileSelector->render();
 
     m_helpPopup->render();
 
@@ -244,10 +248,12 @@ void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
 
     auto window = cRenderer::getWindow();
 
+    auto width = std::max(DefaultWindowSize.x, winSize.x);
+    auto height = std::max(DefaultWindowSize.y, winSize.y);
+
     if (m_isWindowed)
     {
-        m_config.windowSize.x = std::max(DefaultWindowSize.x, winSize.x);
-        m_config.windowSize.y = std::max(DefaultWindowSize.y, winSize.y);
+        m_config.windowSize = { width, height };
 
         if (helpers::getPlatform() != helpers::Platform::Wayland)
         {
@@ -263,6 +269,8 @@ void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
     // m_exifPopup->setScale(scale);
     // m_helpPopup->setScale(scale);
     // m_infoBar->setScale(scale);
+
+    m_fileSelector->setWindowSize(width, height);
 
     updatePixelInfo(m_lastMouse);
     updateInfobar();
@@ -302,6 +310,11 @@ void cViewer::onMouse(const Vectorf& pos)
 {
     m_imgui.onMousePosition(pos);
 
+    if (m_fileSelector->isVisible())
+    {
+        return;
+    }
+
     const auto posFixed = calculateMousePosition(pos);
 
     if (m_mouseMB || m_mouseRB)
@@ -338,6 +351,11 @@ void cViewer::onMouseScroll(const Vectorf& offset)
 {
     m_imgui.onScroll(offset);
 
+    if (m_fileSelector->isVisible())
+    {
+        return;
+    }
+
     if (m_config.wheelZoom)
     {
         updateScale(offset.y > 0.0f
@@ -354,6 +372,11 @@ void cViewer::onMouseScroll(const Vectorf& offset)
 void cViewer::onMouseButtons(int button, int action, int /*mods*/)
 {
     m_imgui.onMouseButton(button, action);
+
+    if (m_fileSelector->isVisible())
+    {
+        return;
+    }
 
     updateMousePosition();
 
@@ -388,6 +411,11 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
 {
     m_imgui.onKey(key, scancode, action);
 
+    if (m_fileSelector->isVisible())
+    {
+        return;
+    }
+
     if (action != GLFW_PRESS && action != GLFW_REPEAT)
     {
         return;
@@ -404,7 +432,34 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
 
     case GLFW_KEY_ESCAPE:
     case GLFW_KEY_Q:
-        glfwSetWindowShouldClose(cRenderer::getWindow(), 1);
+        if (m_fileSelector->isVisible() == false)
+        {
+            glfwSetWindowShouldClose(cRenderer::getWindow(), 1);
+        }
+        else
+        {
+            m_fileSelector->close();
+        }
+        break;
+
+    case GLFW_KEY_O:
+        if (m_fileSelector->isVisible() == false)
+        {
+            auto currentFile = m_filesList->getName();
+            auto dir = helpers::getDirectoryFromPath(currentFile);
+            m_fileSelector->setWindowSize(m_config.windowSize.x, m_config.windowSize.y);
+            m_fileSelector->open(
+                [this](cFileBrowser::Result result) {
+                    auto path = result.directory + "/" + result.fileName;
+
+                    // ::printf("(II) Selected file: %s\n", path.c_str());
+                    m_filesList->addFile(path.c_str());
+                    loadImage(path.c_str());
+                },
+                cFileBrowser::Type::Open,
+                "Open Image",
+                dir);
+        }
         break;
 
     case GLFW_KEY_I:

@@ -20,6 +20,7 @@
 class cCheckerboard;
 class cDeletionMark;
 class cExifPopup;
+class cFileBrowser;
 class cFilesList;
 class cHelpPopup;
 class cImageBorder;
@@ -131,6 +132,7 @@ private:
 
     std::unique_ptr<cQuadImage> m_image;
     std::unique_ptr<cFilesList> m_filesList;
+    std::unique_ptr<cFileBrowser> m_fileSelector;
     std::unique_ptr<cProgress> m_progress;
     std::unique_ptr<cImageLoader> m_loader;
     std::unique_ptr<cInfoBar> m_infoBar;
