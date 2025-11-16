@@ -56,4 +56,7 @@ namespace helpers
     char* memfind(const char* buf, size_t size, const char* tofind);
 
     bool base64decode(const char* input, size_t in_len, Buffer& out);
+
+    std::string getDirectoryFromPath(const char* path);
+
 } // namespace helpers

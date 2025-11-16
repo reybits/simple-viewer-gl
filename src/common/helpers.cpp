@@ -227,4 +227,20 @@ namespace helpers
 
         return true;
     }
+
+    std::string getDirectoryFromPath(const char* path)
+    {
+        if (path != nullptr)
+        {
+            std::string fullPath = path;
+            auto pos = fullPath.find_last_of("/\\");
+            if (pos != std::string::npos)
+            {
+                return fullPath.substr(0, pos);
+            }
+        }
+
+        return ".";
+    }
+
 } // namespace helpers
