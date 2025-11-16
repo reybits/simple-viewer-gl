@@ -104,15 +104,15 @@ void cImageLoader::load(const char* path)
     m_image->Load(path, m_desc);
 }
 
-void cImageLoader::loadImage(const char* path)
+void cImageLoader::loadImage(const std::string& path)
 {
     stop();
     clear();
 
     m_mode = Mode::Image;
-    m_loader = std::thread([this](const char* path) {
+    m_loader = std::thread([this](const std::string& path) {
         m_callbacks->startLoading();
-        load(path);
+        load(path.c_str());
         if (m_desc.images == 0)
         {
             m_desc.images = 1;
@@ -431,7 +431,7 @@ cFormat* cImageLoader::getLoader(eImageType type) const
     return loader.get();
 }
 
-eImageType cImageLoader::getType(const char* name)
+eImageType cImageLoader::getType(const char* name) const
 {
     cFile file;
     if (file.open(name))
