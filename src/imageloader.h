@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include "formats/format.h"
 #include "common/bitmap_description.h"
+#include "formats/format.h"
 
 #include <memory>
 #include <thread>
@@ -68,7 +68,7 @@ public:
     explicit cImageLoader(const sConfig* config, iCallbacks* callbacks);
     ~cImageLoader();
 
-    void loadImage(const char* path);
+    void loadImage(const std::string& path);
     void loadSubImage(unsigned subImage);
     bool isLoaded() const;
 
@@ -95,7 +95,7 @@ private:
 
     void stop();
     void clear();
-    eImageType getType(const char* name);
+    eImageType getType(const char* name) const;
     void load(const char* path);
 
 private:
