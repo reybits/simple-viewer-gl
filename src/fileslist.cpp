@@ -217,6 +217,7 @@ namespace
         // libtiff
         MakeExt(".tiff"),
         MakeExt(".tif"),
+        MakeExt(".dng"),
         // libpng
         MakeExt(".png"),
         // giflib
