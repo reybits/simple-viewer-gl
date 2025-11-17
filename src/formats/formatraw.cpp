@@ -10,7 +10,7 @@
 #include "formatraw.h"
 #include "common/bitmap_description.h"
 #include "common/file.h"
-#include "rle.h"
+#include "libs/rle.h"
 
 #include <cstdio>
 #include <cstring>
@@ -49,23 +49,24 @@ namespace
         return false;
     }
 
-    //bool cFormatRaw::isRawFormat(const char* name)
-    //{
-    //cFile file;
-    //if(!file.open(name))
-    //{
-    //return false;
-    //}
+    // bool cFormatRaw::isRawFormat(const char* name)
+    // {
+    //     cFile file;
+    //     if (!file.open(name))
+    //     {
+    //         return false;
+    //     }
+    //
+    //     sHeader header;
+    //     if (sizeof(header) != file.read(&header, sizeof(header)))
+    //     {
+    //         return false;
+    //     }
+    //
+    //     return isValidFormat(header, file.getSize());
+    // }
 
-    //sHeader header;
-    //if(sizeof(header) != file.read(&header, sizeof(header)))
-    //{
-    //return false;
-    //}
-
-    //return isValidFormat(header, file.getSize());
-    //}
-}
+} // namespace
 
 cFormatRaw::cFormatRaw(iCallbacks* callbacks)
     : cFormat(callbacks)

@@ -8,11 +8,11 @@
 \**********************************************/
 
 #include "formatage.h"
-#include "AGEheader.h"
 #include "common/ZlibDecoder.h"
 #include "common/bitmap_description.h"
 #include "common/file.h"
-#include "rle.h"
+#include "libs/AGEheader.h"
+#include "libs/rle.h"
 
 #include <cstdio>
 #include <cstring>
@@ -29,22 +29,23 @@ namespace
         return false;
     }
 
-    //bool cFormatAge::isRawFormat(const char* name)
-    //{
-    //cFile file;
-    //if(!file.open(name))
-    //{
-    //return false;
-    //}
+    // bool cFormatAge::isRawFormat(const char* name)
+    // {
+    //     cFile file;
+    //     if (!file.open(name))
+    //     {
+    //         return false;
+    //     }
+    //
+    //     Header header;
+    //     if (sizeof(header) != file.read(&header, sizeof(header)))
+    //     {
+    //         return false;
+    //     }
+    //
+    //     return isValidFormat(header, file.getSize());
+    // }
 
-    //Header header;
-    //if(sizeof(header) != file.read(&header, sizeof(header)))
-    //{
-    //return false;
-    //}
-
-    //return isValidFormat(header, file.getSize());
-    //}
 } // namespace
 
 cFormatAge::cFormatAge(iCallbacks* callbacks)

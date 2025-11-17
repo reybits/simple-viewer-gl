@@ -10,7 +10,8 @@
 #include "formatxcf.h"
 #include "common/bitmap_description.h"
 #include "common/file.h"
-#include "formats/xcf.h"
+#include "libs/xcf.h"
+
 #include <cstdio>
 #include <cstring>
 

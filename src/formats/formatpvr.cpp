@@ -8,11 +8,12 @@
 \**********************************************/
 
 #include "formatpvr.h"
-#include "PVRTDecompress.h"
 #include "common/bitmap_description.h"
-#include "common/file_zlib.h"
+#include "common/file.h"
 #include "common/helpers.h"
-#include "etc1.h"
+#include "libs/PVRTDecompress.h"
+#include "libs/etc1.h"
+
 #include <cstdio>
 #include <cstring>
 #include <zlib.h>
