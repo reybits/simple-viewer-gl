@@ -13,9 +13,9 @@
 
 #include "format.h"
 
-#include <string>
-#include <memory>
 #include <gif_lib.h>
+#include <memory>
+#include <string>
 
 class cFormatGif final : public cFormat
 {

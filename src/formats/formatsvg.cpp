@@ -9,8 +9,8 @@
 
 #include "formatsvg.h"
 #include "common/bitmap_description.h"
-#include "common/file.h"
 #include "common/config.h"
+#include "common/file.h"
 
 #include <cfloat>
 #include <cmath>
@@ -18,10 +18,10 @@
 
 #define NANOSVG_ALL_COLOR_KEYWORDS
 #define NANOSVG_IMPLEMENTATION
-#include "formats/nanosvg.h"
+#include "libs/nanosvg.h"
 
 #define NANOSVGRAST_IMPLEMENTATION
-#include "formats/nanosvgrast.h"
+#include "libs/nanosvgrast.h"
 
 cFormatSvg::cFormatSvg(iCallbacks* callbacks)
     : cFormat(callbacks)

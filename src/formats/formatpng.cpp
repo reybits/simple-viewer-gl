@@ -9,7 +9,7 @@
 
 #include "formatpng.h"
 #include "common/file.h"
-#include "formats/PngReader.h"
+#include "libs/PngReader.h"
 
 #include <cstring>
 

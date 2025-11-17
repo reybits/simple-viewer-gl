@@ -11,8 +11,26 @@
 
 #include "format.h"
 
-namespace icns
+class cFormatIcns final : public cFormat
 {
+public:
+    explicit cFormatIcns(iCallbacks* callbacks);
+    ~cFormatIcns();
+
+    bool isSupported(cFile& file, Buffer& buffer) const override;
+
+private:
+    virtual bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
+    virtual bool LoadSubImageImpl(unsigned current, sBitmapDescription& desc) override;
+
+private:
+    bool load(uint32_t current, sBitmapDescription& desc);
+
+    void iterateContent(const uint8_t* icon, uint32_t offset, uint32_t size);
+    void unpackBits(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;
+    void ICNSAtoRGBA(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;
+    void ICNStoRGB(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;
+
     enum class Type
     {
         TOC_,
@@ -56,6 +74,17 @@ namespace icns
         Count
     };
 
+    struct Entry;
+    struct Chunk
+    {
+        uint8_t type[4];    // Icon type, see OSType below.
+        uint8_t dataLen[4]; // Length of data, in bytes (including type and length), msb first
+        // Variable Icon data
+    };
+
+    const Entry& getDescription(const Chunk& chunk) const;
+
+private:
     enum class Compression : uint32_t
     {
         None,
@@ -65,74 +94,16 @@ namespace icns
         Count
     };
 
-    struct Header
-    {
-        uint8_t magic[4];   // Magic literal, must be "icns" (0x69, 0x63, 0x6e, 0x73)
-        uint8_t fileLen[4]; // Length of file, in bytes, msb first
-    };
-
-    struct Chunk
-    {
-        uint8_t type[4];    // Icon type, see OSType below.
-        uint8_t dataLen[4]; // Length of data, in bytes (including type and length), msb first
-        // Variable Icon data
-    };
-
-    struct RGBA
-    {
-        uint8_t r, g, b, a;
-    };
-
-    struct ICNSA
-    {
-        uint8_t g, r, b, a;
-    };
-
-    struct RGB
-    {
-        uint8_t r, g, b;
-    };
-
-    struct ICNS
-    {
-        uint8_t g, r, b;
-    };
-
-    const char* CompressionToName(Compression compression);
-
-} // namespace icns
-
-class cFormatIcns final : public cFormat
-{
-public:
-    explicit cFormatIcns(iCallbacks* callbacks);
-    ~cFormatIcns();
-
-    bool isSupported(cFile& file, Buffer& buffer) const override;
-
-private:
-    virtual bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
-    virtual bool LoadSubImageImpl(unsigned current, sBitmapDescription& desc) override;
-
-private:
-    bool load(uint32_t current, sBitmapDescription& desc);
-
-    void iterateContent(const uint8_t* icon, uint32_t offset, uint32_t size);
-    void unpackBits(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;
-    void ICNSAtoRGBA(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;
-    void ICNStoRGB(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;
-
-    struct Entry;
-    const Entry& getDescription(const icns::Chunk& chunk) const;
+    static const char* CompressionToName(Compression compression);
 
 private:
     std::vector<uint8_t> m_icon;
 
     struct Entry
     {
-        icns::Type type;
+        Type type;
 
-        icns::Compression compression;
+        Compression compression;
         uint32_t srcBpp;
         uint32_t dstBpp;
         uint32_t iconSize;

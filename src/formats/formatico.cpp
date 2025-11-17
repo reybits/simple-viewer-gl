@@ -10,8 +10,7 @@
 #include "formatico.h"
 #include "common/bitmap_description.h"
 #include "common/file.h"
-#include "common/helpers.h"
-#include "formats/PngReader.h"
+#include "libs/PngReader.h"
 
 #include <cstring>
 
@@ -19,35 +18,35 @@
 struct IcoHeader
 {
     uint16_t reserved; // Reserved. Should always be 0.
-    uint16_t type; // Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid.
-    uint16_t count; // Specifies number of images in the file.
+    uint16_t type;     // Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid.
+    uint16_t count;    // Specifies number of images in the file.
 };
 
 // List of icons.
 // Size = IcoHeader.ount * 16
 struct IcoDirentry
 {
-    uint8_t width; // Specifies image width in pixels. Can be 0, 255 or a number between 0 to 255. Should be 0 if image width is 256 pixels.
-    uint8_t height; // Specifies image height in pixels. Can be 0, 255 or a number between 0 to 255. Should be 0 if image height is 256 pixels.
-    uint8_t colors; // Specifies number of colors in the color palette. Should be 0 if the image is truecolor.
+    uint8_t width;    // Specifies image width in pixels. Can be 0, 255 or a number between 0 to 255. Should be 0 if image width is 256 pixels.
+    uint8_t height;   // Specifies image height in pixels. Can be 0, 255 or a number between 0 to 255. Should be 0 if image height is 256 pixels.
+    uint8_t colors;   // Specifies number of colors in the color palette. Should be 0 if the image is truecolor.
     uint8_t reserved; // Reserved. Should be 0.[Notes 1]
-    uint16_t planes; // In .ICO format: Specifies color planes. Should be 0 or 1.
-    // In .CUR format: Specifies the horizontal coordinates of the hotspot in number of pixels from the left.
-    uint16_t bits; // In .ICO format: Specifies bits per pixel. (1, 4, 8)
-    // In .CUR format: Specifies the vertical coordinates of the hotspot in number of pixels from the top.
-    uint32_t size; // Specifies the size of the bitmap data in bytes. Size of (InfoHeader + ANDbitmap + XORbitmap)
-    uint32_t offset; // Specifies the offset of bitmap data address in the file
+    uint16_t planes;  // In .ICO format: Specifies color planes. Should be 0 or 1.
+                      // In .CUR format: Specifies the horizontal coordinates of the hotspot in number of pixels from the left.
+    uint16_t bits;    // In .ICO format: Specifies bits per pixel. (1, 4, 8)
+                      // In .CUR format: Specifies the vertical coordinates of the hotspot in number of pixels from the top.
+    uint32_t size;    // Specifies the size of the bitmap data in bytes. Size of (InfoHeader + ANDbitmap + XORbitmap)
+    uint32_t offset;  // Specifies the offset of bitmap data address in the file
 };
 
 // Variant of BMP InfoHeader.
 // Size = 40 bytes.
 struct IcoBmpInfoHeader
 {
-    uint32_t size; // Size of InfoHeader structure = 40
-    uint32_t width; // Icon Width
-    uint32_t height; // Icon Height (added height of XOR-Bitmap and AND-Bitmap)
-    uint16_t planes; // number of planes = 1
-    uint16_t bits; // bits per pixel = 1, 2, 4, 8, 16, 24, 32
+    uint32_t size;      // Size of InfoHeader structure = 40
+    uint32_t width;     // Icon Width
+    uint32_t height;    // Icon Height (added height of XOR-Bitmap and AND-Bitmap)
+    uint16_t planes;    // number of planes = 1
+    uint16_t bits;      // bits per pixel = 1, 2, 4, 8, 16, 24, 32
     uint32_t reserved0; // Type of Compression = 0
     uint32_t imagesize; // Size of Image in Bytes = 0 (uncompressed)
     uint32_t reserved1; // XpixelsPerM
@@ -60,9 +59,9 @@ struct IcoBmpInfoHeader
 // Size = NumberOfColors * 4 bytes.
 struct IcoColors
 {
-    uint8_t red; // red component
-    uint8_t green; // green component
-    uint8_t blue; // blue component
+    uint8_t red;      // red component
+    uint8_t green;    // green component
+    uint8_t blue;     // blue component
     uint8_t reserved; // = 0
 };
 
@@ -302,8 +301,7 @@ bool cFormatIco::loadOrdinaryFrame(sBitmapDescription& desc, cFile& file, const 
         }
         break;
 
-    default:
-    {
+    default: {
         const uint32_t bpp = desc.bppImage / 8;
         for (uint32_t y = 0; y < desc.height; y++)
         {
@@ -372,11 +370,10 @@ int cFormatIco::calcIcoPitch(uint32_t bppImage, uint32_t width)
 
     case 32:
         return width * 4;
-
-    default:
-        ::printf("(EE) Invalid bits count: %u.\n", bppImage);
-        return -1; //width * (bppImage / 8);
     }
+
+    ::printf("(EE) Invalid bits count: %u.\n", bppImage);
+    return -1; // width * (bppImage / 8);
 }
 
 uint32_t cFormatIco::getBit(const uint8_t* data, uint32_t bit, uint32_t width)
