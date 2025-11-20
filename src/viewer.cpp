@@ -129,7 +129,8 @@ void cViewer::onRender()
     const auto half_w = static_cast<float>((m_image->getWidth() + 1) >> 1u);
     const auto half_h = static_cast<float>((m_image->getHeight() + 1) >> 1u);
 
-    if (m_loader->isLoaded())
+    auto isLoaded = m_loader->isLoaded();
+    if (isLoaded)
     {
         if (m_config.showImageBorder)
         {
@@ -146,27 +147,30 @@ void cViewer::onRender()
     }
     cRenderer::resetGlobals();
 
-    if (m_config.showExif)
+    if (isLoaded)
     {
-        m_exifPopup->render();
+        if (m_config.showExif)
+        {
+            m_exifPopup->render();
+        }
+
+        if (m_filesList->isMarkedForDeletion())
+        {
+            m_deletionMark->render();
+        }
+
+        if (m_config.showPixelInfo && m_cursorInside && m_angle == 0)
+        {
+            if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) == false)
+            {
+                m_pixelPopup->render();
+            }
+        }
     }
 
     if (m_config.hideInfobar == false)
     {
         m_infoBar->render();
-    }
-
-    if (m_filesList->isMarkedForDeletion())
-    {
-        m_deletionMark->render();
-    }
-
-    if (m_config.showPixelInfo && m_cursorInside && m_angle == 0)
-    {
-        if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) == false)
-        {
-            m_pixelPopup->render();
-        }
     }
 
     m_fileSelector->render();
@@ -694,6 +698,8 @@ void cViewer::shiftCamera(const Vectorf& delta)
     m_camera.y = std::min<float>(m_camera.y, half.y);
 }
 
+// FIXME: Scale depends on window size, but window size depends on scale...
+// Seems like I should combine calculateScale() and centerWindow() into one function.
 void cViewer::calculateScale()
 {
     if (m_config.fitImage && m_loader->isLoaded())
@@ -788,12 +794,12 @@ void cViewer::updateFiltering()
 
 void cViewer::centerWindow()
 {
-    auto window = cRenderer::getWindow();
-
     if (m_isWindowed)
     {
         if (helpers::getPlatform() != helpers::Platform::Wayland)
         {
+            auto window = cRenderer::getWindow();
+
             auto width = m_config.windowSize.w;
             auto height = m_config.windowSize.h;
 
@@ -805,10 +811,10 @@ void cViewer::centerWindow()
                 // calculate image size with border
                 auto tickness = m_config.showImageBorder
                     ? m_border->getThickness() * 2
-                    : 0;
+                    : 0.0f;
                 auto scale = m_scale.getScale();
-                auto imgw = (m_image->getWidth() * scale + tickness);
-                auto imgh = (m_image->getHeight() * scale + tickness);
+                auto imgw = m_image->getWidth() * scale + tickness;
+                auto imgh = m_image->getHeight() * scale + tickness;
 
                 width = std::max<int>(imgw / m_ratio.x, DefaultWindowSize.w);
                 height = std::max<int>(imgh / m_ratio.y, DefaultWindowSize.h);
