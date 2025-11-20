@@ -27,24 +27,15 @@ void cCheckerboard::init()
     std::vector<uint8_t> buffer(texSize * texSize);
     auto p = buffer.data();
 
-    uint32_t idx = 0;
-    const uint8_t colors[2] = { 0xc8, 0x7d };
+    constexpr uint8_t Colors[2] = { 0xc8, 0x7d };
 
     for (uint32_t y = 0; y < texSize; y++)
     {
-        if (y % cellSize == 0)
-        {
-            idx = (idx + 1) % 2;
-        }
-
         for (uint32_t x = 0; x < texSize; x++)
         {
-            if (x % cellSize == 0)
-            {
-                idx = (idx + 1) % 2;
-            }
-
-            const auto color = colors[idx];
+            const auto color = (y / cellSize + x / cellSize) % 2 == 0
+                ? Colors[0]
+                : Colors[1];
             *p++ = color;
         }
     }
