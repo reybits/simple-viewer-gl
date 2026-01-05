@@ -162,10 +162,7 @@ void cViewer::onRender()
 
         if (m_config.showPixelInfo && m_cursorInside && m_angle == 0)
         {
-            if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) == false)
-            {
-                m_pixelPopup->render();
-            }
+            m_pixelPopup->render();
         }
     }
 
@@ -335,7 +332,7 @@ void cViewer::onMouse(const Vectorf& pos)
 
     auto isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
     showCursor(isHovered || m_config.showPixelInfo == false);
-    if (m_config.showPixelInfo && isHovered == false)
+    if (m_config.showPixelInfo)
     {
         const int cursor = m_selection->getCursor();
         m_pixelPopup->setCursor(cursor);
