@@ -9,6 +9,7 @@
 
 #include "quadimage.h"
 #include "common/helpers.h"
+#include "log/Log.h"
 #include "quad.h"
 
 #include <cassert>
@@ -63,15 +64,15 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint
 {
     m_texWidth = cRenderer::calculateTextureSize(width);
     m_texHeight = cRenderer::calculateTextureSize(height);
-    // ::printf("(II) Textue size: %u x %u.\n", m_texWidth, m_texHeight);
+    // cLog::Info("Textue size: {} x {}.", m_texWidth, m_texHeight);
 
     m_texPitch = helpers::calculatePitch(m_texWidth, bpp);
-    // ::printf("(II) Textue pitch: %u.\n", m_texPitch);
+    // cLog::Info("Textue pitch: %u.\n", m_texPitch);
 
     m_cols = (width + m_texWidth - 1) / m_texWidth;
     m_rows = (height + m_texHeight - 1) / m_texHeight;
-    // ::printf("(II) Image size: %u x %u.\n", width, height);
-    // ::printf("(II) Textures: %u (%u x %u) required\n", m_cols * m_rows, m_cols, m_rows);
+    // cLog::Info("Image size: {} x {}.", width, height);
+    // cLog::Info("Textures: {} ({} x {}) required.", m_cols * m_rows, m_cols, m_rows);
 
     moveToOld();
 
@@ -97,8 +98,8 @@ bool cQuadImage::upload(uint32_t mipmapTextureSize)
 
     const uint32_t w = (col < m_cols - 1) ? m_texWidth : (m_width - m_texWidth * (m_cols - 1));
     const uint32_t h = (row < m_rows - 1) ? m_texHeight : (m_height - m_texHeight * (m_rows - 1));
-    // ::printf("cols %u : col %u : w %u\n", m_cols, col, w);
-    // ::printf("rows %u : row %u : h %u\n", m_rows, row, h);
+    // cLog::Debug("cols {} : col {} : w {}.", m_cols, col, w);
+    // cLog::Debug("rows {} : row {} : h {}.", m_rows, row, h);
 
     const uint32_t sx = col * m_texPitch;
     const uint32_t sy = row * m_texHeight;
@@ -117,9 +118,9 @@ bool cQuadImage::upload(uint32_t mipmapTextureSize)
         }
         else
         {
-            ::printf("cols %u : col %u : w %u\n", m_cols, col, w);
-            ::printf("rows %u : row %u : h %u\n", m_rows, row, h);
-            ::printf("out at line %u sx %u sy %u bpp: %u\n", y, sx, sy, m_bitsPerPixel);
+            cLog::Debug("cols {} : col {} : w {}.", m_cols, col, w);
+            cLog::Debug("rows {} : row {} : h {}.", m_rows, row, h);
+            cLog::Debug("out at line {} sx {} sy {} bpp: {}.", y, sx, sy, m_bitsPerPixel);
             break;
         }
     }
@@ -262,9 +263,9 @@ void cQuadImage::render()
 
     if (prevRendered != rendered)
     {
-        const auto total = (uint32_t)(m_chunksOld.size() + m_chunks.size());
+        const auto total = m_chunksOld.size() + m_chunks.size();
         prevRendered = rendered;
-        ::printf("(II) Total chunks: %u rendered: %u\n"
+        cLog::Info("Total chunks: {} rendered: {}."
                  , total
                  , rendered);
     }
@@ -281,7 +282,7 @@ void cQuadImage::moveToOld()
         const auto& chunk = m_chunks[idx];
         if (chunk.col >= m_cols || chunk.row >= m_rows)
         {
-            // printf("removed: %u x %u\n", chunk.col, chunk.row);
+            // cLog::Debug("removed: {} x {}.", chunk.col, chunk.row);
             delete chunk.quad;
             m_chunks[idx] = m_chunks.back();
             m_chunks.pop_back();

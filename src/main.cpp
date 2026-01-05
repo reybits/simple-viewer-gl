@@ -9,6 +9,7 @@
 
 #include "common/config.h"
 #include "common/helpers.h"
+#include "log/Log.h"
 #include "types/types.h"
 #include "version.h"
 #include "viewer.h"
@@ -161,7 +162,7 @@ namespace
 
     void callbackError(int e, const char* error)
     {
-        ::printf("(EE) GLFW error (%d) '%s'\n", e, error);
+        cLog::Error("GLFW error ({}) '{}'.", e, error);
     }
 
     void setHints(const sConfig& config)
@@ -423,7 +424,7 @@ int main(int argc, char* argv[])
 
     int result = 0;
     glfwSetErrorCallback([](int error_code, const char* description) {
-        ::printf("(EE) %d: '%s'\n", error_code, description);
+        cLog::Error("{}: '{}'.", error_code, description);
     });
 
     if (glfwInit())
@@ -522,7 +523,7 @@ int main(int argc, char* argv[])
         }
         else
         {
-            ::printf("(EE) Can't create window.\n");
+            cLog::Error("Can't create window.");
             result = -1;
         }
 
@@ -530,7 +531,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        ::printf("(EE) Can't initialize GLFW.\n");
+        cLog::Error("Can't initialize GLFW.");
         result = -1;
     }
 

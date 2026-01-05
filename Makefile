@@ -80,7 +80,8 @@ cppcheck:
 		-f -I src src/ 2> cppcheck-output
 
 clean:
-	rm -fr $(BUILD_DIR)* $(OUT_NAME) $(BUNDLE_NAME) $(COMPILE_COMMANDS_DIR) \
+	rm -fr $(BUILD_DIR)* $(OUT_NAME) $(BUNDLE_NAME) \
+		$(COMPILE_COMMANDS_DIR) compile_commands.json \
 		$(BUNDLE_NAME)-$(VERSION)* $(BUNDLE_NAME)_$(VERSION)* \
 		*.log *.tasks *.sh *.xz *.list *.deb \
 		cppcheck-output strace_out cov-int

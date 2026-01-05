@@ -16,6 +16,7 @@
 #include "imageborder.h"
 #include "imagegrid.h"
 #include "imageloader.h"
+#include "log/Log.h"
 #include "popups/FileBrowser.h"
 #include "popups/exifpopup.h"
 #include "popups/helppopup.h"
@@ -103,7 +104,7 @@ void cViewer::addPaths(const StringsList& paths)
         for (auto& path : paths)
         {
             m_filesList->addFile(path.c_str());
-            // ::printf("path added: %s\n", paths[i]);
+            // cLog::Debug("path added: {}.", paths[i]);
         }
 
         m_filesList->sortList();
@@ -244,11 +245,11 @@ bool cViewer::isUploading() const
 
 void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
 {
-    // ::printf("(II) win size %d x %d\n", winSize.x, winSize.y);
-    // ::printf("(II) fb size %d x %d\n\n", fbSize.x, fbSize.y);
+    // cLog::Degug("win size {} x {}.", winSize.x, winSize.y);
+    // cLog::Degug("fb size {} x {}.\n", fbSize.x, fbSize.y);
 
     m_ratio = { (float)fbSize.x / winSize.x, (float)fbSize.y / winSize.y };
-    // ::printf("(II) fb size %g x %g\n\n", m_ratio.x, m_ratio.y);
+    // cLog::Debug("fb size {} x {}.\n", m_ratio.x, m_ratio.y);
 
     auto window = cRenderer::getWindow();
 
@@ -456,7 +457,7 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
                 [this](cFileBrowser::Result result) {
                     auto path = result.directory + "/" + result.fileName;
 
-                    // ::printf("(II) Selected file: %s\n", path.c_str());
+                    // cLog::Debug("Selected file: {}.", path);
                     m_filesList->addFile(path.c_str());
                     loadImage(path.c_str());
                 },
@@ -997,7 +998,7 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
                 }
                 else
                 {
-                    ::printf("(EE) Not implemented 16 bpp format: 0x%x\n", desc.format);
+                    cLog::Error("Not implemented 16 bpp format: 0x{:x}.", desc.format);
                 }
             }
             else if (desc.bpp == 8)
@@ -1023,7 +1024,7 @@ void cViewer::showCursor(bool show)
     glfwGetCursorPos(window, &x, &y);
 
     auto& size = m_config.windowSize;
-    // ::printf("cursor %g x %g , window: %d x %d\n", pos.x, pos.y, size.w, size.h);
+    // cLog::Debug("cursor {} x {} , window: {} x {}.", pos.x, pos.y, size.w, size.h);
     m_cursorInside = !(x < 0.0 || x >= size.w || y < 0.0 || y >= size.h);
 
     glfwSetInputMode(window, GLFW_CURSOR, show ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);

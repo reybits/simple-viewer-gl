@@ -36,6 +36,7 @@
 #include "formats/formatxcf.h"
 #include "formats/formatxpm.h"
 #include "formats/formatxwd.h"
+#include "log/Log.h"
 #include "network/curl.h"
 #include "notavailable.h"
 
@@ -92,7 +93,7 @@ void cImageLoader::load(const char* path)
             result = m_image->Load(path, m_desc);
         }
 
-        // ::printf("(II) Loading time: %u μs.\n", (uint32_t)(helpers::getTime() - start) / 1000);
+        // cLog::Info("Loading time: {} μs.", (helpers::getTime() - start) / 1000);
 
         if (result == true)
         {
@@ -118,7 +119,8 @@ void cImageLoader::loadImage(const std::string& path)
             m_desc.images = 1;
         }
         m_callbacks->endLoading();
-    }, path);
+    },
+                           path);
 }
 
 void cImageLoader::loadSubImage(unsigned subImage)
@@ -132,7 +134,8 @@ void cImageLoader::loadSubImage(unsigned subImage)
         m_callbacks->startLoading();
         m_image->LoadSubImage(subImage, m_desc);
         m_callbacks->endLoading();
-    }, subImage);
+    },
+                           subImage);
 }
 
 bool cImageLoader::isLoaded() const
@@ -284,7 +287,7 @@ namespace
 cFormat* cImageLoader::createLoader(eImageType type) const
 {
 #if defined(LOADER_NAME)
-    ::printf("(II) Creating loader %s\n", typeToName(type));
+    cLog::Info("Creating loader {}.", typeToName(type));
 #endif
 
     auto& format = m_formats[(unsigned)type];
@@ -440,19 +443,19 @@ eImageType cImageLoader::getType(const char* name) const
         for (auto type : SortedTypes)
         {
 #if defined(LOADER_NAME)
-            ::printf("(II) Probing loader %s\n", typeToName(type));
+            cLog::Info("Probing loader {}.", typeToName(type));
 #endif
             auto loader = getLoader(type);
             if (loader->isSupported(file, buffer))
             {
 #if defined(LOADER_NAME)
-                ::printf("(II) Using loader %s\n", typeToName(type));
+                cLog::Info("Using loader {}.", typeToName(type));
 #endif
                 return type;
             }
         }
 
-        ::printf("(WW) Loader not available for '%s'.\n", name);
+        cLog::Warning("Loader not available for '{}'.", name);
     }
 
     return eImageType::NOTAVAILABLE;

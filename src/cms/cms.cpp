@@ -8,7 +8,7 @@
 \**********************************************/
 
 #include "cms.h"
-
+#include "log/Log.h"
 
 #include <cassert>
 
@@ -17,7 +17,7 @@
 
 void cmsLogErrorHandler(cmsContext /*ContextID*/, cmsUInt32Number ErrorCode, const char* Text)
 {
-    ::printf("(EE) LCMS2: (%u) '%s'\n", ErrorCode, Text);
+    cLog::Error("LCMS2: ({}) '{}'.", ErrorCode, Text);
 }
 #endif
 
@@ -55,11 +55,7 @@ void cCMS::createTransform(const void* iccProfile, uint32_t iccProfileSize, Pixe
 #endif
 }
 
-void cCMS::createTransform(const float* chr, const float* wp
-                           , const uint16_t* gmr
-                           , const uint16_t* gmg
-                           , const uint16_t* gmb
-                           , Pixel format) const
+void cCMS::createTransform(const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb, Pixel format) const
 {
 #if defined(LCMS2_SUPPORT)
     cmsCIExyYTRIPLE Primaries;
@@ -105,9 +101,7 @@ void cCMS::createTransform(void* inProfile, Pixel format) const
     if (inProfile != nullptr)
     {
         auto pixel = format == Pixel::Rgb ? TYPE_RGB_8 : TYPE_RGBA_8;
-        m_transform = cmsCreateTransform(inProfile, pixel
-                                         , m_outProfile, pixel
-                                         , INTENT_PERCEPTUAL, 0);
+        m_transform = cmsCreateTransform(inProfile, pixel, m_outProfile, pixel, INTENT_PERCEPTUAL, 0);
         cmsCloseProfile(inProfile);
     }
 #else
