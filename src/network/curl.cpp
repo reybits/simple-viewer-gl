@@ -7,6 +7,7 @@
 \**********************************************/
 
 #include "curl.h"
+#include "log/Log.h"
 
 #include <cstring>
 #if defined(CURL_SUPPORT)
@@ -47,7 +48,7 @@ bool cCurl::loadFile(const char* path)
 
     if (::mkdtemp(tmpDir) == nullptr)
     {
-        ::printf("(EE) Can't create temp file '%s'.\n", path);
+        cLog::Error("Can't create temp file '{}'.", path);
         return false;
     }
 
@@ -56,12 +57,12 @@ bool cCurl::loadFile(const char* path)
 
     path = m_path.data();
 
-    ::printf("(II) Using temp file '%s'.\n", path);
+    cLog::Info("Using temp file '{}'.", path);
 
     auto file = ::fopen(path, "wb");
     if (file == nullptr)
     {
-        ::printf("(EE) Can't write to file '%s'.\n", path);
+        cLog::Error("Can't write to file '{}'.", path);
         return false;
     }
 

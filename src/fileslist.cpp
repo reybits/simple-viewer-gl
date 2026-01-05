@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "fileslist.h"
+#include "log/Log.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -115,10 +116,10 @@ void cFilesList::sortList()
     m_files.erase(last, m_files.end());
 
 #if 0
-    ::printf("Sorted unique file %u:\n", (uint32_t)m_files.size());
+    cLog::Debug("Sorted unique file {}:", m_files.size());
     for (const auto& f : m_files)
     {
-        ::printf("'%s'\n", f.path.c_str());
+        cLog::Debug("'{}'", f.path);
     }
 #endif
 }
@@ -147,7 +148,7 @@ void cFilesList::locateFile(const char* path)
 
 void cFilesList::scanDirectory(const std::string& root)
 {
-    // ::printf("scan: '%s'\n", root.c_str());
+    // cLog::Debug("scan: '{}'.", root);
 
     dirent** namelist;
     int n = ::scandir(root.c_str(), &namelist, Filter, alphasort);
@@ -388,7 +389,7 @@ void cFilesList::removeMarkedFromDisk()
             const auto path = file.path.c_str();
             if (::unlink(path) == 0)
             {
-                ::printf("(II) File '%s' has been removed from disk.\n", path);
+                cLog::Info("File '{}' has been removed from disk.", path);
             }
 
             if (i < m_position)
