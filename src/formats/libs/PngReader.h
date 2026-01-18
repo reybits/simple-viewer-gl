@@ -13,6 +13,7 @@
 #include <vector>
 
 class cFile;
+class cPngWrapper;
 struct sBitmapDescription;
 
 class cPngReader
@@ -41,6 +42,8 @@ public:
     }
 
 private:
+    bool doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc);
+
     void updateProgress(float percent) const
     {
         if (m_progress != nullptr)
