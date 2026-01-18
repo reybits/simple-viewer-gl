@@ -23,7 +23,7 @@ all:    release
 
 help:
 	@echo "Usage:"
-	@echo "    make <release | debug>    - make release or debug application"
+	@echo "    make <release | .debug>   - make release or debug application"
 	@echo "    make install              - install application"
 	@echo "    make <cppcheck>           - do static code verification"
 	@echo "    make <dist>               - make tar.gz source package"
@@ -43,7 +43,7 @@ release:
 		make -j
 	rm -fr $(OUT_NAME) && cp -r $(BUILD_DIR_RELEASE)/$(BUNDLE_NAME) $(OUT_NAME)
 
-debug:
+.debug:
 	$(shell if [ ! -d $(BUILD_DIR_DEBUG) ]; then mkdir $(BUILD_DIR_DEBUG); fi)
 	cd $(BUILD_DIR_DEBUG) && \
 		cmake .. \
