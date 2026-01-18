@@ -215,7 +215,7 @@ bool cFormatJp2k::isSupported(cFile& file, Buffer& buffer) const
 
 size_t streamRead(void* buffer, size_t size, void* user)
 {
-    // ::printf("read bytes %u\n", (uint32_t)size);
+    // ::printf("read bytes %zu\n", size);
     auto file = static_cast<cFile*>(user);
     auto readed = file->read(buffer, size);
     return readed ? readed : (size_t)-1;
@@ -223,14 +223,14 @@ size_t streamRead(void* buffer, size_t size, void* user)
 
 void streamClose(void* user)
 {
-    // ::printf("close\n");
+    // ::printf("close jpeg2k file\n");
     auto file = static_cast<cFile*>(user);
     file->close();
 }
 
 off_t streamSkip(off_t bytes, void* user)
 {
-    // ::printf("skip bytes %u\n", (uint32_t)bytes);
+    // ::printf("skip bytes %lld\n", bytes);
     auto file = static_cast<cFile*>(user);
     if (file->seek(bytes, SEEK_CUR) != 0)
     {
@@ -242,7 +242,7 @@ off_t streamSkip(off_t bytes, void* user)
 
 int streamSeek(off_t bytes, void* user)
 {
-    // ::printf("seek bytes %u\n", (uint32_t)bytes);
+    // ::printf("seek bytes %lld\n", bytes);
     auto file = static_cast<cFile*>(user);
     return file->seek(bytes, SEEK_SET) == 0;
 }
@@ -340,8 +340,6 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
 {
     auto image = static_cast<opj_image_t*>(img);
 
-    desc.reset();
-
     // compute image width and height
 
     uint32_t wr = image->comps[0].w;
@@ -416,7 +414,7 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
                     pixel_count++;
                 }
 
-                updateProgress(y / desc.height);
+                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps == 2)
@@ -445,7 +443,7 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
                     pixel_count++;
                 }
 
-                updateProgress(y / desc.height);
+                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps == 3)
@@ -470,7 +468,7 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
                     pixel_count++;
                 }
 
-                updateProgress(y / desc.height);
+                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps >= 4)
@@ -506,7 +504,7 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
                     pixel_count++;
                 }
 
-                updateProgress(y / desc.height);
+                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
     }
@@ -538,7 +536,7 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
                     pixel_count++;
                 }
 
-                updateProgress(y / desc.height);
+                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps == 3)
@@ -576,7 +574,7 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
                     pixel_count++;
                 }
 
-                updateProgress(y / desc.height);
+                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps == 4)
@@ -618,7 +616,7 @@ bool cFormatJp2k::loadJp2k(void* img, sBitmapDescription& desc) const
                     pixel_count++;
                 }
 
-                updateProgress(y / desc.height);
+                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
     }
