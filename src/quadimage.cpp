@@ -27,6 +27,9 @@ cQuadImage::~cQuadImage()
 
 void cQuadImage::clear()
 {
+    m_compressed = false;
+    m_compressedSize = 0;
+
     m_texWidth = 0;
     m_texHeight = 0;
     m_texPitch = 0;
@@ -88,6 +91,29 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint
     m_started = true;
 }
 
+void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image)
+{
+    moveToOld();
+
+    m_compressed = true;
+    m_compressedSize = compressedSize;
+
+    m_texWidth = width;
+    m_texHeight = height;
+    m_texPitch = 0;
+    m_cols = 1;
+    m_rows = 1;
+
+    m_width = width;
+    m_height = height;
+    m_pitch = 0;
+    m_format = format;
+    m_bitsPerPixel = 0;
+    m_image = image;
+
+    m_started = true;
+}
+
 bool cQuadImage::upload(uint32_t mipmapTextureSize)
 {
     const auto size = m_chunks.size();
@@ -95,6 +121,18 @@ bool cQuadImage::upload(uint32_t mipmapTextureSize)
 
     const uint32_t col = size % m_cols;
     const uint32_t row = size / m_cols;
+
+    if (m_compressed)
+    {
+        clearOld();
+
+        auto quad = new cQuad(m_width, m_height, m_image, m_format, m_compressedSize);
+        quad->useFilter(m_filter);
+        m_chunks.push_back({ 0, 0, quad });
+
+        m_started = false;
+        return true;
+    }
 
     const uint32_t w = (col < m_cols - 1) ? m_texWidth : (m_width - m_texWidth * (m_cols - 1));
     const uint32_t h = (row < m_rows - 1) ? m_texHeight : (m_height - m_texHeight * (m_rows - 1));

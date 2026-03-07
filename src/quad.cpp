@@ -29,6 +29,19 @@ cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum bitmapFormat)
     setSpriteSize({ (float)tw, (float)th });
 }
 
+cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum internalFormat, uint32_t dataSize)
+    : m_tw(tw)
+    , m_th(th)
+    , m_format(internalFormat)
+    , m_size(tw, th)
+    , m_filter(true)
+{
+    m_quad.tex = cRenderer::createTexture();
+    cRenderer::setCompressedData(m_quad.tex, data, tw, th, internalFormat, dataSize);
+
+    setSpriteSize({ (float)tw, (float)th });
+}
+
 cQuad::~cQuad()
 {
     cRenderer::deleteTexture(m_quad.tex);

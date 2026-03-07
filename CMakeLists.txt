@@ -77,6 +77,7 @@ find_package(PkgConfig REQUIRED)
 add_subdirectory(third-party/imgui)
 add_subdirectory(third-party/lz4)
 add_subdirectory(third-party/fmtlib)
+add_subdirectory(third-party/astcenc)
 
 # set(VERBOSE_PATHS TRUE)
 
@@ -369,7 +370,7 @@ configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp"
     )
 
-include_directories(
+include_directories(BEFORE
     ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/third-party/fmtlib/include
     )
@@ -402,8 +403,8 @@ else()
     add_executable(${APPLICATION_NAME} ${SVIEW_SOURCES})
 endif()
 
-add_dependencies(${APPLICATION_NAME} ImGui LZ4 FmtLib)
-target_link_libraries(${APPLICATION_NAME} ImGui LZ4 FmtLib)
+add_dependencies(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec)
+target_link_libraries(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec)
 
 if(OPENGL_FOUND)
     target_link_libraries(${APPLICATION_NAME} ${OPENGL_LIBRARY})

@@ -28,6 +28,9 @@ struct sBitmapDescription
         bppImage    = 0;
         size        = -1;
 
+        isCompressedTexture = false;
+        compressedSize      = 0;
+
         images      = 0;
         current     = 0;
 
@@ -48,6 +51,10 @@ struct sBitmapDescription
     // file related
     uint32_t bppImage = 0;  // bit per pixel of original image
     long size         = -1; // file size on disk
+
+    // GPU-compressed texture (ASTC, ETC2, BC)
+    bool isCompressedTexture = false;
+    uint32_t compressedSize  = 0; // size of compressed texture data in bytes
 
     uint32_t images   = 0;
     uint32_t current  = 0;
