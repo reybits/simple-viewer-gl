@@ -128,7 +128,7 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
                 ::printf("   icon resolution: %u x %u\n", entry.iconSize, entry.iconSize);
 
                 auto compression = CompressionToName(entry.compression);
-                ::printf("   copression: %s\n", compression);
+                ::printf("   compression: %s\n", compression);
 
                 ::printf("   offset: %u\n", entry.offset);
                 ::printf("   size: %u\n", entry.size);

@@ -200,7 +200,7 @@ bool cPngReader::loadPng(sBitmapDescription& desc, cFile& file)
 
     uint8_t header[HeaderSize];
     if (file.read(&header, HeaderSize) != HeaderSize
-        && isValid(header, file.getSize()) == false)
+        || isValid(header, file.getSize()) == false)
     {
         cLog::Error("Is not recognized as a PNG file.");
         return false;
@@ -293,7 +293,7 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
     }
     else
     {
-        cLog::Error("Should't be happened.");
+        cLog::Error("Unexpected PNG color type.");
     }
 
     desc.bitmap.resize(desc.pitch * desc.height);
