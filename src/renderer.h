@@ -50,6 +50,7 @@ public:
 
     static GLuint createTexture();
     static void setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format);
+    static void setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum internalFormat, uint32_t dataSize);
     static void deleteTexture(GLuint tex);
     static GLuint getCurrentTexture();
     static void bindTexture(GLuint tex);

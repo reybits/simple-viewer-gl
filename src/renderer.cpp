@@ -213,6 +213,21 @@ void cRenderer::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h,
     }
 }
 
+void cRenderer::setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum internalFormat, uint32_t dataSize)
+{
+    bindTexture(tex);
+
+    if (tex != 0 && data != nullptr)
+    {
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+
+        GL(glCompressedTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, dataSize, data));
+    }
+}
+
 GLuint cRenderer::createTexture()
 {
     GLuint tex = 0;

@@ -15,6 +15,7 @@ class cQuad
 {
 public:
     cQuad(uint32_t tw, uint32_t th, const uint8_t* data = 0, GLenum bitmapFormat = GL_RGB);
+    cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum internalFormat, uint32_t dataSize);
     virtual ~cQuad();
 
     virtual void setData(const uint8_t* data);

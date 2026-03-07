@@ -12,11 +12,27 @@ namespace AGE
 {
     enum class Format : unsigned
     {
-        ALPHA,
-        RGB,
-        RGBA,
+        // Uncompressed formats
+        RGBA8888,
+        RGBA5551,
+        RGBA4444,
+        RGB888,
+        RGB565,
+        A8,
 
-        Count
+        LAST_UNCOMPRESSED = A8,
+
+        // GPU-compressed formats
+        ASTC_4x4,
+        ASTC_6x6,
+        ASTC_8x8,
+        ETC2_RGB,
+        ETC2_RGBA,
+        BC1,
+        BC3,
+        BC7,
+
+        UNKNOWN
     };
 
     enum class Compression : unsigned
@@ -42,7 +58,10 @@ namespace AGE
     };
 
     void filEmpty(Header& header);
-    bool isRawHeader(const Header& header);
+    bool isValidHeader(const Header& header);
+    unsigned getVersion(const Header& header);
+    bool isCompressedFormat(Format format);
+    Format remapV1Format(unsigned v1Format);
 
     const char* FormatToStr(Format format);
     const char* CompressionToStr(Compression compression);
