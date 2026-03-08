@@ -328,10 +328,13 @@ void render::readTexPixel(GLuint tex, uint32_t x, uint32_t y, uint8_t* rgba)
     }
 
     // Attach texture to readback FBO and read a single pixel
+    GLint prevPackAlignment = 4;
+    GL(glGetIntegerv(GL_PACK_ALIGNMENT, &prevPackAlignment));
     GL(glBindFramebuffer(GL_FRAMEBUFFER, ReadbackFbo));
     GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0));
     GL(glPixelStorei(GL_PACK_ALIGNMENT, 1));
     GL(glReadPixels(static_cast<GLint>(x), static_cast<GLint>(y), 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, rgba));
+    GL(glPixelStorei(GL_PACK_ALIGNMENT, prevPackAlignment));
     GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0));
     GL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
