@@ -69,8 +69,12 @@ namespace render
     void beginFrame();
     void endFrame();
 
+    void setTextureFilter(GLuint tex, GLenum minFilter, GLenum magFilter);
+    void setTextureWrap(GLuint tex, GLenum wrap);
+
     void render(const Line& line);
     void render(const Quad& quad);
+    void renderLines(const Vertex* vertices, uint32_t vertexCount);
 
     void setClearColor(float r, float g, float b, float a);
     void clear();

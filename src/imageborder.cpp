@@ -9,8 +9,6 @@
 
 #include "imageborder.h"
 
-#include <cmath>
-
 cImageBorder::cImageBorder()
 {
     setColor({ 25, 255, 25, 255 });
@@ -22,7 +20,7 @@ cImageBorder::~cImageBorder()
 
 void cImageBorder::setColor(const cColor& color)
 {
-    m_line.v[0].color = m_line.v[1].color = m_line.v[2].color = m_line.v[3].color = color;
+    m_quad.v[0].color = m_quad.v[1].color = m_quad.v[2].color = m_quad.v[3].color = color;
 }
 
 void cImageBorder::render(float x, float y, float w, float h)
@@ -37,14 +35,14 @@ void cImageBorder::render(float x, float y, float w, float h)
 
 void cImageBorder::renderLine(float x, float y, float w, float h)
 {
-    m_line.v[0].x = x;
-    m_line.v[0].y = y;
-    m_line.v[1].x = x + w;
-    m_line.v[1].y = y;
-    m_line.v[2].x = x + w;
-    m_line.v[2].y = y + h;
-    m_line.v[3].x = x;
-    m_line.v[3].y = y + h;
+    m_quad.v[0].x = x;
+    m_quad.v[0].y = y;
+    m_quad.v[1].x = x + w;
+    m_quad.v[1].y = y;
+    m_quad.v[2].x = x + w;
+    m_quad.v[2].y = y + h;
+    m_quad.v[3].x = x;
+    m_quad.v[3].y = y + h;
     render::bindTexture(0);
-    render::render(m_line);
+    render::render(m_quad);
 }

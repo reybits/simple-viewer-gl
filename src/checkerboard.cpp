@@ -41,8 +41,7 @@ void cCheckerboard::init()
     }
 
     m_cb.reset(new cQuad(texSize, texSize, buffer.data(), GL_LUMINANCE));
-    GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
-    GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+    render::setTextureWrap(m_cb->getQuad().tex, GL_REPEAT);
     m_cb->useFilter(false);
 }
 

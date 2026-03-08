@@ -104,11 +104,8 @@ void main()
             IM_ASSERT(textureData->Format == ImTextureFormat_RGBA32);
             auto tex = render::createTexture();
 
-            render::bindTexture(tex);
-            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+            render::setTextureFilter(tex, GL_LINEAR, GL_LINEAR);
+            render::setTextureWrap(tex, GL_CLAMP_TO_EDGE);
             GL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
             GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
             auto pixels = textureData->GetPixels();
