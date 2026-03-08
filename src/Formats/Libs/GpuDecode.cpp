@@ -607,11 +607,11 @@ namespace
         }
 
         // interpolate
-        constexpr uint8_t Bc7Weights2[] = { 0, 21, 43, 64 };
-        constexpr uint8_t Bc7Weights3[] = { 0, 9, 18, 27, 37, 46, 55, 64 };
-        constexpr uint8_t Bc7Weights4[] = { 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64 };
-
         auto getWeight = [](int bits, int index) -> uint8_t {
+            static constexpr uint8_t Bc7Weights2[] = { 0, 21, 43, 64 };
+            static constexpr uint8_t Bc7Weights3[] = { 0, 9, 18, 27, 37, 46, 55, 64 };
+            static constexpr uint8_t Bc7Weights4[] = { 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64 };
+
             switch (bits)
             {
             case 2:
@@ -620,9 +620,9 @@ namespace
                 return Bc7Weights3[index];
             case 4:
                 return Bc7Weights4[index];
-            default:
-                return 0;
             }
+
+            return 0;
         };
 
         for (int i = 0; i < 16; i++)
