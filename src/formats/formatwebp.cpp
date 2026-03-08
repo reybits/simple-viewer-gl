@@ -93,6 +93,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
         desc.bppImage = 32;
         desc.format = GL_RGBA;
         desc.bitmap.resize(desc.pitch * desc.height);
+        signalBitmapAllocated();
 
         if (WebPDecodeRGBAInto(buffer.data(), buffer.size(), desc.bitmap.data(), desc.bitmap.size(), desc.pitch) == nullptr)
         {
@@ -107,6 +108,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
         desc.bppImage = 24;
         desc.format = GL_RGB;
         desc.bitmap.resize(desc.pitch * desc.height);
+        signalBitmapAllocated();
 
         if (WebPDecodeRGBInto(buffer.data(), buffer.size(), desc.bitmap.data(), desc.bitmap.size(), desc.pitch) == nullptr)
         {

@@ -140,6 +140,7 @@ bool cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescripti
         desc.bppImage = 32;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
         desc.bitmap.resize(desc.pitch * desc.height);
+        signalBitmapAllocated();
 
         auto out = desc.bitmap.data();
 
@@ -177,6 +178,7 @@ bool cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescripti
         desc.bppImage = cinfo.num_components * precision;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
         desc.bitmap.resize(desc.pitch * desc.height);
+        signalBitmapAllocated();
 
         auto out = desc.bitmap.data();
 

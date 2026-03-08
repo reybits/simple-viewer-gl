@@ -377,6 +377,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
     {
         desc.bpp = 8 * std::min<uint32_t>(channels, 4);
         auto bitmap = allocBitmap(desc);
+        signalBitmapAllocated();
 
         if (channels == 3)
         {
@@ -417,6 +418,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
     {
         desc.bpp = 8 * (channels == 4 ? 3 : 4);
         auto bitmap = allocBitmap(desc);
+        signalBitmapAllocated();
 
         if (channels == 4)
         {
@@ -473,6 +475,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
             desc.bpp = 32;
             auto bitmap = allocBitmap(desc);
             (void)bitmap;
+            signalBitmapAllocated();
 
             desc.format = GL_RGBA;
             switch (depth)
@@ -507,6 +510,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         {
             desc.bpp = 24;
             auto bitmap = allocBitmap(desc);
+            signalBitmapAllocated();
 
             desc.format = GL_RGB;
             for (uint32_t y = 0; y < desc.height; y++)

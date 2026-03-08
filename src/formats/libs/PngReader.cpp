@@ -298,8 +298,10 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
 
     desc.bitmap.resize(desc.pitch * desc.height);
 
-    // cLog::Debug("png pitch: {}.", rowbytes);
-    // cLog::Debug("bitmap pitch: {}.", desc.pitch);
+    if (m_allocated != nullptr)
+    {
+        m_allocated();
+    }
 
     for (uint32_t y = 0; y < desc.height; y++)
     {

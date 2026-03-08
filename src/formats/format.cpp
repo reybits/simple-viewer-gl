@@ -34,13 +34,27 @@ void cFormat::setConfig(const sConfig* config)
 bool cFormat::Load(const char* filename, sBitmapDescription& desc)
 {
     m_stop = false;
-    return LoadImpl(filename, desc);
+    m_desc = &desc;
+    bool result = LoadImpl(filename, desc);
+    if (result)
+    {
+        desc.readyHeight.store(desc.height, std::memory_order_release);
+    }
+    m_desc = nullptr;
+    return result;
 }
 
 bool cFormat::LoadSubImage(uint32_t subImage, sBitmapDescription& desc)
 {
     m_stop = false;
-    return LoadSubImageImpl(subImage, desc);
+    m_desc = &desc;
+    bool result = LoadSubImageImpl(subImage, desc);
+    if (result)
+    {
+        desc.readyHeight.store(desc.height, std::memory_order_release);
+    }
+    m_desc = nullptr;
+    return result;
 }
 
 void cFormat::dump(sBitmapDescription& desc) const
@@ -58,9 +72,24 @@ void cFormat::dump(sBitmapDescription& desc) const
     ::printf("(II) frame duration: %u\n", desc.delay);
 }
 
-void cFormat::updateProgress(float percent) const
+void cFormat::updateProgress(float percent)
 {
+    if (m_desc != nullptr)
+    {
+        m_desc->readyHeight.store(
+            static_cast<uint32_t>(percent * m_desc->height),
+            std::memory_order_release);
+    }
     m_callbacks->doProgress(percent);
+}
+
+void cFormat::signalBitmapAllocated()
+{
+    if (m_callbacks != nullptr && m_desc != nullptr)
+    {
+        m_desc->readyHeight.store(0, std::memory_order_release);
+        m_callbacks->onBitmapAllocated(*m_desc);
+    }
 }
 
 bool cFormat::readBuffer(cFile& file, Buffer& buffer, uint32_t minSize) const
@@ -79,21 +108,21 @@ bool cFormat::readBuffer(cFile& file, Buffer& buffer, uint32_t minSize) const
     return minSize <= buffer.size();
 }
 
-bool cFormat::applyIccProfile(sBitmapDescription& desc, const void* iccProfile, uint32_t iccProfileSize) const
+bool cFormat::applyIccProfile(sBitmapDescription& desc, const void* iccProfile, uint32_t iccProfileSize)
 {
     auto type = desc.bpp == 32 ? cCMS::Pixel::Rgba : cCMS::Pixel::Rgb;
     m_cms->createTransform(iccProfile, iccProfileSize, type);
     return applyIccProfile(desc);
 }
 
-bool cFormat::applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb) const
+bool cFormat::applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb)
 {
     auto type = desc.bpp == 32 ? cCMS::Pixel::Rgba : cCMS::Pixel::Rgb;
     m_cms->createTransform(chr, wp, gmr, gmg, gmb, type);
     return applyIccProfile(desc);
 }
 
-bool cFormat::applyIccProfile(sBitmapDescription& desc) const
+bool cFormat::applyIccProfile(sBitmapDescription& desc)
 {
     bool hasIccProfile = m_cms->hasTransform();
 
