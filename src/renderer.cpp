@@ -314,6 +314,7 @@ void render::getTexImage(GLuint tex, uint32_t w, uint32_t h, void* pixels)
     if (tex != 0 && pixels != nullptr)
     {
         bindTexture(tex);
+        GL(glPixelStorei(GL_PACK_ALIGNMENT, 4));
         GL(glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels));
         (void)w;
         (void)h;
