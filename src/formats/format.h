@@ -15,7 +15,7 @@
 
 class cCMS;
 class cFile;
-class iCallbacks;
+struct sCallbacks;
 struct sBitmapDescription;
 struct sConfig;
 
@@ -47,7 +47,7 @@ public:
     virtual void dump(sBitmapDescription& desc) const;
 
 protected:
-    cFormat(iCallbacks* callbacks);
+    cFormat(sCallbacks* callbacks);
     bool readBuffer(cFile& file, Buffer& buffer, uint32_t minSize) const;
     bool applyIccProfile(sBitmapDescription& desc, const void* iccProfile, uint32_t iccProfileSize);
     bool applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb);
@@ -62,7 +62,7 @@ private:
     }
 
 private:
-    iCallbacks* m_callbacks;
+    sCallbacks* m_callbacks;
     sBitmapDescription* m_desc = nullptr;
     std::unique_ptr<cCMS> m_cms;
 

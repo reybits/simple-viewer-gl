@@ -513,7 +513,7 @@ namespace
     }
 }
 
-cFormatTarga::cFormatTarga(iCallbacks* callbacks)
+cFormatTarga::cFormatTarga(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

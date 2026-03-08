@@ -57,7 +57,7 @@ namespace
 
 } // namespace
 
-cJpegDecoder::cJpegDecoder(iCallbacks* callbacks)
+cJpegDecoder::cJpegDecoder(sCallbacks* callbacks)
     : cFormat(callbacks)
     , JPEG_EXIF(JPEG_APP0 + 1)
     , JPEG_ICCP(JPEG_APP0 + 2)

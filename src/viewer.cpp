@@ -50,8 +50,24 @@ cViewer::cViewer(sConfig& config, cWindow& window)
     : m_config(config)
     , m_window(window)
 {
+    m_windowEvents.onWindowResize = [this](const Vectori& s) { onWindowResize(s); };
+    m_windowEvents.onFramebufferResize = [this](const Vectori& s) { onFramebufferResize(s); };
+    m_windowEvents.onWindowPosition = [this](const Vectori& p) { onWindowPosition(p); };
+    m_windowEvents.onWindowRefresh = [this]() { onWindowRefresh(); };
+    m_windowEvents.onKeyEvent = [this](int k, int s, int a, int m) { onKeyEvent(k, s, a, m); };
+    m_windowEvents.onCharEvent = [this](uint32_t c) { onCharEvent(c); };
+    m_windowEvents.onMouseButton = [this](int b, int a, int m) { onMouseButton(b, a, m); };
+    m_windowEvents.onMouseMove = [this](const Vectorf& p) { onMouseMove(p); };
+    m_windowEvents.onMouseScroll = [this](const Vectorf& o) { onMouseScroll(o); };
+    m_windowEvents.onFileDrop = [this](const StringsList& p) { onFileDrop(p); };
+
+    m_callbacks.startLoading = [this]() { startLoading(); };
+    m_callbacks.onBitmapAllocated = [this](const sBitmapDescription& d) { onBitmapAllocated(d); };
+    m_callbacks.doProgress = [this](float p) { doProgress(p); };
+    m_callbacks.endLoading = [this]() { endLoading(); };
+
     m_image = std::make_unique<cQuadImage>();
-    m_loader = std::make_unique<cImageLoader>(&config, this);
+    m_loader = std::make_unique<cImageLoader>(&config, &m_callbacks);
     m_checkerBoard = std::make_unique<cCheckerboard>(config);
     m_deletionMark = std::make_unique<cDeletionMark>();
     m_infoBar = std::make_unique<cInfoBar>(config);

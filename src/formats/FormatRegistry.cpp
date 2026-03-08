@@ -296,7 +296,7 @@ namespace
     // --- Factory functions ---
 
     template <typename T>
-    std::unique_ptr<cFormat> makeFormat(iCallbacks* cb)
+    std::unique_ptr<cFormat> makeFormat(sCallbacks* cb)
     {
         return std::make_unique<T>(cb);
     }

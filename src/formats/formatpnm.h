@@ -14,7 +14,7 @@
 class cFormatPnm final : public cFormat
 {
 public:
-    explicit cFormatPnm(iCallbacks* callbacks);
+    explicit cFormatPnm(sCallbacks* callbacks);
     ~cFormatPnm();
 
     bool isSupported(cFile& file, Buffer& buffer) const override;

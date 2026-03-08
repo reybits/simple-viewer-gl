@@ -15,7 +15,7 @@
 #include <cstdio>
 #include <cstring>
 
-cFormatXcf::cFormatXcf(iCallbacks* callbacks)
+cFormatXcf::cFormatXcf(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

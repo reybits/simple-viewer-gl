@@ -16,7 +16,7 @@ struct NSVGrasterizer;
 class cFormatSvg final : public cFormat
 {
 public:
-    explicit cFormatSvg(iCallbacks* callbacks);
+    explicit cFormatSvg(sCallbacks* callbacks);
     ~cFormatSvg();
 
     bool isSupported(cFile& file, Buffer& buffer) const override;

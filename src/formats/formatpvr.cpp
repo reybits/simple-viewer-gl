@@ -391,7 +391,7 @@ namespace
 
 } // namespace
 
-cFormatPvr::cFormatPvr(iCallbacks* callbacks)
+cFormatPvr::cFormatPvr(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

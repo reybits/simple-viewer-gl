@@ -14,7 +14,7 @@
 class cFormatXpm final : public cFormat
 {
 public:
-    explicit cFormatXpm(iCallbacks* callbacks);
+    explicit cFormatXpm(sCallbacks* callbacks);
     ~cFormatXpm();
 
     bool isSupported(cFile& file, Buffer& buffer) const override;

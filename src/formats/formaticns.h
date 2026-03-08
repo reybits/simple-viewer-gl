@@ -14,7 +14,7 @@
 class cFormatIcns final : public cFormat
 {
 public:
-    explicit cFormatIcns(iCallbacks* callbacks);
+    explicit cFormatIcns(sCallbacks* callbacks);
     ~cFormatIcns();
 
     bool isSupported(cFile& file, Buffer& buffer) const override;

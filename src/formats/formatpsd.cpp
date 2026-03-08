@@ -198,7 +198,7 @@ namespace
     }
 } // namespace
 
-cFormatPsd::cFormatPsd(iCallbacks* callbacks)
+cFormatPsd::cFormatPsd(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

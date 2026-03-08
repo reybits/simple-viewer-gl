@@ -193,7 +193,7 @@ namespace
     }
 } // namespace
 
-cFormatJp2k::cFormatJp2k(iCallbacks* callbacks)
+cFormatJp2k::cFormatJp2k(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

@@ -17,14 +17,14 @@
 #include <thread>
 #include <unordered_map>
 
-class iCallbacks;
+struct sCallbacks;
 struct sConfig;
 struct sFormatEntry;
 
 class cImageLoader final
 {
 public:
-    explicit cImageLoader(const sConfig* config, iCallbacks* callbacks);
+    explicit cImageLoader(const sConfig* config, sCallbacks* callbacks);
     ~cImageLoader();
 
     void loadImage(const std::string& path);
@@ -78,7 +78,7 @@ private:
 
 private:
     const sConfig* m_config;
-    iCallbacks* m_callbacks;
+    sCallbacks* m_callbacks;
 
     Mode m_mode = Mode::Image;
     std::thread m_loader;

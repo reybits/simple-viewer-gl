@@ -14,7 +14,7 @@
 class cFormatJpeg final : public cJpegDecoder
 {
 public:
-    explicit cFormatJpeg(iCallbacks* callbacks);
+    explicit cFormatJpeg(sCallbacks* callbacks);
     ~cFormatJpeg();
 
     bool isSupported(cFile& file, Buffer& buffer) const override;

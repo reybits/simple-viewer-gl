@@ -35,7 +35,7 @@ class cQuadImage;
 class cSelection;
 struct sConfig;
 
-class cViewer final : public iWindowEvents, public iCallbacks
+class cViewer final
 {
 public:
     cViewer(sConfig& config, cWindow& window);
@@ -48,23 +48,10 @@ public:
     void onRender();
     void onUpdate();
 
-    // iWindowEvents
-    void onWindowResize(const Vectori& winSize) override;
-    void onFramebufferResize(const Vectori& fbSize) override;
-    void onWindowPosition(const Vectori& pos) override;
-    void onWindowRefresh() override;
-    void onKeyEvent(int key, int scancode, int action, int mods) override;
-    void onCharEvent(uint32_t codepoint) override;
-    void onMouseButton(int button, int action, int mods) override;
-    void onMouseMove(const Vectorf& pos) override;
-    void onMouseScroll(const Vectorf& offset) override;
-    void onFileDrop(const StringsList& paths) override;
-
-    // iCallbacks
-    void startLoading() override;
-    void onBitmapAllocated(const sBitmapDescription& desc) override;
-    void doProgress(float progress) override;
-    void endLoading() override;
+    sWindowEvents& getWindowEvents()
+    {
+        return m_windowEvents;
+    }
 
     // Called by cWindow after fullscreen toggle to reinit GL resources
     void onContextRecreated();
@@ -72,6 +59,24 @@ public:
     void centerWindow();
 
 private:
+    // Window event handlers
+    void onWindowResize(const Vectori& winSize);
+    void onFramebufferResize(const Vectori& fbSize);
+    void onWindowPosition(const Vectori& pos);
+    void onWindowRefresh();
+    void onKeyEvent(int key, int scancode, int action, int mods);
+    void onCharEvent(uint32_t codepoint);
+    void onMouseButton(int button, int action, int mods);
+    void onMouseMove(const Vectorf& pos);
+    void onMouseScroll(const Vectorf& offset);
+    void onFileDrop(const StringsList& paths);
+
+    // Loader callback handlers
+    void startLoading();
+    void onBitmapAllocated(const sBitmapDescription& desc);
+    void doProgress(float progress);
+    void endLoading();
+
     void onResize(const Vectori& winSize, const Vectori& fbSize);
     void loadFirstImage();
     void loadLastImage();
@@ -105,6 +110,8 @@ private:
 private:
     sConfig& m_config;
     cWindow& m_window;
+    sWindowEvents m_windowEvents;
+    sCallbacks m_callbacks;
 
     Vectorf m_ratio;
     std::atomic<bool> m_bitmapAllocated{ false };

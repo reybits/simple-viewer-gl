@@ -260,7 +260,7 @@ int main(int argc, char* argv[])
 
     cViewer viewer(config, window);
     Viewer = &viewer;
-    window.setEventHandler(&viewer);
+    window.setEventHandler(&viewer.getWindowEvents());
 
     viewer.addPaths(ImagesList);
     ImagesList.clear();
