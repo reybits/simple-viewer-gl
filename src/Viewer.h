@@ -116,6 +116,7 @@ private:
     std::atomic<bool> m_imagePrepared{ false };
     std::atomic<float> m_loadProgress{ -1.0f };
     bool m_uploadFinal = false;
+    double m_uploadStartTime = 0.0;
     cScale m_scale;
     bool m_cursorInside = false;
     bool m_mouseMB = false;

@@ -213,6 +213,8 @@ void cViewer::onUpdate()
     // Progressive upload: start uploading chunks as soon as bitmap is allocated
     if (m_bitmapAllocated.exchange(false))
     {
+        m_uploadStartTime = timing::seconds();
+
         const auto& desc = m_loader->getDescription();
         m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
 
@@ -288,6 +290,17 @@ void cViewer::onUpdate()
         if (isDone)
         {
             const auto& desc = m_loader->getDescription();
+
+            if (m_config.debug)
+            {
+                const double uploadTime = timing::seconds() - m_uploadStartTime;
+                cLog::Debug("upload: {}x{} chunk {}x{} grid {}x{} in {:.1f} ms",
+                            desc.width, desc.height,
+                            m_image->getTexWidth(), m_image->getTexHeight(),
+                            m_image->getCols(), m_image->getRows(),
+                            uploadTime * 1000.0);
+            }
+
             m_progress->hide();
             m_loadProgress.store(-1.0f, std::memory_order_relaxed);
             m_animation = desc.isAnimation;

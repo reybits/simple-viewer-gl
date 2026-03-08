@@ -49,6 +49,26 @@ public:
         return m_height;
     }
 
+    uint32_t getTexWidth() const
+    {
+        return m_texWidth;
+    }
+
+    uint32_t getTexHeight() const
+    {
+        return m_texHeight;
+    }
+
+    uint32_t getCols() const
+    {
+        return m_cols;
+    }
+
+    uint32_t getRows() const
+    {
+        return m_rows;
+    }
+
 private:
     void moveToOld();
     void clearOld();

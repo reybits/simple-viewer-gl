@@ -16,8 +16,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <iterator>
 #include <cstdio>
+#include <iterator>
 #include <vector>
 
 namespace
@@ -152,7 +152,7 @@ void render::init()
 
     int maxSize = 0;
     GL(glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize));
-    constexpr uint32_t MaxChunkSize = 1024;
+    constexpr uint32_t MaxChunkSize = 4096;
     TextureSizeLimit = std::min<uint32_t>(static_cast<uint32_t>(maxSize), MaxChunkSize);
 
     // Create shader programs
