@@ -6,7 +6,7 @@
 
 ---
 
-[![Build status: master](https://ci.appveyor.com/api/projects/status/55qlv1c7ca5vp7y4/branch/master?svg=true)](https://ci.appveyor.com/project/reybits/simple-viewer-gl/branch/master "Branch: master") ![GitHub last commit (master)](https://img.shields.io/github/last-commit/reybits/simple-viewer-gl/master)
+[![Build status: master](https://ci.appveyor.com/api/projects/status/46dwigm4a6acov7k/branch/master?svg=true)](https://ci.appveyor.com/project/reybits/simple-viewer-gl/branch/master "Branch: master") ![GitHub last commit (master)](https://img.shields.io/github/last-commit/reybits/simple-viewer-gl/master)
 
 The primary goal of **Simple Viewer GL** is to provide a fast, efficient image viewer with only the essential features required for quick image browsing. It includes *vi*-like key bindings and integrates seamlessly with tiling window managers such as *ion3*/*notion*, *i3wm*, *dwm*, *xmonad*, *hyprland*, *sway*, and others.
 
