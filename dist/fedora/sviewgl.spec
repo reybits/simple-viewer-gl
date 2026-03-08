@@ -10,7 +10,7 @@ URL: https://github.com/reybits/simple-viewer-gl.git
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++, make, cmake
-BuildRequires: mesa-libGL-devel, glfw-devel, freetype-devel, libpng-devel, libjpeg-turbo-devel, libtiff-devel, giflib-devel, lcms2-devel, libwebp-devel, libexif-devel, imlib2-devel, zlib-devel, ilmbase-devel, OpenEXR-devel
+BuildRequires: mesa-libGL-devel, glfw-devel, freetype-devel, libpng-devel, libjpeg-turbo-devel, libtiff-devel, giflib-devel, lcms2-devel, libwebp-devel, libexif-devel, zlib-devel, ilmbase-devel, OpenEXR-devel
 
 %description
 Simple Viewer GL - simple and tiny image viewer based on OpenGL

@@ -16,7 +16,7 @@ init:
     echo "--- Installing dependencies ---"
     sudo apt-get --assume-yes update
     sudo apt-get --assume-yes install cmake libglfw3-dev
-    sudo apt-get --assume-yes install liblcms2-dev libexif-dev libgif-dev libtiff5-dev libjpeg-turbo8-dev libwebp-dev libilmbase-dev libopenexr-dev libopenjp2-7-dev libimlib2-dev
+    sudo apt-get --assume-yes install liblcms2-dev libexif-dev libgif-dev libtiff5-dev libjpeg-turbo8-dev libwebp-dev libilmbase-dev libopenexr-dev libopenjp2-7-dev
 # - sudo apt-get --assume-yes install libjpeg-dev libpng-dev zlib1g-dev libxrandr-dev libxcursor-dev
 
 platform: x64

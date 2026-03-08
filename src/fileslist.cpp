@@ -225,10 +225,6 @@ namespace
         MakeExt(".gif"),
         // webp
         MakeExt(".webp"),
-        // imlib2
-        MakeExt(".lbm"),
-        MakeExt(".id3"),
-        MakeExt(".argb"),
 
         // internal loaders
 

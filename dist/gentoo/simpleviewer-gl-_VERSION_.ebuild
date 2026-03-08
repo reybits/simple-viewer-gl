@@ -17,7 +17,7 @@ fi
 LICENSE="GPL-2"
 SLOT="0"
 KEYWORDS="~x86 ~amd64"
-IUSE="+lcms +exif +jpeg2k +gif +tiff +webp +exr +curl -imlib2"
+IUSE="+lcms +exif +jpeg2k +gif +tiff +webp +exr +curl"
 
 DEPEND="
 	media-libs/glfw
@@ -34,7 +34,6 @@ DEPEND="
 	exr? ( media-libs/openexr
 	       media-libs/ilmbase )
 	curl? ( net-misc/curl )
-	imlib2? ( media-libs/imlib2[X,jpeg,gif,png,tiff] )
 "
 
 RDEPEND="${DEPEND}"
@@ -54,7 +53,6 @@ src_configure() {
 		-DDISABLE_WEBP_SUPPORT=$(usex webp 0 1)
 		-DDISABLE_OPENEXR_SUPPORT=$(usex exr 0 1)
 		-DDISABLE_CURL_SUPPORT=$(usex curl 0 1)
-		-DDISABLE_IMLIB2_SUPPORT=$(usex imlib2 0 1)
 	)
 	cmake-utils_src_configure
 }

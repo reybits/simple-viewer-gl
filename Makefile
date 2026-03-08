@@ -73,9 +73,8 @@ cppcheck:
 		-DTIFF_SUPPORT=1 \
 		-DWEBP_SUPPORT=1 \
 		-DOPENEXR_SUPPORT=1 \
-		-DIMLIB2_SUPPORT=1 \
 		-j 1 \
-		--std=c++14 \
+		--std=c++17 \
 		--enable=all \
 		-f -I src src/ 2> cppcheck-output
 

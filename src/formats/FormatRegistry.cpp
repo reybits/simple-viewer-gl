@@ -14,7 +14,6 @@
 
 #include "formatage.h"
 #include "formatbmp.h"
-#include "formatcommon.h"
 #include "formatdds.h"
 #include "formateps.h"
 #include "formatexr.h"
@@ -302,13 +301,6 @@ namespace
         return std::make_unique<T>(cb);
     }
 
-#if defined(IMLIB2_SUPPORT)
-    bool probeCommon(cFile& /*file*/, Buffer& /*buffer*/, const uint8_t* /*data*/, uint32_t /*dataSize*/, uint64_t /*fileSize*/)
-    {
-        return true; // fallback loader
-    }
-#endif
-
 } // namespace
 
 const std::vector<sFormatEntry>& FormatRegistry::getRegistry()
@@ -350,9 +342,6 @@ const std::vector<sFormatEntry>& FormatRegistry::getRegistry()
         { "scr", nullptr, 0, 0, probeScr, makeFormat<cFormatScr>, 4 },
 #if defined(OPENEXR_SUPPORT)
         { "exr", MagicExr, sizeof(MagicExr), 0, nullptr, makeFormat<cFormatExr>, 4 },
-#endif
-#if defined(IMLIB2_SUPPORT)
-        { "common", nullptr, 0, 0, probeCommon, makeFormat<cFormatCommon>, 0 },
 #endif
     };
 
