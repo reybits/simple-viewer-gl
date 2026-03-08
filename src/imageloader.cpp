@@ -19,7 +19,7 @@
 #include <cassert>
 #include <string>
 
-cImageLoader::cImageLoader(const sConfig* config, iCallbacks* callbacks)
+cImageLoader::cImageLoader(const sConfig* config, sCallbacks* callbacks)
     : m_config(config)
     , m_callbacks(callbacks)
 {

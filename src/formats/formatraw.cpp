@@ -68,7 +68,7 @@ namespace
 
 } // namespace
 
-cFormatRaw::cFormatRaw(iCallbacks* callbacks)
+cFormatRaw::cFormatRaw(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

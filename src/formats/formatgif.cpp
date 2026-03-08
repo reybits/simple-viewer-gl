@@ -78,7 +78,7 @@ namespace
     }
 } // namespace
 
-cFormatGif::cFormatGif(iCallbacks* callbacks)
+cFormatGif::cFormatGif(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

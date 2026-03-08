@@ -18,7 +18,7 @@
 
 class cFile;
 class cFormat;
-class iCallbacks;
+struct sCallbacks;
 struct sConfig;
 
 struct sFormatEntry
@@ -35,7 +35,7 @@ struct sFormatEntry
     ProbeFunc probe;
 
     // Creates the format reader
-    using FactoryFunc = std::unique_ptr<cFormat> (*)(iCallbacks*);
+    using FactoryFunc = std::unique_ptr<cFormat> (*)(sCallbacks*);
     FactoryFunc factory;
 
     // Minimum buffer size needed for detection

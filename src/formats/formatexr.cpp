@@ -197,7 +197,7 @@ namespace
 #endif
 }
 
-cFormatExr::cFormatExr(iCallbacks* callbacks)
+cFormatExr::cFormatExr(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

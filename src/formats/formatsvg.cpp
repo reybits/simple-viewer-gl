@@ -23,7 +23,7 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include "libs/nanosvgrast.h"
 
-cFormatSvg::cFormatSvg(iCallbacks* callbacks)
+cFormatSvg::cFormatSvg(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
     m_rasterizer = nsvgCreateRasterizer();

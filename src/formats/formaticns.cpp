@@ -45,7 +45,7 @@ namespace
 
 } // namespace
 
-cFormatIcns::cFormatIcns(iCallbacks* callbacks)
+cFormatIcns::cFormatIcns(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

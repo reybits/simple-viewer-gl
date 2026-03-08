@@ -16,7 +16,7 @@
 #include <cassert>
 #include <cstdio>
 
-cFormat::cFormat(iCallbacks* callbacks)
+cFormat::cFormat(sCallbacks* callbacks)
     : m_callbacks(callbacks)
 {
     m_cms = std::make_unique<cCMS>();

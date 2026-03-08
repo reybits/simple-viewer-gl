@@ -13,7 +13,7 @@
 
 #include <cstring>
 
-cFormatPng::cFormatPng(iCallbacks* callbacks)
+cFormatPng::cFormatPng(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

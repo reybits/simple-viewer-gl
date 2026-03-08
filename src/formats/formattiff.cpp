@@ -31,7 +31,7 @@ namespace
     }
 } // namespace
 
-cFormatTiff::cFormatTiff(iCallbacks* callbacks)
+cFormatTiff::cFormatTiff(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

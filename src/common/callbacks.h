@@ -9,13 +9,14 @@
 
 #pragma once
 
+#include <functional>
+
 struct sBitmapDescription;
 
-class iCallbacks
+struct sCallbacks
 {
-public:
-    virtual void startLoading() = 0;
-    virtual void onBitmapAllocated(const sBitmapDescription& desc) = 0;
-    virtual void doProgress(float progress) = 0;
-    virtual void endLoading() = 0;
+    std::function<void()> startLoading;
+    std::function<void(const sBitmapDescription& desc)> onBitmapAllocated;
+    std::function<void(float progress)> doProgress;
+    std::function<void()> endLoading;
 };

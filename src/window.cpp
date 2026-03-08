@@ -194,7 +194,7 @@ void cWindow::shutdown()
     Instance = nullptr;
 }
 
-void cWindow::setEventHandler(iWindowEvents* handler)
+void cWindow::setEventHandler(sWindowEvents* handler)
 {
     m_handler = handler;
 }

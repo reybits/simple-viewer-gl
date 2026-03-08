@@ -47,7 +47,7 @@ namespace
     }
 }
 
-cFormatEps::cFormatEps(iCallbacks* callbacks)
+cFormatEps::cFormatEps(sCallbacks* callbacks)
     : cJpegDecoder(callbacks)
 {
 }

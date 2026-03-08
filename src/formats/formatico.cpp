@@ -69,7 +69,7 @@ struct IcoColors
 // uint8_t andmask; // DIB bits for AND mask
 #pragma pack(pop)
 
-cFormatIco::cFormatIco(iCallbacks* callbacks)
+cFormatIco::cFormatIco(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

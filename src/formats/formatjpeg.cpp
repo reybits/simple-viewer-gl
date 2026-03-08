@@ -196,7 +196,7 @@ namespace
 #endif
 }
 
-cFormatJpeg::cFormatJpeg(iCallbacks* callbacks)
+cFormatJpeg::cFormatJpeg(sCallbacks* callbacks)
     : cJpegDecoder(callbacks)
 {
 }

@@ -82,7 +82,7 @@ struct X11ColorMap
     uint8_t Padding; // WORD-align padding
 };
 
-cFormatXwd::cFormatXwd(iCallbacks* callbacks)
+cFormatXwd::cFormatXwd(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

@@ -282,7 +282,7 @@ namespace
     }
 }
 
-cFormatPnm::cFormatPnm(iCallbacks* callbacks)
+cFormatPnm::cFormatPnm(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

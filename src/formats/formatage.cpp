@@ -96,7 +96,7 @@ namespace
 
 } // namespace
 
-cFormatAge::cFormatAge(iCallbacks* callbacks)
+cFormatAge::cFormatAge(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

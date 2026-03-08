@@ -16,7 +16,7 @@ struct jpeg_decompress_struct;
 class cJpegDecoder : public cFormat
 {
 public:
-    explicit cJpegDecoder(iCallbacks* callbacks);
+    explicit cJpegDecoder(sCallbacks* callbacks);
 
 protected:
     bool decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescription& desc);

@@ -12,24 +12,23 @@
 #include "types/types.h"
 #include "types/vector.h"
 
+#include <functional>
+
 struct GLFWwindow;
 struct sConfig;
 
-class iWindowEvents
+struct sWindowEvents
 {
-public:
-    virtual ~iWindowEvents() = default;
-
-    virtual void onWindowResize(const Vectori& winSize) = 0;
-    virtual void onFramebufferResize(const Vectori& fbSize) = 0;
-    virtual void onWindowPosition(const Vectori& pos) = 0;
-    virtual void onWindowRefresh() = 0;
-    virtual void onKeyEvent(int key, int scancode, int action, int mods) = 0;
-    virtual void onCharEvent(uint32_t codepoint) = 0;
-    virtual void onMouseButton(int button, int action, int mods) = 0;
-    virtual void onMouseMove(const Vectorf& pos) = 0;
-    virtual void onMouseScroll(const Vectorf& offset) = 0;
-    virtual void onFileDrop(const StringsList& paths) = 0;
+    std::function<void(const Vectori& winSize)> onWindowResize;
+    std::function<void(const Vectori& fbSize)> onFramebufferResize;
+    std::function<void(const Vectori& pos)> onWindowPosition;
+    std::function<void()> onWindowRefresh;
+    std::function<void(int key, int scancode, int action, int mods)> onKeyEvent;
+    std::function<void(uint32_t codepoint)> onCharEvent;
+    std::function<void(int button, int action, int mods)> onMouseButton;
+    std::function<void(const Vectorf& pos)> onMouseMove;
+    std::function<void(const Vectorf& offset)> onMouseScroll;
+    std::function<void(const StringsList& paths)> onFileDrop;
 };
 
 class cWindow final
@@ -41,7 +40,7 @@ public:
     bool init(const sConfig& config);
     void shutdown();
 
-    void setEventHandler(iWindowEvents* handler);
+    void setEventHandler(sWindowEvents* handler);
 
     // Queries
     Vectori getWindowSize() const;
@@ -79,7 +78,7 @@ private:
 
 private:
     GLFWwindow* m_window = nullptr;
-    iWindowEvents* m_handler = nullptr;
+    sWindowEvents* m_handler = nullptr;
     bool m_windowed = true;
 
     // macOS Mojave workaround

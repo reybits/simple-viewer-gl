@@ -14,7 +14,7 @@
 class cFormatPng final : public cFormat
 {
 public:
-    explicit cFormatPng(iCallbacks* callbacks);
+    explicit cFormatPng(sCallbacks* callbacks);
     ~cFormatPng();
 
     bool isSupported(cFile& file, Buffer& buffer) const override;

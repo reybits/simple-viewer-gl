@@ -19,7 +19,7 @@ class cFile;
 class cFormatXwd final : public cFormat
 {
 public:
-    explicit cFormatXwd(iCallbacks* callbacks);
+    explicit cFormatXwd(sCallbacks* callbacks);
     ~cFormatXwd();
 
     bool isSupported(cFile& file, Buffer& buffer) const override;

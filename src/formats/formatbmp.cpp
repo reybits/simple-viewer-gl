@@ -603,7 +603,7 @@ namespace
 
 } // namespace
 
-cFormatBmp::cFormatBmp(iCallbacks* callbacks)
+cFormatBmp::cFormatBmp(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }

@@ -298,7 +298,7 @@ namespace
 
 } // namespace
 
-cFormatDds::cFormatDds(iCallbacks* callbacks)
+cFormatDds::cFormatDds(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
 }
