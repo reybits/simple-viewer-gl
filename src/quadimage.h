@@ -9,10 +9,12 @@
 
 #pragma once
 
+#include "common/PixelFormat.h"
 #include "types/color.h"
 #include "types/types.h"
 #include "types/vector.h"
 
+#include <memory>
 #include <vector>
 
 class cQuad;
@@ -24,7 +26,8 @@ public:
     ~cQuadImage();
 
     void clear();
-    void setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint32_t format, uint32_t bpp, const uint8_t* image);
+    void setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePixelFormat format, uint32_t bpp, const uint8_t* image);
+    void refreshData(const uint8_t* image);
     void setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image);
     bool upload(uint32_t readyHeight);
 
@@ -56,7 +59,7 @@ private:
     {
         uint32_t col;
         uint32_t row;
-        cQuad* quad;
+        std::unique_ptr<cQuad> quad;
     };
 
     bool isInsideViewport(const sChunk& chunk, const Vectorf& pos) const;
@@ -65,6 +68,7 @@ private:
     bool m_started = false;
     bool m_filter = false;
     bool m_compressed = false;
+    uint32_t m_compressedFormat = 0; // GL internal format for compressed textures
     uint32_t m_compressedSize = 0;
 
     uint32_t m_texWidth = 0;
@@ -76,7 +80,7 @@ private:
     uint32_t m_width = 0;
     uint32_t m_height = 0;
     uint32_t m_pitch = 0;
-    uint32_t m_format = 0;
+    ePixelFormat m_format = ePixelFormat::RGB;
     uint32_t m_bitsPerPixel = 0;
     const uint8_t* m_image = nullptr;
 

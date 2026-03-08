@@ -28,11 +28,11 @@ void cPixelPopup::init()
 {
     m_pixelInfo.reset();
 
-    m_pointer.reset(new cQuadSeries(imgPointerCross.width, imgPointerCross.height, imgPointerCross.pixel_data, imgPointerCross.bytes_per_pixel == 3 ? GL_RGB : GL_RGBA));
+    m_pointer.reset(new cQuadSeries(imgPointerCross.width, imgPointerCross.height, imgPointerCross.pixel_data, imgPointerCross.bytes_per_pixel == 3 ? ePixelFormat::RGB : ePixelFormat::RGBA));
     m_pointer->setup(21, 21, 10);
     setCursor(0);
 
-    m_icons.reset(new cQuadSeries(imgIcons.width, imgIcons.height, imgIcons.pixel_data, imgIcons.bytes_per_pixel == 3 ? GL_RGB : GL_RGBA));
+    m_icons.reset(new cQuadSeries(imgIcons.width, imgIcons.height, imgIcons.pixel_data, imgIcons.bytes_per_pixel == 3 ? ePixelFormat::RGB : ePixelFormat::RGBA));
     m_icons->setup(16, 16, 4);
 }
 

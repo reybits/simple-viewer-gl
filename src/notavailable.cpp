@@ -24,7 +24,7 @@ cNotAvailable::~cNotAvailable()
 
 bool cNotAvailable::LoadImpl(const char* /*filename*/, sBitmapDescription& desc)
 {
-    desc.format   = imgNa.bytes_per_pixel == 3 ? GL_RGB : GL_RGBA;
+    desc.format   = imgNa.bytes_per_pixel == 3 ? ePixelFormat::RGB : ePixelFormat::RGBA;
     desc.width    = imgNa.width;
     desc.height   = imgNa.height;
     desc.bpp      = imgNa.bytes_per_pixel * 8;

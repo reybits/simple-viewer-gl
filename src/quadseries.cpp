@@ -9,7 +9,7 @@
 
 #include "quadseries.h"
 
-cQuadSeries::cQuadSeries(uint32_t tw, uint32_t th, const uint8_t* data, GLenum bitmapFormat)
+cQuadSeries::cQuadSeries(uint32_t tw, uint32_t th, const uint8_t* data, ePixelFormat bitmapFormat)
     : cQuad(tw, th, data, bitmapFormat)
     , m_count(1)
     , m_frame(0)

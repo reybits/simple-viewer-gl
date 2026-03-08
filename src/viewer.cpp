@@ -190,8 +190,8 @@ void cViewer::onUpdate()
     // Progressive upload: start uploading chunks as soon as bitmap is allocated
     if (m_bitmapAllocated.exchange(false))
     {
-        auto& desc = m_loader->getDescription();
-        m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, desc.bitmap.data());
+        const auto& desc = m_loader->getDescription();
+        m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
     }
 
     // Final upload: decode complete (possibly with ICC correction applied)
@@ -199,9 +199,17 @@ void cViewer::onUpdate()
     {
         m_uploadFinal = true;
 
-        auto& desc = m_loader->getDescription();
+        const auto& desc = m_loader->getDescription();
         // Re-upload with final data (ICC profile may have been applied)
-        m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, desc.bitmap.data());
+        if (m_image->getWidth() == desc.width
+            && m_image->getHeight() == desc.height)
+        {
+            m_image->refreshData(m_loader->getBitmapData());
+        }
+        else
+        {
+            m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
+        }
 
         if (m_loader->getMode() == cImageLoader::Mode::Image)
         {
@@ -223,8 +231,7 @@ void cViewer::onUpdate()
 
     if (isUploading())
     {
-        auto& desc = m_loader->getDescription();
-        const uint32_t ready = desc.readyHeight.load(std::memory_order_acquire);
+        const uint32_t ready = m_loader->getReadyHeight();
         const bool isDone = m_image->upload(ready);
 
         // Only show upload progress after at least one chunk has been uploaded,
@@ -237,20 +244,20 @@ void cViewer::onUpdate()
 
         if (isDone)
         {
+            const auto& desc = m_loader->getDescription();
             m_progress->hide();
             m_animation = desc.isAnimation;
 
             // Free bitmap memory — pixel readback now uses GPU textures
             if (m_uploadFinal && !desc.isAnimation && desc.images <= 1)
             {
-                desc.bitmapSize = desc.bitmap.size();
-                Buffer().swap(desc.bitmap);
+                m_loader->releaseBitmap();
             }
         }
     }
     else if (m_animation && m_subImageForced == false)
     {
-        auto& desc = m_loader->getDescription();
+        const auto& desc = m_loader->getDescription();
         if (m_animationTime + desc.delay * 0.001f <= glfwGetTime())
         {
             m_animation = false;
@@ -900,7 +907,7 @@ void cViewer::loadSubImage(int subStep)
     m_animation = false;
     m_image->stop();
 
-    auto& desc = m_loader->getDescription();
+    const auto& desc = m_loader->getDescription();
     const unsigned next = (desc.current + desc.images + subStep) % desc.images;
     if (desc.current != next)
     {
@@ -920,7 +927,7 @@ void cViewer::updateInfobar()
 
     if (m_loader->isLoaded())
     {
-        auto& desc = m_loader->getDescription();
+        const auto& desc = m_loader->getDescription();
         s.width = desc.width;
         s.height = desc.height;
         s.bpp = desc.bppImage;
@@ -957,7 +964,7 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
 
     if (m_loader->isLoaded())
     {
-        auto& desc = m_loader->getDescription();
+        const auto& desc = m_loader->getDescription();
         pixelInfo.bpp = desc.bpp;
 
         const int x = static_cast<int>(point.x);
@@ -994,7 +1001,7 @@ void cViewer::showCursor(bool show)
 
 void cViewer::startLoading()
 {
-    auto& desc = m_loader->getDescription();
+    const auto& desc = m_loader->getDescription();
     if (desc.isAnimation == false)
     {
         m_progress->show();

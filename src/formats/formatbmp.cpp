@@ -286,27 +286,27 @@ namespace
         switch (bitCount)
         {
         case 1:
-            desc.format = GL_BGRA; //GL_LUMINANCE;
+            desc.format = ePixelFormat::BGRA; //GL_LUMINANCE;
             desc.bpp = 32;         //8;
             break;
 
         case 8:
-            desc.format = GL_BGRA; //GL_BGR;
+            desc.format = ePixelFormat::BGRA; //GL_BGR;
             desc.bpp = 32;         //24;
             break;
 
         case 16:
-            desc.format = GL_UNSIGNED_SHORT_5_6_5;
+            desc.format = ePixelFormat::RGB565;
             desc.bpp = 16;
             break;
 
         case 32:
-            desc.format = GL_BGRA;
+            desc.format = ePixelFormat::BGRA;
             desc.bpp = 32;
             break;
 
         default:
-            desc.format = GL_BGR;
+            desc.format = ePixelFormat::BGR;
             desc.bpp = 24;
         }
     }

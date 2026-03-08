@@ -52,36 +52,36 @@ Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photo
 
 ## Key bindings
 
-Hotkey                    | Action
-:------------------------ | :--------------------------------
-`<esc>`                   | exit
-`<space>`                 | next image
-`<backspace>`             | previous image
-`<home>`                  | first file in list
-`<end>`                   | last file in list
-`<o>`                     | open file dialog
-`<+>` / `<->`             | scale image
-`<1>`...`<0>`             | set scale from 100% to 1000%
-`<enter>`                 | switch fullscreen / windowed mode
-`<h>` / `<l>`             | pan left / right in pixels
-`<j>` / `<k>`             | pan down / up in pixels
-`<shift>` + `<h>` / `<l>` | pan left / right in percents
-`<shift>` + `<j>` / `<k>` | pan down / up in percents
-`<del>`                   | toggle deletion mark
-`<ctrl>` + `<del>`        | delete marked images from disk
-`<r>`                     | rotate clockwise
-`<shift>` + `<r>`         | rotate counterclockwise
-`<pgup>` / `<bgdn>`       | previous /next subimage
-`<s>`                     | fit image to window
-`<shift>` + `<s>`         | toggle 'keep scale' on image load
-`<shift>` + `<c>`         | toggle 'center image' mode
-`<c>`                     | hide / show chequerboard
-`<i>`                     | hide / show on-screen info
-`<e>`                     | hide / show exif
-`<p>`                     | hide / show pixel info
-`<b>`                     | hide / show border around image
-`<g>`                     | hide / show image grid
-`<?>`                     | hide / show keybindings popup
+| Hotkey                    | Action                            |
+| :------------------------ | :-------------------------------- |
+| `<esc>`                   | exit                              |
+| `<space>`                 | next image                        |
+| `<backspace>`             | previous image                    |
+| `<home>`                  | first file in list                |
+| `<end>`                   | last file in list                 |
+| `<o>`                     | open file dialog                  |
+| `<+>` / `<->`             | scale image                       |
+| `<1>`...`<0>`             | set scale from 100% to 1000%      |
+| `<enter>`                 | switch fullscreen / windowed mode |
+| `<h>` / `<l>`             | pan left / right in pixels        |
+| `<j>` / `<k>`             | pan down / up in pixels           |
+| `<shift>` + `<h>` / `<l>` | pan left / right in percents      |
+| `<shift>` + `<j>` / `<k>` | pan down / up in percents         |
+| `<del>`                   | toggle deletion mark              |
+| `<ctrl>` + `<del>`        | delete marked images from disk    |
+| `<r>`                     | rotate clockwise                  |
+| `<shift>` + `<r>`         | rotate counterclockwise           |
+| `<pgup>` / `<bgdn>`       | previous /next subimage           |
+| `<s>`                     | fit image to window               |
+| `<shift>` + `<s>`         | toggle 'keep scale' on image load |
+| `<shift>` + `<c>`         | toggle 'center image' mode        |
+| `<c>`                     | hide / show chequerboard          |
+| `<i>`                     | hide / show on-screen info        |
+| `<e>`                     | hide / show exif                  |
+| `<p>`                     | hide / show pixel info            |
+| `<b>`                     | hide / show border around image   |
+| `<g>`                     | hide / show image grid            |
+| `<?>`                     | hide / show keybindings popup     |
 
 ---
 
@@ -143,24 +143,24 @@ sudo make rpm
 
 ## Dependencies
 
-Name     | Debian package       | Description / Notes
-:------- | :------------------- | :------------------------------------------------------
-Make     | make                 | Utility for directing compilation.
-Cmake    | cmake                | Cross-platform, open-source make system.
-Mesa     | libgl1-mesa-dev      | Transitional dummy package.
-GLFW3    | libglfw3-dev         | Portable library for OpenGL, window and input.
-Zlib     | zlib1g-dev           | Compression support.
-PNG      | libpng-dev           | PNG format support.
-JPEG     | libjpeg-turbo8-dev   | JPEG format support.
-TIFF     | libtiff-dev          | (optional) TIFF format support.
-OpenJPEG | libopenjp2-7-dev     | (optional) JPEG 2000 support.
-curl     | libcurl4-openssl-dev | (optional) Support loading via http/https/ftp protocols.
+| Name     | Debian package       | Description / Notes                                      |
+| :------- | :------------------- | :------------------------------------------------------- |
+| Make     | make                 | Utility for directing compilation.                       |
+| Cmake    | cmake                | Cross-platform, open-source make system.                 |
+| Mesa     | libgl1-mesa-dev      | Transitional dummy package.                              |
+| GLFW3    | libglfw3-dev         | Portable library for OpenGL, window and input.           |
+| Zlib     | zlib1g-dev           | Compression support.                                     |
+| PNG      | libpng-dev           | PNG format support.                                      |
+| JPEG     | libjpeg-turbo8-dev   | JPEG format support.                                     |
+| TIFF     | libtiff-dev          | (optional) TIFF format support.                          |
+| OpenJPEG | libopenjp2-7-dev     | (optional) JPEG 2000 support.                            |
+| curl     | libcurl4-openssl-dev | (optional) Support loading via http/https/ftp protocols. |
 
 ```
-Copyright © 2008-2025 Andrey A. Ugolnik. All Rights Reserved.
+Copyright © 2008-2026 Andrey A. Ugolnik. All Rights Reserved.
 https://github.com/reybits
 and@reybits.dev
 
 Icon was created by
-Iryna Poliakova (Iryna.poliakova@icloud.com).
+Iryna Poliakova (iryna.poliakova@icloud.com).
 ```

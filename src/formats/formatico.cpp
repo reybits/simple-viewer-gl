@@ -212,7 +212,7 @@ bool cFormatIco::loadOrdinaryFrame(sBitmapDescription& desc, cFile& file, const 
     desc.pitch = desc.width * 4;
     desc.bpp = 32;
     desc.bppImage = imgHeader->bits;
-    desc.format = GL_RGBA;
+    desc.format = ePixelFormat::RGBA;
 
     int pitch = calcIcoPitch(desc.bppImage, desc.width);
     if (pitch == -1)

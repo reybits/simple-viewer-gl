@@ -184,7 +184,7 @@ namespace
         return "Unknown";
     }
 
-    void allocBitmap(sBitmapDescription& desc, uint32_t bpp, GLenum format)
+    void allocBitmap(sBitmapDescription& desc, uint32_t bpp, ePixelFormat format)
     {
         desc.bpp = bpp;
         desc.format = format;
@@ -400,25 +400,25 @@ bool cFormatJp2k::preAllocateBitmap(void* img, sBitmapDescription& desc)
     // Determine output format from component info
     if (numcomps == 1)
     {
-        allocBitmap(desc, 8, GL_LUMINANCE);
+        allocBitmap(desc, 8, ePixelFormat::Luminance);
     }
     else if (numcomps == 2)
     {
-        allocBitmap(desc, 16, GL_LUMINANCE_ALPHA);
+        allocBitmap(desc, 16, ePixelFormat::LuminanceAlpha);
     }
     else if (numcomps == 3)
     {
-        allocBitmap(desc, 24, GL_RGB);
+        allocBitmap(desc, 24, ePixelFormat::RGB);
     }
     else // numcomps >= 4
     {
         if (colorspace == OPJ_CLRSPC_CMYK)
         {
-            allocBitmap(desc, 24, GL_RGB);
+            allocBitmap(desc, 24, ePixelFormat::RGB);
         }
         else
         {
-            allocBitmap(desc, 32, GL_RGBA);
+            allocBitmap(desc, 32, ePixelFormat::RGBA);
         }
     }
 

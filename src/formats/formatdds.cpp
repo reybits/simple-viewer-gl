@@ -407,7 +407,7 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (format == DDS_RGB)
     {
-        desc.format = GL_RGB;
+        desc.format = ePixelFormat::RGB;
         desc.bpp = 24;
         desc.bppImage = 24;
         desc.pitch = desc.width * 3;
@@ -427,7 +427,7 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     else if (format == DDS_RGBA)
     {
-        desc.format = GL_RGBA;
+        desc.format = ePixelFormat::RGBA;
         desc.bpp = 32;
         desc.bppImage = 32;
         desc.pitch = desc.width * 4;
@@ -448,7 +448,7 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     else
     {
-        desc.format = GL_RGBA;
+        desc.format = ePixelFormat::RGBA;
         desc.bpp = 32;
         desc.bppImage = 32;
         desc.pitch = desc.width * 4;

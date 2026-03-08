@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "common/PixelFormat.h"
 #include "types/color.h"
 #include "types/rect.h"
 #include "types/vector.h"
@@ -17,8 +18,8 @@
 
 struct GLFWwindow;
 
-// Legacy format constants removed in GL 3.3 Core but still used by format readers.
-// render::setData() maps these to Core-compatible formats (GL_RED + swizzle).
+// Legacy format constants removed in GL 3.3 Core.
+// Used internally by the renderer for GL format mapping.
 #ifndef GL_LUMINANCE
 #define GL_LUMINANCE 0x1909
 #endif
@@ -56,7 +57,7 @@ namespace render
     void popState();
 
     GLuint createTexture();
-    void setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format);
+    void setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, ePixelFormat format);
     void setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum internalFormat, uint32_t dataSize);
     void deleteTexture(GLuint tex);
     GLuint getCurrentTexture();

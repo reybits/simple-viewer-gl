@@ -167,27 +167,27 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
     {
     case AGE::Format::RGBA8888:
         bytespp = 4;
-        desc.format = GL_RGBA;
+        desc.format = ePixelFormat::RGBA;
         break;
     case AGE::Format::RGBA5551:
         bytespp = 2;
-        desc.format = GL_UNSIGNED_SHORT_5_5_5_1;
+        desc.format = ePixelFormat::RGBA5551;
         break;
     case AGE::Format::RGBA4444:
         bytespp = 2;
-        desc.format = GL_UNSIGNED_SHORT_4_4_4_4;
+        desc.format = ePixelFormat::RGBA4444;
         break;
     case AGE::Format::RGB888:
         bytespp = 3;
-        desc.format = GL_RGB;
+        desc.format = ePixelFormat::RGB;
         break;
     case AGE::Format::RGB565:
         bytespp = 2;
-        desc.format = GL_UNSIGNED_SHORT_5_6_5;
+        desc.format = ePixelFormat::RGB565;
         break;
     case AGE::Format::A8:
         bytespp = 1;
-        desc.format = GL_ALPHA;
+        desc.format = ePixelFormat::Alpha;
         break;
     default:
         if (!isCompressed)
@@ -197,7 +197,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
         // compressed formats will be decoded to RGBA
         bytespp = 4;
-        desc.format = GL_RGBA;
+        desc.format = ePixelFormat::RGBA;
         break;
     }
 
