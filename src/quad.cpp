@@ -145,9 +145,6 @@ void cQuad::useFilter(bool filter)
     if (m_filter != filter)
     {
         m_filter = filter;
-
-        render::bindTexture(m_quad.tex);
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter ? GL_LINEAR : GL_NEAREST));
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter ? GL_LINEAR : GL_NEAREST);
+        render::setTextureFilter(m_quad.tex, filter ? GL_LINEAR : GL_NEAREST, GL_NEAREST);
     }
 }

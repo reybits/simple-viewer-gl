@@ -167,7 +167,7 @@ void render::init(GLFWwindow* window, uint32_t maxTextureSize)
     // Create VBO (streaming)
     GL(glGenBuffers(1, &Vbo));
     GL(glBindBuffer(GL_ARRAY_BUFFER, Vbo));
-    GL(glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 4, nullptr, GL_DYNAMIC_DRAW));
+    GL(glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 4, nullptr, GL_STREAM_DRAW));
 
     // Create IBO with quad indices
     const uint16_t indices[6] = { 0, 1, 2, 0, 2, 3 };
@@ -294,16 +294,26 @@ void render::popState()
     GLStates.pop_back();
 }
 
-void render::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format)
+void render::setTextureFilter(GLuint tex, GLenum minFilter, GLenum magFilter)
 {
     bindTexture(tex);
+    GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(minFilter)));
+    GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(magFilter)));
+}
 
+void render::setTextureWrap(GLuint tex, GLenum wrap)
+{
+    bindTexture(tex);
+    GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<GLint>(wrap)));
+    GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(wrap)));
+}
+
+void render::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format)
+{
     if (tex != 0 && data != nullptr)
     {
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+        setTextureFilter(tex, GL_LINEAR, GL_NEAREST);
+        setTextureWrap(tex, GL_CLAMP_TO_EDGE);
 
         GLenum type = GL_UNSIGNED_BYTE;
         GLint internalFormat = static_cast<GLint>(format);
@@ -383,14 +393,10 @@ void render::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GL
 
 void render::setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum internalFormat, uint32_t dataSize)
 {
-    bindTexture(tex);
-
     if (tex != 0 && data != nullptr)
     {
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+        setTextureFilter(tex, GL_LINEAR, GL_NEAREST);
+        setTextureWrap(tex, GL_CLAMP_TO_EDGE);
 
         GL(glCompressedTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, dataSize, data));
     }
@@ -474,7 +480,7 @@ void render::render(const Line& line)
         GL(glUniform1i(TexturedTexLoc, 0));
     }
 
-    GL(glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * 2, line.v));
+    GL(glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 2, line.v, GL_STREAM_DRAW));
     GL(glDrawArrays(GL_LINES, 0, 2));
 }
 
@@ -492,8 +498,19 @@ void render::render(const Quad& quad)
         GL(glUniform1i(TexturedTexLoc, 0));
     }
 
-    GL(glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * 4, quad.v));
+    GL(glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 4, quad.v, GL_STREAM_DRAW));
     GL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr));
+}
+
+void render::renderLines(const Vertex* vertices, uint32_t vertexCount)
+{
+    bindTexture(0);
+
+    GL(glUseProgram(ColoredProgram));
+    GL(glUniformMatrix4fv(ColoredProjLoc, 1, GL_FALSE, Projection.m));
+
+    GL(glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * vertexCount, vertices, GL_STREAM_DRAW));
+    GL(glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(vertexCount)));
 }
 
 void render::setClearColor(float r, float g, float b, float a)

@@ -24,5 +24,5 @@ public:
     void render(float x, float y, float w, float h);
 
 private:
-    Line m_line;
+    cColor m_color;
 };

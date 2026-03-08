@@ -55,8 +55,7 @@ void cSelection::init()
         }
 
         m_vert.reset(new cQuad(m_cellSize, m_texSize, buffer.data(), GL_LUMINANCE));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+        render::setTextureWrap(m_vert->getQuad().tex, GL_REPEAT);
         m_vert->useFilter(false);
     }
 
@@ -79,8 +78,7 @@ void cSelection::init()
         }
 
         m_hori.reset(new cQuad(m_texSize, m_cellSize, buffer.data(), GL_LUMINANCE));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
-        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+        render::setTextureWrap(m_hori->getQuad().tex, GL_REPEAT);
         m_hori->useFilter(false);
     }
 }
