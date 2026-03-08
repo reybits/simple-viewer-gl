@@ -349,8 +349,8 @@ endif()
 pretty_print("*" "*" "*" "*" "-")
 
 configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp.in"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Version.cpp.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Version.cpp"
     )
 
 include_directories(BEFORE

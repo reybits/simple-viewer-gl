@@ -1,0 +1,40 @@
+/**********************************************\
+*
+*  Simple Viewer GL edition
+*  by Andrey A. Ugolnik
+*  https://github.com/reybits
+*  and@reybits.dev
+*
+\**********************************************/
+
+#include "Version.h"
+
+namespace version
+{
+    // clang-format off
+    const char* getTitle()
+    {
+        const char* SVGL_Title = "${APP_TITLE}";
+        return SVGL_Title;
+    }
+
+    int getMajor()
+    {
+        const int SVGL_VerMajor = ${APP_VERSION_MAJOR};
+        return SVGL_VerMajor;
+    }
+
+    int getMinor()
+    {
+        const int SVGL_VerMinor = ${APP_VERSION_MINOR};
+        return SVGL_VerMinor;
+    }
+
+    int getRelease()
+    {
+        const int SVGL_VerRelease = ${APP_VERSION_RELEASE};
+        return SVGL_VerRelease;
+    }
+    // clang-format on
+
+} // namespace version
