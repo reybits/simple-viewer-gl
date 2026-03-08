@@ -42,7 +42,7 @@ void cProgress::render()
         {
             constexpr auto NextSpeed = 0.3f;
             m_time = NextSpeed;
-            m_index = (m_index + 1) % helpers::countof(m_dot);
+            m_index = (m_index + 1) % std::size(m_dot);
             m_dot[m_index].alpha = 255.0f;
         }
 
@@ -53,7 +53,7 @@ void cProgress::render()
         m_back->render(pos);
 
         static constexpr uint32_t Idx[4] = { 0, 1, 3, 2 };
-        for (size_t i = 0; i < helpers::countof(m_dot); i++)
+        for (size_t i = 0; i < std::size(m_dot); i++)
         {
             auto& dot = m_dot[i];
             if (dot.alpha > 0.0f)

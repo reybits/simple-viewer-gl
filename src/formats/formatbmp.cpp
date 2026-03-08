@@ -187,7 +187,7 @@ namespace
         };
 
         auto idx = (size_t)compression;
-        return idx < helpers::countof(Names) ? Names[idx] : "n/a";
+        return idx < std::size(Names) ? Names[idx] : "n/a";
     }
 
     void debugHeader(const BITMAPCOREHEADER& header)

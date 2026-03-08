@@ -34,18 +34,6 @@ namespace helpers
 
     void trimRightSpaces(char* buf);
 
-    template <typename T>
-    T clamp(const T& min, const T& max, const T& val)
-    {
-        return val < min ? min : (val > max ? max : val);
-    }
-
-    template <class T, size_t N>
-    constexpr size_t countof(const T (&)[N]) noexcept
-    {
-        return N;
-    }
-
     uint32_t nextPot(uint32_t n);
     uint32_t calculatePitch(uint32_t width, uint32_t bitsPerPixel);
 
