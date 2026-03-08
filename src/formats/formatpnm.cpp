@@ -24,7 +24,7 @@ namespace
     {
         const char delims[] = "\n\0";
 
-        for (uint32_t i = 0; i < helpers::countof(delims); i++)
+        for (uint32_t i = 0; i < std::size(delims); i++)
         {
             if (delims[i] == ch)
             {

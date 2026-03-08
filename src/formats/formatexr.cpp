@@ -42,7 +42,7 @@ namespace
 
     inline uint8_t halfToUint8(const half& h)
     {
-        return (uint8_t)helpers::clamp<uint32_t>(0, 255, h * 255.0f);
+        return static_cast<uint8_t>(std::clamp(static_cast<uint32_t>(h * 255.0f), 0u, 255u));
     }
 
     const char* getFormat(uint32_t format)
@@ -64,7 +64,7 @@ namespace
             // than DWAA_COMPRESSION.
         };
 
-        return format < helpers::countof(Formats) ? Formats[format] : "unknown";
+        return format < std::size(Formats) ? Formats[format] : "unknown";
     }
 
     void readStringField(const Imf::Header& header, const char* field, const char* title, sBitmapDescription::ExifList& exifList)

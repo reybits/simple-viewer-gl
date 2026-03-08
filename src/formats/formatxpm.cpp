@@ -859,7 +859,7 @@ namespace
             char val[32];
 
             const unsigned size = ::strlen(color) / 3;
-            if (size < helpers::countof(val))
+            if (size < std::size(val))
             {
                 unsigned r, g, b;
                 unsigned i;

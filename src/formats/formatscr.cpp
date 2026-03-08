@@ -131,7 +131,7 @@ namespace
             // { 41479, { 256, 192, 256, 192, 0, 0, ZXProperty::Type::Chr, "zx-chr$" } },
         };
 
-        for (size_t i = 0; i < helpers::countof(sizesList); i++)
+        for (size_t i = 0; i < std::size(sizesList); i++)
         {
             auto& s = sizesList[i];
             if (s.size == fileSize)

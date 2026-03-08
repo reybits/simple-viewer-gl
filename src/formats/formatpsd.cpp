@@ -61,7 +61,7 @@ namespace
             "LAB",
             "unknown"
         };
-        static const size_t size = helpers::countof(modes);
+        static const size_t size = std::size(modes);
 
         if ((uint32_t)colorMode < size)
         {

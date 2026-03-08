@@ -29,7 +29,7 @@ namespace
             "jpeg/cmyk", // JCS_CMYK:
             "jpeg/ycck", // JCS_YCCK:
         };
-        const auto size = helpers::countof(Formats);
+        const auto size = std::size(Formats);
         return Formats[idx < size ? idx : 0];
     }
 #endif
