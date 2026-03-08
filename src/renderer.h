@@ -76,7 +76,7 @@ namespace render
     void render(const Quad& quad);
     void renderLines(const Vertex* vertices, uint32_t vertexCount);
 
-    void getTexImage(GLuint tex, uint32_t w, uint32_t h, void* pixels);
+    void readTexPixel(GLuint tex, uint32_t x, uint32_t y, uint8_t* rgba);
 
     void setClearColor(float r, float g, float b, float a);
     void clear();

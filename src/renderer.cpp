@@ -43,6 +43,9 @@ namespace
     GLuint Vbo = 0;
     GLuint Ibo = 0;
 
+    // FBO for single-pixel readback
+    GLuint ReadbackFbo = 0;
+
     // Current projection matrix
     Matrix4 Projection = Matrix4::Identity();
 
@@ -161,6 +164,9 @@ void render::init(GLFWwindow* window)
     ColoredProgram = createProgram(VertexShaderSource, ColoredFragSource);
     ColoredProjLoc = glGetUniformLocation(ColoredProgram, "uProjection");
 
+    // Create FBO for pixel readback
+    GL(glGenFramebuffers(1, &ReadbackFbo));
+
     // Create VAO
     GL(glGenVertexArrays(1, &Vao));
     GL(glBindVertexArray(Vao));
@@ -214,6 +220,11 @@ void render::shutdown()
     {
         glDeleteProgram(ColoredProgram);
         ColoredProgram = 0;
+    }
+    if (ReadbackFbo)
+    {
+        glDeleteFramebuffers(1, &ReadbackFbo);
+        ReadbackFbo = 0;
     }
 
     Window = nullptr;
@@ -309,16 +320,20 @@ void render::setTextureWrap(GLuint tex, GLenum wrap)
     GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(wrap)));
 }
 
-void render::getTexImage(GLuint tex, uint32_t w, uint32_t h, void* pixels)
+void render::readTexPixel(GLuint tex, uint32_t x, uint32_t y, uint8_t* rgba)
 {
-    if (tex != 0 && pixels != nullptr)
+    if (tex == 0 || rgba == nullptr)
     {
-        bindTexture(tex);
-        GL(glPixelStorei(GL_PACK_ALIGNMENT, 4));
-        GL(glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels));
-        (void)w;
-        (void)h;
+        return;
     }
+
+    // Attach texture to readback FBO and read a single pixel
+    GL(glBindFramebuffer(GL_FRAMEBUFFER, ReadbackFbo));
+    GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0));
+    GL(glPixelStorei(GL_PACK_ALIGNMENT, 1));
+    GL(glReadPixels(static_cast<GLint>(x), static_cast<GLint>(y), 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, rgba));
+    GL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0));
+    GL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
 void render::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format)

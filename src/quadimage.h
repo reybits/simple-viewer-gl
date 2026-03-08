@@ -85,13 +85,11 @@ private:
 
     std::vector<uint8_t> m_buffer;
 
-    // Pixel readback cache: stores the last-read chunk texture data
+    // Pixel readback cache: stores the last-read pixel
     mutable struct sPixelCache
     {
-        uint32_t col = UINT32_MAX;
-        uint32_t row = UINT32_MAX;
-        uint32_t texW = 0;
-        uint32_t texH = 0;
-        std::vector<uint8_t> data; // RGBA, texW * texH * 4
+        uint32_t x = UINT32_MAX;
+        uint32_t y = UINT32_MAX;
+        uint8_t rgba[4] = {};
     } m_pixelCache;
 };
