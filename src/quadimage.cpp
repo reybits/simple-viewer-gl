@@ -92,12 +92,20 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint
 
     m_buffer.resize(m_texPitch * m_texHeight);
 
+    m_pixelCache.col = UINT32_MAX;
+    m_pixelCache.row = UINT32_MAX;
+    m_pixelCache.data.clear();
+
     m_started = true;
 }
 
 void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image)
 {
     moveToOld();
+
+    m_pixelCache.col = UINT32_MAX;
+    m_pixelCache.row = UINT32_MAX;
+    m_pixelCache.data.clear();
 
     m_compressed = true;
     m_compressedSize = compressedSize;
@@ -366,10 +374,44 @@ bool cQuadImage::getPixel(uint32_t x, uint32_t y, cColor& color) const
     const uint32_t ly = y - row * m_texHeight;
     const uint32_t idx = (ly * m_pixelCache.texW + lx) * 4;
 
-    color.r = m_pixelCache.data[idx + 0];
-    color.g = m_pixelCache.data[idx + 1];
-    color.b = m_pixelCache.data[idx + 2];
-    color.a = m_pixelCache.data[idx + 3];
+    const uint8_t r = m_pixelCache.data[idx + 0];
+    const uint8_t g = m_pixelCache.data[idx + 1];
+    const uint8_t b = m_pixelCache.data[idx + 2];
+    const uint8_t a = m_pixelCache.data[idx + 3];
+
+    // glGetTexImage returns raw stored channels without applying texture swizzle
+    // masks. Apply the same swizzle logic as render::setData() to get correct RGBA.
+    if (m_format == GL_LUMINANCE)
+    {
+        // GL_R8 with swizzle {R,R,R,1} — readback gives (R, 0, 0, 255)
+        color.r = r;
+        color.g = r;
+        color.b = r;
+        color.a = 255;
+    }
+    else if (m_format == GL_LUMINANCE_ALPHA)
+    {
+        // GL_RG8 with swizzle {R,R,R,G} — readback gives (R, G, 0, 255)
+        color.r = r;
+        color.g = r;
+        color.b = r;
+        color.a = g;
+    }
+    else if (m_format == GL_ALPHA)
+    {
+        // GL_R8 with swizzle {0,0,0,R} — readback gives (R, 0, 0, 255)
+        color.r = 0;
+        color.g = 0;
+        color.b = 0;
+        color.a = r;
+    }
+    else
+    {
+        color.r = r;
+        color.g = g;
+        color.b = b;
+        color.a = a;
+    }
 
     return true;
 }
