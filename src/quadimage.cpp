@@ -114,7 +114,7 @@ void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t f
     m_started = true;
 }
 
-bool cQuadImage::upload(uint32_t /*mipmapTextureSize*/)
+bool cQuadImage::upload()
 {
     const auto size = m_chunks.size();
     assert(size < m_rows * m_cols);

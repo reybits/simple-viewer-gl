@@ -143,14 +143,14 @@ void main()
 
 } // namespace
 
-void render::init(GLFWwindow* window, uint32_t maxTextureSize)
+void render::init(GLFWwindow* window)
 {
     Window = window;
     CurrentTextureId = 0;
 
-    int maxSize = static_cast<int>(maxTextureSize);
+    int maxSize = 0;
     GL(glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize));
-    TextureSizeLimit = std::min<uint32_t>(static_cast<uint32_t>(maxSize), maxTextureSize);
+    TextureSizeLimit = static_cast<uint32_t>(maxSize);
 
     // Create shader programs
     TexturedProgram = createProgram(VertexShaderSource, TexturedFragSource);

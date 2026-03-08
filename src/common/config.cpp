@@ -177,7 +177,6 @@ void cConfig::read(sConfig& config) const
     readValue(m_ini, CommonSection, "wheel_zoom", config.wheelZoom);
     readValue(m_ini, CommonSection, "keep_scale", config.keepScale);
 
-    readValue(m_ini, CommonSection, "mipmap_texture_size", config.mipmapTextureSize);
     readValue(m_ini, CommonSection, "file_max_length", config.fileMaxLength);
 
     readValue(m_ini, CommonSection, "background_index", config.backgroundIndex);

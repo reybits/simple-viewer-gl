@@ -25,7 +25,7 @@ public:
     void clear();
     void setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint32_t format, uint32_t bpp, const uint8_t* image);
     void setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image);
-    bool upload(uint32_t mipmapTextureSize);
+    bool upload();
 
     void stop();
     bool isUploading() const;
