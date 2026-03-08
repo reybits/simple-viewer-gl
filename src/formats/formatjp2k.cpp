@@ -397,9 +397,13 @@ bool cFormatJp2k::preAllocateBitmap(void* img, sBitmapDescription& desc)
     ::printf("  Decoded resolution: %u\n", image->comps[0].resno_decoded);
 
     // Determine output format from component info
-    if (numcomps <= 2)
+    if (numcomps == 1)
     {
         allocBitmap(desc, 8, GL_LUMINANCE);
+    }
+    else if (numcomps == 2)
+    {
+        allocBitmap(desc, 16, GL_LUMINANCE_ALPHA);
     }
     else if (numcomps == 3)
     {
@@ -451,6 +455,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc)
         }
         else if (numcomps == 2)
         {
+            // Gray + Alpha
             uint32_t pixel_count = 0;
             for (uint32_t y = 0; y < desc.height; y++)
             {
@@ -458,9 +463,15 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc)
                 for (uint32_t x = 0; x < desc.width; x++)
                 {
                     const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
-                    uint32_t value = image->comps[1].data[pixel_pos];
-                    value += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
-                    bits[x] = static_cast<uint8_t>(value);
+
+                    uint32_t lum = image->comps[0].data[pixel_pos];
+                    lum += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
+
+                    uint32_t alpha = image->comps[1].data[pixel_pos];
+                    alpha += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
+
+                    bits[x * 2 + 0] = static_cast<uint8_t>(lum);
+                    bits[x * 2 + 1] = static_cast<uint8_t>(alpha);
                     pixel_count++;
                 }
                 updateProgress(static_cast<float>(y) / desc.height);
@@ -512,6 +523,30 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc)
                     uint32_t value = image->comps[0].data[pixel_pos];
                     value += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
                     bits[x] = static_cast<uint8_t>(value >> 4);
+                    pixel_count++;
+                }
+                updateProgress(static_cast<float>(y) / desc.height);
+            }
+        }
+        else if (numcomps == 2)
+        {
+            // 16-bit Gray + Alpha
+            uint32_t pixel_count = 0;
+            for (uint32_t y = 0; y < desc.height; y++)
+            {
+                auto bits = getScanLine(desc, y);
+                for (uint32_t x = 0; x < desc.width; x++)
+                {
+                    const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
+
+                    uint32_t lum = image->comps[0].data[pixel_pos];
+                    lum += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
+
+                    uint32_t alpha = image->comps[1].data[pixel_pos];
+                    alpha += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
+
+                    bits[x * 2 + 0] = static_cast<uint8_t>(lum >> 8);
+                    bits[x * 2 + 1] = static_cast<uint8_t>(alpha >> 8);
                     pixel_count++;
                 }
                 updateProgress(static_cast<float>(y) / desc.height);
