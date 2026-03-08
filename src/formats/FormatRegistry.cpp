@@ -36,6 +36,7 @@
 #include "formatxpm.h"
 #include "formatxwd.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 

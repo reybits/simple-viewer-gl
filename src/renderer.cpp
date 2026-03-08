@@ -357,7 +357,12 @@ void render::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, eP
             { ePixelFormat::RGBA4444, GL_RGBA4, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4 },
         };
 
-        auto& info = FormatInfo[static_cast<size_t>(format)];
+        auto idx = static_cast<size_t>(format);
+        if (idx >= std::size(FormatInfo))
+        {
+            return;
+        }
+        auto& info = FormatInfo[idx];
         assert(info.format == format);
 
         GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));

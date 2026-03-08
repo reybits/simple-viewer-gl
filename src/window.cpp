@@ -13,12 +13,23 @@
 #include "log/Log.h"
 #include "version.h"
 
+#include <algorithm>
 #include <glad/glad.h>
+
 #include <GLFW/glfw3.h>
 
 namespace
 {
     cWindow* Instance = nullptr;
+
+    template <typename Fn, typename... Args>
+    void dispatch(sWindowEvents* handler, Fn& fn, Args&&... args)
+    {
+        if (handler && fn)
+        {
+            fn(std::forward<Args>(args)...);
+        }
+    }
 
 } // namespace
 
@@ -58,77 +69,81 @@ GLFWwindow* cWindow::createFullscreenWindow(GLFWwindow* parent, const sConfig& c
 {
     setHints(config);
     auto monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    if (monitor == nullptr)
+    {
+        cLog::Error("No primary monitor found, falling back to windowed mode.");
+        return createWindowedWindow(parent, config);
+    }
+    auto mode = glfwGetVideoMode(monitor);
+    if (mode == nullptr)
+    {
+        cLog::Error("Can't get video mode, falling back to windowed mode.");
+        return createWindowedWindow(parent, config);
+    }
     return glfwCreateWindow(mode->width, mode->height, version::getTitle(), monitor, parent);
 }
 
 void cWindow::setupCallbacks()
 {
     glfwSetWindowSizeCallback(m_window, [](GLFWwindow*, int w, int h) {
-        if (Instance && Instance->m_handler)
-        {
-            Instance->m_handler->onWindowResize({ w, h });
-        }
+        if (Instance == nullptr)
+            return;
+        dispatch(Instance->m_handler, Instance->m_handler->onWindowResize, Vectori{ w, h });
     });
     glfwSetFramebufferSizeCallback(m_window, [](GLFWwindow*, int w, int h) {
-        if (Instance && Instance->m_handler)
-        {
-            Instance->m_handler->onFramebufferResize({ w, h });
-        }
+        if (Instance == nullptr)
+            return;
+        dispatch(Instance->m_handler, Instance->m_handler->onFramebufferResize, Vectori{ w, h });
     });
     glfwSetWindowPosCallback(m_window, [](GLFWwindow*, int x, int y) {
-        if (Instance && Instance->m_handler)
-        {
-            Instance->m_handler->onWindowPosition({ x, y });
-        }
+        if (Instance == nullptr)
+            return;
+        dispatch(Instance->m_handler, Instance->m_handler->onWindowPosition, Vectori{ x, y });
     });
     glfwSetWindowRefreshCallback(m_window, [](GLFWwindow*) {
-        if (Instance && Instance->m_handler)
-        {
-            Instance->m_handler->onWindowRefresh();
-        }
+        if (Instance == nullptr)
+            return;
+        dispatch(Instance->m_handler, Instance->m_handler->onWindowRefresh);
     });
     glfwSetKeyCallback(m_window, [](GLFWwindow*, int key, int scancode, int action, int mods) {
-        if (Instance && Instance->m_handler)
-        {
-            Instance->m_handler->onKeyEvent(key, scancode, action, mods);
-        }
+        if (Instance == nullptr)
+            return;
+        dispatch(Instance->m_handler, Instance->m_handler->onKeyEvent, key, scancode, action, mods);
     });
     glfwSetCharCallback(m_window, [](GLFWwindow*, unsigned int c) {
-        if (Instance && Instance->m_handler)
-        {
-            Instance->m_handler->onCharEvent(c);
-        }
+        if (Instance == nullptr)
+            return;
+        dispatch(Instance->m_handler, Instance->m_handler->onCharEvent, c);
     });
     glfwSetInputMode(m_window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
     glfwSetMouseButtonCallback(m_window, [](GLFWwindow*, int button, int action, int mods) {
-        if (Instance && Instance->m_handler)
-        {
-            Instance->m_handler->onMouseButton(button, action, mods);
-        }
+        if (Instance == nullptr)
+            return;
+        dispatch(Instance->m_handler, Instance->m_handler->onMouseButton, button, action, mods);
     });
     glfwSetCursorPosCallback(m_window, [](GLFWwindow*, double x, double y) {
-        if (Instance && Instance->m_handler)
-        {
-            Instance->m_handler->onMouseMove({ static_cast<float>(x), static_cast<float>(y) });
-        }
+        if (Instance == nullptr)
+            return;
+        dispatch(Instance->m_handler, Instance->m_handler->onMouseMove, Vectorf{ static_cast<float>(x), static_cast<float>(y) });
     });
     glfwSetScrollCallback(m_window, [](GLFWwindow*, double x, double y) {
-        if (Instance && Instance->m_handler)
-        {
-            Instance->m_handler->onMouseScroll({ static_cast<float>(x), static_cast<float>(y) });
-        }
+        if (Instance == nullptr)
+            return;
+        dispatch(Instance->m_handler, Instance->m_handler->onMouseScroll, Vectorf{ static_cast<float>(x), static_cast<float>(y) });
     });
 #if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 1
     glfwSetDropCallback(m_window, [](GLFWwindow*, int count, const char** paths) {
-        if (Instance && Instance->m_handler)
+        if (Instance == nullptr)
+            return;
+        auto handler = Instance->m_handler;
+        if (handler && handler->onFileDrop)
         {
             StringsList list;
             for (int i = 0; i < count; i++)
             {
                 list.push_back(paths[i]);
             }
-            Instance->m_handler->onFileDrop(list);
+            handler->onFileDrop(list);
         }
     });
 #endif
@@ -317,30 +332,32 @@ bool cWindow::shouldClose() const
 
 void cWindow::toggleFullscreen(const sConfig& config)
 {
-    GLFWwindow* newWindow = nullptr;
+    const bool wasWindowed = m_windowed;
+    GLFWwindow* newWindow = wasWindowed
+        ? createFullscreenWindow(m_window, config)
+        : createWindowedWindow(m_window, config);
 
-    if (m_windowed)
+    if (newWindow == nullptr)
     {
-        newWindow = createFullscreenWindow(m_window, config);
-        m_windowed = false;
-    }
-    else
-    {
-        newWindow = createWindowedWindow(m_window, config);
-        m_windowed = true;
+        cLog::Error("Failed to create new window for fullscreen toggle.");
+        return;
     }
 
     glfwMakeContextCurrent(newWindow);
 
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
-        cLog::Error("Failed to re-initialize GLAD.");
+        cLog::Error("Failed to re-initialize GLAD, keeping old window.");
+        glfwDestroyWindow(newWindow);
+        glfwMakeContextCurrent(m_window);
+        return;
     }
 
     glfwSwapInterval(1);
 
     glfwDestroyWindow(m_window);
     m_window = newWindow;
+    m_windowed = !wasWindowed;
 
     setupCallbacks();
     m_macOSHackCount = 0;

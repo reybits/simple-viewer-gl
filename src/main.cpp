@@ -253,7 +253,7 @@ int main(int argc, char* argv[])
     }
 
     cWindow window;
-    if (!window.init(config))
+    if (window.init(config) == false)
     {
         return -1;
     }
@@ -266,7 +266,7 @@ int main(int argc, char* argv[])
     ImagesList.clear();
 
     // Apply saved window position/size for windowed mode
-    if (!config.fullScreen && !config.centerWindow)
+    if (config.fullScreen == false && config.centerWindow == false)
     {
         if (helpers::getPlatform() != helpers::Platform::Wayland)
         {
@@ -275,28 +275,25 @@ int main(int argc, char* argv[])
         }
     }
 
-    while (!window.shouldClose())
+    while (window.shouldClose() == false)
     {
         const double timeStart = timing::seconds();
-        static double timeEnd = timeStart;
 
         viewer.onRender();
         viewer.onUpdate();
 
         window.pollEvents();
 
-        if (!viewer.isUploading())
+        if (viewer.isUploading() == false)
         {
-            const double delta = timeEnd - timeStart;
+            const double frameDuration = timing::seconds() - timeStart;
             constexpr double desiredFps = 1.0 / 60.0;
-            const double timeRest = desiredFps - delta;
+            const double timeRest = desiredFps - frameDuration;
             if (timeRest > 0.0)
             {
                 usleep(static_cast<useconds_t>(timeRest * 1000000));
             }
         }
-
-        timeEnd = timing::seconds();
     }
 
     Viewer = nullptr;
