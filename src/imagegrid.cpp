@@ -11,8 +11,8 @@
 \**********************************************/
 
 #include "imagegrid.h"
-#include "types/math.h"
 
+#include <algorithm>
 #include <vector>
 
 cImageGrid::cImageGrid()
@@ -33,7 +33,7 @@ void cImageGrid::render(float x, float y, float w, float h)
 {
     const float zoom = render::getZoom();
     const float alpha = zoom / 16.0f;
-    const int alpha_i = clamp(0, 255, static_cast<int>(alpha * 255.0f));
+    const int alpha_i = std::clamp(static_cast<int>(alpha * 255.0f), 0, 255);
     if ((alpha_i == 0) || (zoom < 2.0f))
     {
         return;

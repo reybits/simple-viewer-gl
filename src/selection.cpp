@@ -12,12 +12,10 @@
 #include "quad.h"
 
 #include "common/timing.h"
-#include "types/math.h"
 #include "types/vector.h"
 
 #include <algorithm>
-#include <cstdio>
-#include <cstdlib>
+#include <cmath>
 #include <vector>
 
 namespace
@@ -108,7 +106,7 @@ void cSelection::mouseButton(const Vectorf& p, float scale, bool pressed)
     {
         updateTestRect(scale);
 
-        const Vectorf pos{ ::roundf(p.x), ::roundf(p.y) };
+        const Vectorf pos{ std::round(p.x), std::round(p.y) };
         const bool inside = m_rcTest.testPoint(pos);
 
         m_mousePos = pos;
@@ -117,7 +115,7 @@ void cSelection::mouseButton(const Vectorf& p, float scale, bool pressed)
         {
             if (inside)
             {
-                m_mode = (m_corner == (uint32_t)Edge::Center ? eMouseMode::Move : eMouseMode::Resize);
+                m_mode = (m_corner == EdgeCenter ? eMouseMode::Move : eMouseMode::Resize);
             }
             else
             {
@@ -149,7 +147,7 @@ void cSelection::mouseButton(const Vectorf& p, float scale, bool pressed)
 
 void cSelection::mouseMove(const Vectorf& p, float scale)
 {
-    const Vectorf pos{ ::roundf(p.x), ::roundf(p.y) };
+    const Vectorf pos{ std::round(p.x), std::round(p.y) };
 
     if (m_mode == eMouseMode::None)
     {
@@ -175,36 +173,40 @@ void cSelection::mouseMove(const Vectorf& p, float scale)
             break;
 
         case eMouseMode::Resize:
-            if ((m_corner & (uint32_t)Edge::Top))
+            if ((m_corner & EdgeTop))
             {
                 m_rc.tl.y += delta.y;
             }
-            if ((m_corner & (uint32_t)Edge::Right))
+            if ((m_corner & EdgeRight))
             {
                 m_rc.br.x += delta.x;
             }
-            if ((m_corner & (uint32_t)Edge::Bottom))
+            if ((m_corner & EdgeBottom))
             {
                 m_rc.br.y += delta.y;
             }
-            if ((m_corner & (uint32_t)Edge::Left))
+            if ((m_corner & EdgeLeft))
             {
                 m_rc.tl.x += delta.x;
             }
             break;
         }
 
-        m_rc.tl.x = ::roundf(clamp<float>(0.0f, m_imageWidth, m_rc.tl.x));
-        m_rc.tl.y = ::roundf(clamp<float>(0.0f, m_imageHeight, m_rc.tl.y));
-        m_rc.br.x = ::roundf(clamp<float>(0.0f, m_imageWidth, m_rc.br.x));
-        m_rc.br.y = ::roundf(clamp<float>(0.0f, m_imageHeight, m_rc.br.y));
+        const auto w = static_cast<float>(m_imageWidth);
+        const auto h = static_cast<float>(m_imageHeight);
+        m_rc.tl.x = std::round(std::clamp(m_rc.tl.x, 0.0f, w));
+        m_rc.tl.y = std::round(std::clamp(m_rc.tl.y, 0.0f, h));
+        m_rc.br.x = std::round(std::clamp(m_rc.br.x, 0.0f, w));
+        m_rc.br.y = std::round(std::clamp(m_rc.br.y, 0.0f, h));
     }
 }
 
 void cSelection::clampShiftDelta(Vectorf& delta)
 {
-    delta.x = ::roundf(clamp<float>(-m_rc.tl.x, m_imageWidth - m_rc.br.x, delta.x));
-    delta.y = ::roundf(clamp<float>(-m_rc.tl.y, m_imageHeight - m_rc.br.y, delta.y));
+    const auto w = static_cast<float>(m_imageWidth);
+    const auto h = static_cast<float>(m_imageHeight);
+    delta.x = std::round(std::clamp(delta.x, -m_rc.tl.x, w - m_rc.br.x));
+    delta.y = std::round(std::clamp(delta.y, -m_rc.tl.y, h - m_rc.br.y));
 }
 
 void cSelection::render(const Vectorf& offset)
@@ -224,14 +226,14 @@ void cSelection::render(const Vectorf& offset)
 
 #if 0
         const Vectori delta{ delta2, delta2 };
-        if (m_corner & (uint32_t)Edge::Top)
+        if (m_corner & EdgeTop)
         {
-            if (m_corner & (uint32_t)Edge::Right)
+            if (m_corner & EdgeRight)
             {
                 const Vectori pos{ rc.br.x, rc.tl.y - delta2 };
                 renderRect(pos, pos + delta, d);
             }
-            else if (m_corner & (uint32_t)Edge::Left)
+            else if (m_corner & EdgeLeft)
             {
                 renderRect(rc.tl - delta, rc.tl, d);
             }
@@ -241,13 +243,13 @@ void cSelection::render(const Vectorf& offset)
                 renderRect(pos, { rc.br.x, rc.tl.y }, d);
             }
         }
-        else if (m_corner & (uint32_t)Edge::Bottom)
+        else if (m_corner & EdgeBottom)
         {
-            if (m_corner & (uint32_t)Edge::Right)
+            if (m_corner & EdgeRight)
             {
                 renderRect(rc.br, rc.br + delta, d);
             }
-            else if (m_corner & (uint32_t)Edge::Left)
+            else if (m_corner & EdgeLeft)
             {
                 const Vectori pos{ rc.tl.x - delta2, rc.br.y };
                 renderRect(pos, { rc.tl.x, rc.br.y + delta2 }, d);
@@ -258,27 +260,27 @@ void cSelection::render(const Vectorf& offset)
                 renderRect({ rc.tl.x, rc.br.y }, pos, d);
             }
         }
-        else if (m_corner & (uint32_t)Edge::Left)
+        else if (m_corner & EdgeLeft)
         {
             renderRect({ rc.tl.x - delta2, rc.tl.y }, { rc.tl.x, rc.br.y }, d);
         }
-        else if (m_corner & (uint32_t)Edge::Right)
+        else if (m_corner & EdgeRight)
         {
             renderRect({ rc.br.x, rc.tl.y }, { rc.br.x + delta2, rc.br.y }, d);
         }
 #endif
 
         // top line
-        setColor(m_corner & (uint32_t)Edge::Top);
+        setColor(m_corner & EdgeTop);
         renderHorizontal({ x - d, y - d }, w + d * 2.0f, d);
         // bottom line
-        setColor(m_corner & (uint32_t)Edge::Bottom);
+        setColor(m_corner & EdgeBottom);
         renderHorizontal({ x - d, y + h }, w + d * 2.0f, d);
         // left line
-        setColor(m_corner & (uint32_t)Edge::Left);
+        setColor(m_corner & EdgeLeft);
         renderVertical({ x - d, y }, h, d);
         // right line
-        setColor(m_corner & (uint32_t)Edge::Right);
+        setColor(m_corner & EdgeRight);
         renderVertical({ x + w, y }, h, d);
     }
 }
@@ -312,35 +314,35 @@ void cSelection::updateCorner(const Vectorf& pos, float scale)
         const Rectf rcLt(rc.tl, { rc.tl.x + d, rc.br.y });
         if (rcLt.testPoint(pos))
         {
-            m_corner |= (uint32_t)Edge::Left;
+            m_corner |= EdgeLeft;
         }
 
         const Rectf rcRt({ rc.br.x - d, rc.tl.y }, rc.br);
         if (rcRt.testPoint(pos))
         {
-            m_corner |= (uint32_t)Edge::Right;
+            m_corner |= EdgeRight;
         }
 
         const Rectf rcUp(rc.tl, { rc.br.x, rc.tl.y + d });
         if (rcUp.testPoint(pos))
         {
-            m_corner |= (uint32_t)Edge::Top;
+            m_corner |= EdgeTop;
         }
 
         const Rectf rcDn({ rc.tl.x, rc.br.y - d }, rc.br);
         if (rcDn.testPoint(pos))
         {
-            m_corner |= (uint32_t)Edge::Bottom;
+            m_corner |= EdgeBottom;
         }
 
         if (!m_corner)
         {
-            m_corner = (uint32_t)Edge::Center;
+            m_corner = EdgeCenter;
         }
     }
     else
     {
-        m_corner = (uint32_t)Edge::None;
+        m_corner = EdgeNone;
     }
 }
 

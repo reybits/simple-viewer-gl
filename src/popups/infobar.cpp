@@ -16,6 +16,7 @@
 #include "common/timing.h"
 
 #include <cstring>
+#include <fmt/format.h>
 
 namespace
 {
@@ -40,7 +41,7 @@ void cInfoBar::render()
     const float h = s.WindowPadding.y * 2.0f + font->LegacySize;
 
     ImGui::SetNextWindowPos({ 0.0f, height - h }, ImGuiCond_Always);
-    ImGui::SetNextWindowSize({ (float)width, h }, ImGuiCond_Always);
+    ImGui::SetNextWindowSize({ static_cast<float>(width), h }, ImGuiCond_Always);
     constexpr auto flags = ImGuiWindowFlags_NoTitleBar
         | ImGuiWindowFlags_NoResize
         | ImGuiWindowFlags_NoMove
@@ -88,17 +89,18 @@ void cInfoBar::render()
 void cInfoBar::setInfo(const sInfo& p)
 {
     const auto fileName = getFilename(p.path);
+    const auto shortName = shortenFilename(fileName);
 
-    char idx_img[20] = { 0 };
+    std::string idxImg;
     if (p.files_count > 1)
     {
-        ::snprintf(idx_img, sizeof(idx_img), "%u out %u | ", p.index + 1, p.files_count);
+        idxImg = fmt::format("{} out {} | ", p.index + 1, p.files_count);
     }
 
-    char sub_image[20] = { 0 };
+    std::string subImage;
     if (p.images > 1)
     {
-        ::snprintf(sub_image, sizeof(sub_image), " | %u / %u", p.current + 1, p.images);
+        subImage = fmt::format(" | {} / {}", p.current + 1, p.images);
     }
 
     auto file_size = static_cast<float>(p.file_size);
@@ -106,14 +108,10 @@ void cInfoBar::setInfo(const sInfo& p)
     auto mem_size = static_cast<float>(p.mem_size);
     auto mem_s = getHumanSize(mem_size);
 
-    char title[1000] = { 0 };
-    const auto shortName = shortenFilename(fileName);
-    ::snprintf(title, sizeof(title), "%s%s%s | %s | %u x %u x %u bpp | %.1f%% | %.1f %s (%.1f %s)",
-               idx_img, shortName.c_str(), sub_image,
-               p.type, p.width, p.height, p.bpp, p.scale * 100.0f,
-               file_size, file_s, mem_size, mem_s);
-
-    m_bottominfo = title;
+    m_bottominfo = fmt::format("{}{}{} | {} | {} x {} x {} bpp | {:.1f}% | {:.1f} {} ({:.1f} {})",
+                               idxImg, shortName, subImage,
+                               p.type, p.width, p.height, p.bpp, p.scale * 100.0f,
+                               file_size, file_s, mem_size, mem_s);
 }
 
 const char* cInfoBar::getHumanSize(float& size)
@@ -152,7 +150,7 @@ const std::string cInfoBar::shortenFilename(const std::string& path) const
 
     // ::printf("'%s' -> ", path);
 
-    const uint8_t* s = (uint8_t*)path.c_str();
+    const auto* s = reinterpret_cast<const uint8_t*>(path.c_str());
     const uint32_t count = countCodePoints(s);
 
     const uint32_t maxCount = m_config.fileMaxLength;
@@ -183,7 +181,7 @@ const std::string cInfoBar::shortenFilename(const std::string& path) const
             }
         }
 
-        filename += (const char*)s;
+        filename += reinterpret_cast<const char*>(s);
         // ::printf("'%s'\n", filename.c_str());
     }
 

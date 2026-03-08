@@ -15,6 +15,7 @@
 #include "img-pointer-cross.c"
 
 #include <cstring>
+#include <fmt/format.h>
 
 namespace
 {
@@ -42,17 +43,16 @@ void cPixelPopup::setPixelInfo(const sPixelInfo& pi)
 
     const bool isInside = isInsideImage(m_pixelInfo.point);
 
-    char buffer[100];
     m_info.clear();
 
-    ::snprintf(buffer, sizeof(buffer), "%d x %d", (int)pi.point.x, (int)pi.point.y);
-    m_info.push_back({ Info::Icon::Position, isInside ? ColorWhite : ColorGray, buffer, {} });
+    m_info.push_back({ Info::Icon::Position, isInside ? ColorWhite : ColorGray,
+                        fmt::format("{} x {}", static_cast<int>(pi.point.x), static_cast<int>(pi.point.y)), {} });
 
     if (isInside)
     {
         const auto& c = pi.color;
-        ::snprintf(buffer, sizeof(buffer), "rgba %.2X %.2X %.2X %.2X", c.r, c.g, c.b, c.a);
-        m_info.push_back({ Info::Icon::Color, ColorWhite, buffer, {} });
+        m_info.push_back({ Info::Icon::Color, ColorWhite,
+                            fmt::format("rgba {:02X} {:02X} {:02X} {:02X}", c.r, c.g, c.b, c.a), {} });
     }
     else
     {
@@ -63,16 +63,16 @@ void cPixelPopup::setPixelInfo(const sPixelInfo& pi)
     if (rc.isSet())
     {
         rc.normalize();
-        const int x = (int)rc.tl.x;
-        const int y = (int)rc.tl.y;
-        const int w = (int)rc.width();
-        const int h = (int)rc.height();
+        const int x = static_cast<int>(rc.tl.x);
+        const int y = static_cast<int>(rc.tl.y);
+        const int w = static_cast<int>(rc.width());
+        const int h = static_cast<int>(rc.height());
 
-        ::snprintf(buffer, sizeof(buffer), "%d x %d", w, h);
-        m_info.push_back({ Info::Icon::Size, ColorWhite, buffer, {} });
+        m_info.push_back({ Info::Icon::Size, ColorWhite,
+                            fmt::format("{} x {}", w, h), {} });
 
-        ::snprintf(buffer, sizeof(buffer), "%d, %d -> %d, %d", x, y, x + w - 1, y + h - 1);
-        m_info.push_back({ Info::Icon::Rect, ColorWhite, buffer, {} });
+        m_info.push_back({ Info::Icon::Rect, ColorWhite,
+                            fmt::format("{}, {} -> {}, {}", x, y, x + w - 1, y + h - 1), {} });
     }
 }
 
@@ -128,9 +128,9 @@ void cPixelPopup::renderInfo()
         const ImVec2 size{ iconSize.x, iconSize.y };
         for (const auto& s : m_info)
         {
-            m_icons->setFrame((uint32_t)s.icon);
+            m_icons->setFrame(static_cast<uint32_t>(s.icon));
             auto& quad = m_icons->getQuad();
-            ImGui::ImageWithBg((void*)(uintptr_t)quad.tex, size, { quad.v[0].tx, quad.v[0].ty }, { quad.v[2].tx, quad.v[2].ty }, ColorTransparent, ColorGray);
+            ImGui::ImageWithBg(reinterpret_cast<void*>(static_cast<uintptr_t>(quad.tex)), size, { quad.v[0].tx, quad.v[0].ty }, { quad.v[2].tx, quad.v[2].ty }, ColorTransparent, ColorGray);
             ImGui::SameLine();
             ImGui::TextColored(s.color, "%s", s.text.c_str());
         }
