@@ -162,6 +162,21 @@ void cViewer::onRender()
 
     if (m_config.hideInfobar == false)
     {
+        const float progress = m_loadProgress.load(std::memory_order_relaxed);
+        if (progress >= 0.0f)
+        {
+            m_infoBar->setProgressPercent(progress);
+        }
+        else if (progress > -1.5f)
+        {
+            // -1.0f means no progress
+            m_infoBar->clearProgress();
+        }
+        else
+        {
+            // sentinel values for text states
+            m_infoBar->setProgressText(progress < -2.5f ? "[decoding...]" : "[loading...]");
+        }
         m_infoBar->render();
     }
 
@@ -231,13 +246,14 @@ void cViewer::onUpdate()
         const float uploadProgress = m_image->getProgress();
         if (uploadProgress > 0.0f)
         {
-            m_progress->setProgress(0.5f + uploadProgress * 0.5f);
+            m_loadProgress.store(0.5f + uploadProgress * 0.5f, std::memory_order_relaxed);
         }
 
         if (isDone)
         {
             const auto& desc = m_loader->getDescription();
             m_progress->hide();
+            m_loadProgress.store(-1.0f, std::memory_order_relaxed);
             m_animation = desc.isAnimation;
 
             // Free bitmap memory — pixel readback now uses GPU textures
@@ -266,6 +282,11 @@ bool cViewer::isUploading() const
 
 void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
 {
+    if (winSize.x <= 0 || winSize.y <= 0 || fbSize.x <= 0 || fbSize.y <= 0)
+    {
+        return;
+    }
+
     m_ratio = { static_cast<float>(fbSize.x) / winSize.x, static_cast<float>(fbSize.y) / winSize.y };
 
     auto width = std::max(DefaultWindowSize.x, winSize.x);
@@ -982,6 +1003,7 @@ void cViewer::startLoading()
     {
         m_progress->show();
     }
+    m_loadProgress.store(-2.0f, std::memory_order_relaxed); // "loading..."
     m_bitmapAllocated.store(false, std::memory_order_relaxed);
     m_imagePrepared.store(false, std::memory_order_relaxed);
     m_uploadFinal = false;
@@ -989,12 +1011,13 @@ void cViewer::startLoading()
 
 void cViewer::onBitmapAllocated(const sBitmapDescription& /*desc*/)
 {
+    m_loadProgress.store(-3.0f, std::memory_order_relaxed); // "decoding..."
     m_bitmapAllocated.store(true, std::memory_order_release);
 }
 
 void cViewer::doProgress(float progress)
 {
-    m_progress->setProgress(progress * 0.5f);
+    m_loadProgress.store(progress * 0.5f, std::memory_order_relaxed);
 }
 
 void cViewer::endLoading()

@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 class cQuad;
@@ -25,11 +26,6 @@ public:
         m_visible = true;
     }
 
-    void setProgress(float progress)
-    {
-        m_progress = progress;
-    }
-
     void hide()
     {
         m_visible = false;
@@ -39,16 +35,11 @@ public:
 
 private:
     bool m_visible = false;
-    float m_progress = 0.0f;
 
     std::unique_ptr<cQuad> m_back;
-    struct sDot
-    {
-        float alpha;
-        std::unique_ptr<cQuad> dot;
-    };
-    sDot m_dot[4];
+    std::unique_ptr<cQuad> m_dot;
+    float m_alpha[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-    unsigned m_index = 0;
+    uint32_t m_index = 0;
     float m_time = 0.0f;
 };
