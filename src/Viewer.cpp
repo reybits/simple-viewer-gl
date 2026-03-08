@@ -248,6 +248,20 @@ void cViewer::onUpdate()
         else
         {
             m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
+
+            // If dimensions changed (e.g. failed load producing 0x0),
+            // reset view and re-center the window
+            if (m_loader->getMode() == cImageLoader::Mode::Image)
+            {
+                if (m_config.keepScale == false)
+                {
+                    m_scale.setScalePercent(100);
+                    m_angle = 0;
+                    m_camera = Vectorf();
+                }
+                m_selection->setImageDimension(desc.width, desc.height);
+                centerWindow();
+            }
         }
 
         if (m_loader->getMode() == cImageLoader::Mode::Image)
