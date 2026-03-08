@@ -14,7 +14,7 @@ init:
 - sh: >-
     echo "--- Installing dependencies ---"
     sudo apt-get --assume-yes update
-    sudo apt-get --assume-yes install cmake libglfw3-dev
+    sudo apt-get --assume-yes install cmake pkg-config libglfw3-dev
     sudo apt-get --assume-yes install libjpeg-dev libpng-dev zlib1g-dev
     sudo apt-get --assume-yes install liblcms2-dev libexif-dev libgif-dev libtiff-dev libwebp-dev libopenexr-dev libopenjp2-7-dev
 
