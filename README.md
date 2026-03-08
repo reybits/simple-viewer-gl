@@ -108,7 +108,7 @@ Update and install required dependencies:
 sudo apt-get update
 sudo apt-get install g++ make build-essential debhelper cmake pkg-config libgl1-mesa-dev
 sudo apt-get install libxrandr-dev libxcursor-dev libfreetype6-dev libjpeg-dev
-sudo apt-get install libtiff-dev libgif-dev liblcms2-dev libimlib2-dev libwebp-dev
+sudo apt-get install libtiff-dev libgif-dev liblcms2-dev libwebp-dev
 sudo apt-get install libglfw3-dev libexif-dev libilmbase-dev libopenexr-dev
 ```
 
@@ -129,7 +129,7 @@ Update and install required dependencies:
 ```sh
 sudo dnf install gcc-c++ make cmake mesa-libGL-devel glfw-devel freetype-devel
 sudo dnf install libpng-devel libjpeg-turbo-devel libtiff-devel giflib-devel lcms2-devel
-sudo dnf install libwebp-devel libexif-devel imlib2-devel zlib-devel ilmbase-devel OpenEXR-devel
+sudo dnf install libwebp-devel libexif-devel zlib-devel ilmbase-devel OpenEXR-devel
 ```
 
 Clone and make source for RPM:
