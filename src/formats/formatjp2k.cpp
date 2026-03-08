@@ -289,7 +289,8 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
 
     // enable multi-threaded tile decoding
-    opj_codec_set_threads(d_codec, std::thread::hardware_concurrency());
+    const auto numThreads = std::max(1u, std::thread::hardware_concurrency());
+    opj_codec_set_threads(d_codec, static_cast<int>(numThreads));
 
     opj_image_t* image = nullptr;
 
