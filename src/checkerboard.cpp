@@ -50,10 +50,10 @@ void cCheckerboard::render()
     if (m_config.backgroundIndex == 0)
     {
         auto& viewport = render::getViewportSize();
-        Vectorf pos{ -(float)(viewport.x >> 1),
-                     -(float)(viewport.y >> 1) };
-        Vectorf size{ (float)viewport.x,
-                      (float)viewport.y };
+        Vectorf pos{ -static_cast<float>(viewport.x >> 1),
+                     -static_cast<float>(viewport.y >> 1) };
+        Vectorf size{ static_cast<float>(viewport.x),
+                      static_cast<float>(viewport.y) };
 
         m_cb->setTextureRect(pos, size);
         m_cb->render({ 0.0f, 0.0f });

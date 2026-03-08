@@ -29,7 +29,7 @@ cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, ePixelFormat bitmapF
     setData(data);
 
     // by deafult set whole texture size
-    setSpriteSize({ (float)tw, (float)th });
+    setSpriteSize({ static_cast<float>(tw), static_cast<float>(th) });
 }
 
 cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum internalFormat, uint32_t dataSize)
@@ -42,7 +42,7 @@ cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum internalForma
     m_quad.tex = render::createTexture();
     render::setCompressedData(m_quad.tex, data, tw, th, internalFormat, dataSize);
 
-    setSpriteSize({ (float)tw, (float)th });
+    setSpriteSize({ static_cast<float>(tw), static_cast<float>(th) });
 }
 
 cQuad::~cQuad()

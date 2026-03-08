@@ -36,7 +36,7 @@
 
 namespace
 {
-    bool FixeScale(int& scale, int step)
+    bool AlignScale(int& scale, int step)
     {
         const int oldScale = scale;
         scale /= step;
@@ -751,7 +751,7 @@ void cViewer::calculateScale()
     updateFiltering();
 }
 
-// TODO: update m_camera_x / m_camera_y according current mouse position
+// TODO: update m_camera according to current mouse position (zoom to cursor)
 void cViewer::updateScale(ScaleDirection direction)
 {
     m_config.fitImage = false;
@@ -761,13 +761,13 @@ void cViewer::updateScale(ScaleDirection direction)
     if (direction == ScaleDirection::Up)
     {
         const int step = scale >= 100 ? 25 : (scale >= 50 ? 10 : (scale >= 30 ? 5 : 1));
-        FixeScale(scale, step);
+        AlignScale(scale, step);
         scale += step;
     }
     else if (direction == ScaleDirection::Down)
     {
         const int step = scale > 100 ? 25 : (scale > 50 ? 10 : (scale > 30 ? 5 : 1));
-        if (FixeScale(scale, step) == false && scale > step)
+        if (!AlignScale(scale, step) && scale > step)
         {
             scale -= step;
         }

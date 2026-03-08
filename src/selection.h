@@ -54,16 +54,16 @@ private:
     };
     eMouseMode m_mode = eMouseMode::None;
 
-    enum class Edge : uint32_t
+    enum Edge : uint32_t
     {
-        None   = 0,
-        Top    = 1 << 0,
-        Right  = 1 << 1,
-        Bottom = 1 << 2,
-        Left   = 1 << 3,
-        Center = 1 << 4,
+        EdgeNone   = 0,
+        EdgeTop    = 1 << 0,
+        EdgeRight  = 1 << 1,
+        EdgeBottom = 1 << 2,
+        EdgeLeft   = 1 << 3,
+        EdgeCenter = 1 << 4,
     };
-    uint32_t m_corner = (uint32_t)Edge::None;
+    uint32_t m_corner = EdgeNone;
 
     std::unique_ptr<cQuad> m_hori;
     std::unique_ptr<cQuad> m_vert;
