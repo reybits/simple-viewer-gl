@@ -11,6 +11,9 @@
 #include "DroidSans.h"
 #include "renderer.h"
 #include "types/matrix.h"
+#include "window.h"
+
+#include "common/timing.h"
 
 #include <GLFW/glfw3.h>
 #include <imgui/imgui.h>
@@ -448,9 +451,9 @@ void cGui::onChar(uint32_t c)
     }
 }
 
-void cGui::init(GLFWwindow* window)
+void cGui::init(cWindow& window)
 {
-    m_window = window;
+    m_window = &window;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -461,11 +464,11 @@ void cGui::init(GLFWwindow* window)
     io.LogFilename = nullptr;
 
     io.SetClipboardTextFn = [](void* user_data, const char* text) {
-        glfwSetClipboardString(static_cast<GLFWwindow*>(user_data), text);
+        static_cast<cWindow*>(user_data)->setClipboardText(text);
     };
 
     io.GetClipboardTextFn = [](void* user_data) {
-        return glfwGetClipboardString(static_cast<GLFWwindow*>(user_data));
+        return static_cast<cWindow*>(user_data)->getClipboardText();
     };
 
     io.ClipboardUserData = m_window;
@@ -494,14 +497,14 @@ void cGui::beginFrame()
 {
     auto& io = ImGui::GetIO();
 
-    int w, h;
-    int display_w, display_h;
-    glfwGetWindowSize(m_window, &w, &h);
-    glfwGetFramebufferSize(m_window, &display_w, &display_h);
-    io.DisplaySize = ImVec2(static_cast<float>(w), static_cast<float>(h));
-    io.DisplayFramebufferScale = ImVec2(w > 0 ? (static_cast<float>(display_w) / w) : 0, h > 0 ? (static_cast<float>(display_h) / h) : 0);
+    auto winSize = m_window->getWindowSize();
+    auto fbSize = m_window->getFramebufferSize();
+    io.DisplaySize = ImVec2(static_cast<float>(winSize.x), static_cast<float>(winSize.y));
+    io.DisplayFramebufferScale = ImVec2(
+        winSize.x > 0 ? (static_cast<float>(fbSize.x) / winSize.x) : 0,
+        winSize.y > 0 ? (static_cast<float>(fbSize.y) / winSize.y) : 0);
 
-    double current_time = glfwGetTime();
+    double current_time = timing::seconds();
     io.DeltaTime = m_time > 0.0 ? static_cast<float>(current_time - m_time) : (1.0f / 60.0f);
     m_time = current_time;
 

@@ -21,7 +21,6 @@
 
 namespace
 {
-    GLFWwindow* Window = nullptr;
     Rectf ViewRect;
     float ViewZoom = 1.0f;
     int ViewAngle = 0;
@@ -146,9 +145,8 @@ void main()
 
 } // namespace
 
-void render::init(GLFWwindow* window)
+void render::init()
 {
-    Window = window;
     CurrentTextureId = 0;
 
     int maxSize = 0;
@@ -227,7 +225,6 @@ void render::shutdown()
         ReadbackFbo = 0;
     }
 
-    Window = nullptr;
     ViewZoom = 1.0f;
     ViewAngle = 0;
     CurrentTextureId = 0;
@@ -254,11 +251,6 @@ void render::beginFrame()
 void render::endFrame()
 {
     GL(glBindVertexArray(0));
-}
-
-GLFWwindow* render::getWindow()
-{
-    return Window;
 }
 
 void render::pushState()

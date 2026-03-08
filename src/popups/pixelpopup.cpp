@@ -10,7 +10,7 @@
 #include "pixelpopup.h"
 #include "renderer.h"
 
-#include <GLFW/glfw3.h>
+#include <imgui/imgui.h>
 #include "img-icons.c"
 #include "img-pointer-cross.c"
 
@@ -102,11 +102,11 @@ void cPixelPopup::renderCursor()
 
 void cPixelPopup::renderInfo()
 {
-    double x, y;
-    glfwGetCursorPos(render::getWindow(), &x, &y);
-
-    int width, height;
-    glfwGetWindowSize(render::getWindow(), &width, &height);
+    auto& io = ImGui::GetIO();
+    float x = io.MousePos.x;
+    float y = io.MousePos.y;
+    float width = io.DisplaySize.x;
+    float height = io.DisplaySize.y;
 
     const float offset = 10.0f;
     const ImVec2 pos{

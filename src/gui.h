@@ -10,12 +10,12 @@
 #include "types/types.h"
 #include "types/vector.h"
 
-struct GLFWwindow;
+class cWindow;
 
 class cGui
 {
 public:
-    void init(GLFWwindow* window);
+    void init(cWindow& window);
     void shutdown();
 
     void beginFrame();
@@ -29,6 +29,6 @@ public:
     void onChar(uint32_t c);
 
 private:
-    GLFWwindow* m_window = nullptr;
+    cWindow* m_window = nullptr;
     double m_time = 0.0f;
 };

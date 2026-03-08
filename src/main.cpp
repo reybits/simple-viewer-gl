@@ -9,13 +9,12 @@
 
 #include "common/config.h"
 #include "common/helpers.h"
+#include "common/timing.h"
 #include "log/Log.h"
 #include "types/types.h"
 #include "version.h"
 #include "viewer.h"
-
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include "window.h"
 
 #include <clocale>
 #include <cstdio>
@@ -26,7 +25,8 @@
 
 namespace
 {
-    cViewer* m_viewer = nullptr;
+    cViewer* Viewer = nullptr;
+    StringsList ImagesList;
 
     void showVersion()
     {
@@ -98,186 +98,12 @@ namespace
         printf("\n");
     }
 
-    void callbackResize(GLFWwindow* /*window*/, int width, int height)
-    {
-        m_viewer->onWindowResize({ width, height });
-    }
-
-    void callbackFramebufferResize(GLFWwindow* /*window*/, int width, int height)
-    {
-        m_viewer->onFramebufferResize({ width, height });
-    }
-
-    void callbackPosition(GLFWwindow* /*window*/, int x, int y)
-    {
-        m_viewer->onPosition({ x, y });
-    }
-
-    void callbackRedraw(GLFWwindow* /*window*/)
-    {
-        m_viewer->onRender();
-    }
-
-    void callbackKey(GLFWwindow* /*window*/, int key, int scancode, int action, int mods)
-    {
-        m_viewer->onKey(key, scancode, action, mods);
-    }
-
-    void callbackChar(GLFWwindow* /*window*/, unsigned int c)
-    {
-        m_viewer->onChar(c);
-    }
-
-    void callbackMouseButtons(GLFWwindow* /*window*/, int button, int action, int mods)
-    {
-        m_viewer->onMouseButtons(button, action, mods);
-    }
-
-    void callbackMousePosition(GLFWwindow* /*window*/, double x, double y)
-    {
-        m_viewer->onMouse({ (float)x, (float)y });
-    }
-
-    void callbackCursorEnter(GLFWwindow* /*window*/, int entered)
-    {
-        m_viewer->onCursorEnter(entered != 0);
-    }
-
-    void callbackMouseScroll(GLFWwindow* /*window*/, double x, double y)
-    {
-        m_viewer->onMouseScroll({ (float)x, (float)y });
-    }
-
-#if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 1
-    void callbackDrop(GLFWwindow* /*window*/, int count, const char** paths)
-    {
-        StringsList imagesList;
-        for (int i = 0; i < count; i++)
-        {
-            imagesList.push_back(paths[i]);
-        }
-        m_viewer->addPaths(imagesList);
-    }
-#endif
-
-    void callbackError(int e, const char* error)
-    {
-        cLog::Error("GLFW error ({}) '{}'.", e, error);
-    }
-
-    void setHints(const sConfig& config)
-    {
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-
-        auto className = config.className.c_str();
-
-        glfwWindowHintString(GLFW_X11_CLASS_NAME, className);
-
-        if (helpers::getPlatform() == helpers::Platform::Wayland)
-        {
-#if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 4
-            glfwWindowHintString(GLFW_WAYLAND_APP_ID, className);
-            glfwWindowHint(GLFW_ANY_POSITION, true);
-#endif
-        }
-    }
-
-    void setContext(GLFWwindow* window)
-    {
-        glfwSetErrorCallback(callbackError);
-
-        glfwMakeContextCurrent(window);
-
-        if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
-        {
-            cLog::Error("Failed to initialize GLAD.");
-        }
-
-        glfwSwapInterval(1);
-
-        glfwSetWindowSizeCallback(window, callbackResize);
-        glfwSetFramebufferSizeCallback(window, callbackFramebufferResize);
-        glfwSetWindowPosCallback(window, callbackPosition);
-
-        glfwSetWindowRefreshCallback(window, callbackRedraw);
-
-        glfwSetKeyCallback(window, callbackKey);
-        glfwSetCharCallback(window, callbackChar);
-
-        glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
-        glfwSetMouseButtonCallback(window, callbackMouseButtons);
-        glfwSetCursorPosCallback(window, callbackMousePosition);
-        glfwSetScrollCallback(window, callbackMouseScroll);
-        // INFO: Disabled due to a bug in GLFW.
-        // Check the actual cursor position instead.
-        // glfwSetCursorEnterCallback(window, callbackCursorEnter);
-
-#if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 1
-        glfwSetDropCallback(window, callbackDrop);
-#endif
-    }
-
-    GLFWwindow* createWindowedWindow(GLFWwindow* parent, const sConfig& config)
-    {
-        setHints(config);
-
-        auto width = std::max(config.windowSize.w, DefaultWindowSize.w);
-        auto height = std::max(config.windowSize.h, DefaultWindowSize.h);
-
-        auto newWindow = glfwCreateWindow(width, height, version::getTitle(), nullptr, parent);
-        return newWindow;
-    }
-
-    GLFWwindow* createFullscreenWindow(GLFWwindow* parent, const sConfig& config)
-    {
-        setHints(config);
-
-        auto monitor = glfwGetPrimaryMonitor();
-        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-        auto newWindow = glfwCreateWindow(mode->width, mode->height, version::getTitle(), monitor, parent);
-        return newWindow;
-    }
-
-    //
-    // macOS Mojave / Xcode 10 specific bug workaround
-    // https://github.com/glfw/glfw/issues/1334
-    //
-    static int macOSHackCount = 0;
-
-    void macOSMojaveUglyHack(GLFWwindow* window)
-    {
-#if defined(__APPLE__)
-        if (macOSHackCount < 2)
-        {
-            macOSHackCount++;
-            if (macOSHackCount == 1)
-            {
-                int x, y;
-                glfwGetWindowPos(window, &x, &y);
-                glfwSetWindowPos(window, ++x, y);
-            }
-            else if (macOSHackCount == 2)
-            {
-                int x, y;
-                glfwGetWindowPos(window, &x, &y);
-                glfwSetWindowPos(window, --x, y);
-            }
-        }
-#endif
-        (void)window;
-    }
-
-    StringsList ImagesList;
-
 } // namespace
 
 extern "C" {
 void AddFile(const char* filename)
 {
-    if (m_viewer == nullptr)
+    if (Viewer == nullptr)
     {
         if (filename != nullptr)
         {
@@ -288,7 +114,7 @@ void AddFile(const char* filename)
     {
         StringsList imagesList;
         imagesList.push_back(filename);
-        m_viewer->addPaths(imagesList);
+        Viewer->addPaths(imagesList);
     }
 }
 
@@ -335,7 +161,7 @@ int main(int argc, char* argv[])
         {
             if (i + 1 < argc)
             {
-                config.minSvgSize = (float)::atof(argv[++i]);
+                config.minSvgSize = static_cast<float>(::atof(argv[++i]));
             }
         }
         else if (::strncmp(argv[i], "-cw", 3) == 0)
@@ -391,7 +217,7 @@ int main(int argc, char* argv[])
             uint32_t r, g, b;
             if (3 == sscanf(argv[i + 1], "%2x%2x%2x", &r, &g, &b))
             {
-                config.bgColor = { (uint8_t)r, (uint8_t)g, (uint8_t)b, (uint8_t)255 };
+                config.bgColor = { static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b), 255 };
                 i++;
             }
         }
@@ -426,118 +252,55 @@ int main(int argc, char* argv[])
         }
     }
 
-    int result = 0;
-    glfwSetErrorCallback([](int error_code, const char* description) {
-        cLog::Error("{}: '{}'.", error_code, description);
-    });
-
-    if (glfwInit())
+    cWindow window;
+    if (!window.init(config))
     {
-        cViewer viewer(config);
-        m_viewer = &viewer;
+        return -1;
+    }
 
-        viewer.addPaths(ImagesList);
-        ImagesList.clear();
+    cViewer viewer(config, window);
+    Viewer = &viewer;
+    window.setEventHandler(&viewer);
 
-        GLFWwindow* window = nullptr;
-        if (config.fullScreen)
+    viewer.addPaths(ImagesList);
+    ImagesList.clear();
+
+    // Apply saved window position/size for windowed mode
+    if (!config.fullScreen && !config.centerWindow)
+    {
+        if (helpers::getPlatform() != helpers::Platform::Wayland)
         {
-            window = createFullscreenWindow(nullptr, config);
-            viewer.setWindowed(false);
+            window.setSize({ config.windowSize.x, config.windowSize.y });
+            window.setPosition({ config.windowPos.x, config.windowPos.y });
         }
-        else
+    }
+
+    while (!window.shouldClose())
+    {
+        const double timeStart = timing::seconds();
+        static double timeEnd = timeStart;
+
+        viewer.onRender();
+        viewer.onUpdate();
+
+        window.pollEvents();
+
+        if (!viewer.isUploading())
         {
-            window = createWindowedWindow(nullptr, config);
-            viewer.setWindowed(true);
-        }
-
-        bool updateSizePos = !(config.fullScreen || config.centerWindow);
-
-        if (window != nullptr)
-        {
-            setContext(window);
-            viewer.setWindow(window);
-
-            while (glfwWindowShouldClose(window) == false)
+            const double delta = timeEnd - timeStart;
+            constexpr double desiredFps = 1.0 / 60.0;
+            const double timeRest = desiredFps - delta;
+            if (timeRest > 0.0)
             {
-                macOSMojaveUglyHack(window);
-
-                if (viewer.isWindowModeRequested())
-                {
-                    GLFWwindow* newWindow = nullptr;
-
-                    const bool windowed = viewer.isWindowed();
-                    if (windowed == false)
-                    {
-                        updateSizePos = true;
-
-                        newWindow = createWindowedWindow(window, config);
-                        viewer.setWindowed(true);
-                    }
-                    else
-                    {
-                        newWindow = createFullscreenWindow(window, config);
-                        viewer.setWindowed(false);
-                    }
-
-                    setContext(newWindow);
-                    viewer.setWindow(newWindow);
-
-                    glfwDestroyWindow(window);
-                    window = newWindow;
-
-                    macOSHackCount = 0;
-                }
-                else if (updateSizePos)
-                {
-                    updateSizePos = false;
-                    viewer.setWindowed(true);
-
-                    if (helpers::getPlatform() != helpers::Platform::Wayland)
-                    {
-                        glfwSetWindowSize(window, config.windowSize.x, config.windowSize.y);
-                        glfwSetWindowPos(window, config.windowPos.x, config.windowPos.y);
-                    }
-                }
-
-                const float timeStart = glfwGetTime();
-                static float timeEnd = timeStart;
-
-                viewer.onRender();
-                viewer.onUpdate();
-
-                glfwPollEvents();
-
-                if (viewer.isUploading() == false)
-                {
-                    const float delta = timeEnd - timeStart;
-
-                    const float disiredFps = 1.0f / 60.0f;
-                    const float time_rest = disiredFps - delta;
-                    if (time_rest > 0.0f)
-                    {
-                        usleep(time_rest * 1000000);
-                    }
-                }
-
-                timeEnd = glfwGetTime();
+                usleep(static_cast<useconds_t>(timeRest * 1000000));
             }
-
-            fileConfig.write(config);
-        }
-        else
-        {
-            cLog::Error("Can't create window.");
-            result = -1;
         }
 
-        glfwTerminate();
-    }
-    else
-    {
-        cLog::Error("Can't initialize GLFW.");
-        result = -1;
+        timeEnd = timing::seconds();
     }
 
-    return result;
+    Viewer = nullptr;
+    fileConfig.write(config);
+
+    return 0;
 }

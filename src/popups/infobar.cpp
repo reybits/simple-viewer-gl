@@ -13,7 +13,7 @@
 #include "imgui/imgui.h"
 #include "renderer.h"
 
-#include <GLFW/glfw3.h>
+#include "common/timing.h"
 
 #include <cstring>
 
@@ -31,9 +31,9 @@ cInfoBar::cInfoBar(const sConfig& config)
 
 void cInfoBar::render()
 {
-    int width;
-    int height;
-    glfwGetWindowSize(render::getWindow(), &width, &height);
+    auto& io = ImGui::GetIO();
+    int width = static_cast<int>(io.DisplaySize.x);
+    int height = static_cast<int>(io.DisplaySize.y);
 
     auto& s = ImGui::GetStyle();
     auto font = ImGui::GetFont();
@@ -64,8 +64,8 @@ void cInfoBar::render()
         static float fps = 0.0f;
 
         frame++;
-        static auto last = glfwGetTime();
-        const auto now = glfwGetTime();
+        static auto last = timing::seconds();
+        const auto now = timing::seconds();
         const auto delta = now - last;
         if (delta > 0.5f)
         {
@@ -88,7 +88,6 @@ void cInfoBar::render()
 void cInfoBar::setInfo(const sInfo& p)
 {
     const auto fileName = getFilename(p.path);
-    glfwSetWindowTitle(render::getWindow(), fileName.c_str());
 
     char idx_img[20] = { 0 };
     if (p.files_count > 1)
