@@ -83,6 +83,6 @@ private:
     Mode m_mode = Mode::Image;
     std::thread m_loader;
     cFormat* m_activeReader = nullptr;
-    std::unordered_map<const char*, std::unique_ptr<cFormat>> m_formatCache;
+    std::unordered_map<std::string, std::unique_ptr<cFormat>> m_formatCache;
     sBitmapDescription m_desc;
 };
