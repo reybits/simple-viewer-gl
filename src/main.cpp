@@ -2,19 +2,19 @@
 *
 *  Simple Viewer GL edition
 *  by Andrey A. Ugolnik
-*  http://www.ugolnik.info
-*  andrey@ugolnik.info
+*  https://github.com/reybits
+*  and@reybits.dev
 *
 \**********************************************/
 
-#include "common/config.h"
-#include "common/helpers.h"
-#include "common/timing.h"
-#include "log/Log.h"
-#include "types/types.h"
-#include "version.h"
-#include "viewer.h"
-#include "window.h"
+#include "Common/Config.h"
+#include "Common/Helpers.h"
+#include "Common/Timing.h"
+#include "Log/Log.h"
+#include "Types/Types.h"
+#include "Version.h"
+#include "Viewer.h"
+#include "Window.h"
 
 #include <clocale>
 #include <cstdio>
@@ -35,9 +35,9 @@ namespace
                version::getMajor(),
                version::getMinor(),
                version::getRelease());
-        printf("Copyright © 2008-2025 Andrey A. Ugolnik. All Rights Reserved.\n");
-        printf("https://www.ugolnik.info\n");
-        printf("andrey@ugolnik.info\n");
+        printf("Copyright © 2008-2026 Andrey A. Ugolnik. All Rights Reserved.\n");
+        printf("https://github.com/reybits\n");
+        printf("and@reybits.dev\n");
     }
 
     const char* getValue(bool enabled)
