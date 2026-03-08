@@ -12,6 +12,8 @@
 #include "quad.h"
 #include "types/types.h"
 
+#include <GLFW/glfw3.h>
+
 #include <algorithm>
 #include <cmath>
 
@@ -45,7 +47,7 @@ void cProgress::render()
         }
 
         int w, h;
-        glfwGetFramebufferSize(cRenderer::getWindow(), &w, &h);
+        glfwGetFramebufferSize(render::getWindow(), &w, &h);
 
         const Vectorf pos{ w - distance * 2.0f, h - distance * 2.0f };
 

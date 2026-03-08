@@ -10,161 +10,132 @@
 #include "gui.h"
 #include "DroidSans.h"
 #include "renderer.h"
+#include "types/matrix.h"
 
 #include <GLFW/glfw3.h>
 #include <imgui/imgui.h>
 
 namespace
 {
-    class RenderState final
+    GLuint ImGuiShaderProgram = 0;
+    GLint ImGuiProjLoc = -1;
+    GLint ImGuiTexLoc = -1;
+    GLuint ImGuiVao = 0;
+    GLuint ImGuiVbo = 0;
+    GLuint ImGuiIbo = 0;
+
+    constexpr const char* ImGuiVertexShader = R"glsl(
+#version 330 core
+layout(location = 0) in vec2 aPos;
+layout(location = 1) in vec2 aTexCoord;
+layout(location = 2) in vec4 aColor;
+uniform mat4 uProjection;
+out vec2 vTexCoord;
+out vec4 vColor;
+void main()
+{
+    gl_Position = uProjection * vec4(aPos, 0.0, 1.0);
+    vTexCoord = aTexCoord;
+    vColor = aColor;
+}
+)glsl";
+
+    constexpr const char* ImGuiFragmentShader = R"glsl(
+#version 330 core
+in vec2 vTexCoord;
+in vec4 vColor;
+uniform sampler2D uTexture;
+out vec4 FragColor;
+void main()
+{
+    FragColor = texture(uTexture, vTexCoord) * vColor;
+}
+)glsl";
+
+    GLuint compileShader(GLenum type, const char* source)
     {
-    public:
-        RenderState(ImDrawData* drawData, int width, int height)
-            : m_drawData(drawData)
-            , m_fbWidth(width)
-            , m_fbHeight(height)
+        GLuint shader = glCreateShader(type);
+        glShaderSource(shader, 1, &source, nullptr);
+        glCompileShader(shader);
+        GLint success = 0;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if (!success)
         {
-            cRenderer::pushState();
-
-            // Update ImGui textures.
-            if (drawData->Textures != nullptr)
-            {
-                for (auto tex : *drawData->Textures)
-                {
-                    if (tex->Status != ImTextureStatus_OK)
-                    {
-                        updateTexture(tex);
-                    }
-                }
-            }
+            char log[512];
+            glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
+            printf("(EE) ImGui shader error: %s\n", log);
         }
+        return shader;
+    }
 
-        ~RenderState()
+    void initImGuiGL()
+    {
+        GLuint vert = compileShader(GL_VERTEX_SHADER, ImGuiVertexShader);
+        GLuint frag = compileShader(GL_FRAGMENT_SHADER, ImGuiFragmentShader);
+
+        ImGuiShaderProgram = glCreateProgram();
+        glAttachShader(ImGuiShaderProgram, vert);
+        glAttachShader(ImGuiShaderProgram, frag);
+        glLinkProgram(ImGuiShaderProgram);
+        glDeleteShader(vert);
+        glDeleteShader(frag);
+
+        ImGuiProjLoc = glGetUniformLocation(ImGuiShaderProgram, "uProjection");
+        ImGuiTexLoc = glGetUniformLocation(ImGuiShaderProgram, "uTexture");
+
+        GL(glGenVertexArrays(1, &ImGuiVao));
+        GL(glGenBuffers(1, &ImGuiVbo));
+        GL(glGenBuffers(1, &ImGuiIbo));
+    }
+
+    void shutdownImGuiGL()
+    {
+        if (ImGuiVao) { glDeleteVertexArrays(1, &ImGuiVao); ImGuiVao = 0; }
+        if (ImGuiVbo) { glDeleteBuffers(1, &ImGuiVbo); ImGuiVbo = 0; }
+        if (ImGuiIbo) { glDeleteBuffers(1, &ImGuiIbo); ImGuiIbo = 0; }
+        if (ImGuiShaderProgram) { glDeleteProgram(ImGuiShaderProgram); ImGuiShaderProgram = 0; }
+    }
+
+    void updateTexture(ImTextureData* textureData)
+    {
+        if (textureData->Status == ImTextureStatus_WantCreate)
         {
-            // Restore modified GL state.
-            GL(glDisableClientState(GL_COLOR_ARRAY));
-            GL(glDisableClientState(GL_TEXTURE_COORD_ARRAY));
-            GL(glDisableClientState(GL_VERTEX_ARRAY));
+            IM_ASSERT(textureData->TexID == 0 && textureData->BackendUserData == nullptr);
+            IM_ASSERT(textureData->Format == ImTextureFormat_RGBA32);
+            auto tex = render::createTexture();
 
-            cRenderer::popState();
+            render::bindTexture(tex);
+            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+            GL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
+            GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
+            auto pixels = textureData->GetPixels();
+            GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureData->Width, textureData->Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels));
 
-            GL(glMatrixMode(GL_MODELVIEW));
-            GL(glPopMatrix());
-            GL(glMatrixMode(GL_PROJECTION));
-            GL(glPopMatrix());
+            textureData->SetTexID(tex);
+            textureData->SetStatus(ImTextureStatus_OK);
         }
-
-        void resetState()
+        else if (textureData->Status == ImTextureStatus_WantUpdates)
         {
-            // Setup render state:
-            // alpha-blending enabled, no face culling, no depth testing,
-            // scissor enabled, vertex/texcoord/color pointers, polygon fill.
-            GL(glEnable(GL_BLEND));
-            GL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-            // In order to composite our output buffer we need to preserve alpha
-            // GL(glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
-            GL(glDisable(GL_CULL_FACE));
-            GL(glDisable(GL_DEPTH_TEST));
-            GL(glDisable(GL_STENCIL_TEST));
-            GL(glDisable(GL_LIGHTING));
-            GL(glDisable(GL_COLOR_MATERIAL));
-            GL(glEnable(GL_SCISSOR_TEST));
-            GL(glEnableClientState(GL_VERTEX_ARRAY));
-            GL(glEnableClientState(GL_TEXTURE_COORD_ARRAY));
-            GL(glEnableClientState(GL_COLOR_ARRAY));
-            // GL(glDisableClientState(GL_NORMAL_ARRAY));
-            GL(glEnable(GL_TEXTURE_2D));
-            GL(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
-            GL(glShadeModel(GL_SMOOTH));
-            GL(glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE));
-
-            // Setup viewport, orthographic projection matrix
-            // Our visible imgui space lies from m_drawData->DisplayPos (top left)
-            // to m_drawData->DisplayPos+data_data->DisplaySize (bottom right).
-            // DisplayPos is (0,0) for single viewport apps.
-            GL(glViewport(0, 0, m_fbWidth, m_fbHeight));
-            GL(glMatrixMode(GL_PROJECTION));
-            GL(glPushMatrix());
-            GL(glLoadIdentity());
-            GL(glOrtho(m_drawData->DisplayPos.x,
-                       m_drawData->DisplayPos.x + m_drawData->DisplaySize.x,
-                       m_drawData->DisplayPos.y + m_drawData->DisplaySize.y,
-                       m_drawData->DisplayPos.y,
-                       -1.0f, +1.0f));
-            GL(glMatrixMode(GL_MODELVIEW));
-            GL(glPushMatrix());
-            GL(glLoadIdentity());
+            render::bindTexture(textureData->TexID);
+            GL(glPixelStorei(GL_UNPACK_ROW_LENGTH, textureData->Width));
+            GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
+            for (auto& r : textureData->Updates)
+            {
+                GL(glTexSubImage2D(GL_TEXTURE_2D, 0, r.x, r.y, r.w, r.h, GL_RGBA, GL_UNSIGNED_BYTE, textureData->GetPixelsAt(r.x, r.y)));
+            }
+            GL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
+            textureData->SetStatus(ImTextureStatus_OK);
         }
-
-    private:
-        void updateTexture(ImTextureData* textureData) const
+        else if (textureData->Status == ImTextureStatus_WantDestroy)
         {
-            if (textureData->Status == ImTextureStatus_WantCreate)
-            {
-                auto old = cRenderer::getCurrentTexture();
-
-                // Create and upload new texture to graphics system
-                IM_ASSERT(textureData->TexID == 0 && textureData->BackendUserData == nullptr);
-                IM_ASSERT(textureData->Format == ImTextureFormat_RGBA32);
-                auto tex = cRenderer::createTexture();
-
-                // Upload texture to graphics system
-                // (Bilinear sampling is required by default.
-                // Set 'io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines'
-                // or 'style.AntiAliasedLinesUseTex = false' to allow point/nearest sampling)
-                cRenderer::bindTexture(tex);
-                GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-                GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-                GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP));
-                GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP));
-                GL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
-                GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
-                auto pixels = textureData->GetPixels();
-                GL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureData->Width, textureData->Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels));
-
-                // Store identifiers
-                textureData->SetTexID(tex);
-                textureData->SetStatus(ImTextureStatus_OK);
-
-                cRenderer::bindTexture(old);
-            }
-            else if (textureData->Status == ImTextureStatus_WantUpdates)
-            {
-                auto old = cRenderer::getCurrentTexture();
-
-                // Update selected blocks. We only ever write to textures regions
-                // which have never been used before!
-                // This backend choose to use textureData->Updates[] but you can use
-                // textureData->UpdateRect to upload a single region.
-                cRenderer::bindTexture(textureData->TexID);
-                GL(glPixelStorei(GL_UNPACK_ROW_LENGTH, textureData->Width));
-                GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
-                for (auto& r : textureData->Updates)
-                {
-                    GL(glTexSubImage2D(GL_TEXTURE_2D, 0, r.x, r.y, r.w, r.h, GL_RGBA, GL_UNSIGNED_BYTE, textureData->GetPixelsAt(r.x, r.y)));
-                }
-                GL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
-
-                textureData->SetStatus(ImTextureStatus_OK);
-
-                cRenderer::bindTexture(old);
-            }
-            else if (textureData->Status == ImTextureStatus_WantDestroy)
-            {
-                cRenderer::deleteTexture(textureData->TexID);
-
-                // Clear identifiers and mark as destroyed
-                // (in order to allow e.g. calling InvalidateDeviceObjects while running)
-                textureData->SetTexID(ImTextureID_Invalid);
-                textureData->SetStatus(ImTextureStatus_Destroyed);
-            }
+            render::deleteTexture(textureData->TexID);
+            textureData->SetTexID(ImTextureID_Invalid);
+            textureData->SetStatus(ImTextureStatus_Destroyed);
         }
-
-    private:
-        const ImDrawData* m_drawData;
-        const int m_fbWidth;
-        const int m_fbHeight;
-    };
+    }
 
     // -------------------------------------------------------------------------
 
@@ -420,9 +391,7 @@ namespace
 void cGui::onMousePosition(const Vectorf& pos)
 {
     auto& io = ImGui::GetIO();
-    // if (glfwGetWindowAttrib(m_window, GLFW_FOCUSED))
     io.MousePos = ImVec2(pos.x, pos.y);
-    // io.MousePos = ImVec2(-1, -1);
 }
 
 void cGui::onMouseButton(int button, int action)
@@ -491,9 +460,6 @@ void cGui::init(GLFWwindow* window)
 
     auto& io = ImGui::GetIO();
 
-    // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-    // io.RenderDrawListsFn = nullptr;
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
 
@@ -509,7 +475,7 @@ void cGui::init(GLFWwindow* window)
 
     const ImWchar range[] = { 0x0020, 0xFFFF, 0 };
     io.Fonts->AddFontFromMemoryCompressedTTF(DroidSans_compressed_data, DroidSans_compressed_size, 16, nullptr, range);
-    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures; // We can honor ImGuiPlatformIO::Textures[] requests during render.
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
@@ -517,10 +483,13 @@ void cGui::init(GLFWwindow* window)
     s.WindowTitleAlign = { 0.5f, 0.5f };
     s.WindowRounding = 5.0f;
     s.WindowPadding = { 3.0f, 3.0f };
+
+    initImGuiGL();
 }
 
 void cGui::shutdown()
 {
+    shutdownImGuiGL();
     ImGui::DestroyContext();
 }
 
@@ -528,21 +497,16 @@ void cGui::beginFrame()
 {
     auto& io = ImGui::GetIO();
 
-    // Setup display size (every frame to accommodate for window resizing)
     int w, h;
     int display_w, display_h;
     glfwGetWindowSize(m_window, &w, &h);
     glfwGetFramebufferSize(m_window, &display_w, &display_h);
-    io.DisplaySize = ImVec2((float)w, (float)h);
-    io.DisplayFramebufferScale = ImVec2(w > 0 ? ((float)display_w / w) : 0, h > 0 ? ((float)display_h / h) : 0);
+    io.DisplaySize = ImVec2(static_cast<float>(w), static_cast<float>(h));
+    io.DisplayFramebufferScale = ImVec2(w > 0 ? (static_cast<float>(display_w) / w) : 0, h > 0 ? (static_cast<float>(display_h) / h) : 0);
 
-    // Setup time step
     double current_time = glfwGetTime();
-    io.DeltaTime = m_time > 0.0 ? (float)(current_time - m_time) : (float)(1.0f / 60.0f);
+    io.DeltaTime = m_time > 0.0 ? static_cast<float>(current_time - m_time) : (1.0f / 60.0f);
     m_time = current_time;
-
-    // Hide OS mouse cursor if ImGui is drawing it
-    // glfwSetInputMode(m_window, GLFW_CURSOR, io.MouseDrawCursor ? GLFW_CURSOR_HIDDEN : GLFW_CURSOR_NORMAL);
 
     ImGui::NewFrame();
 }
@@ -551,13 +515,8 @@ void cGui::endFrame()
 {
     ImGui::Render();
 
-    // This is the main rendering function that you have to implement and provide to
-    // ImGui (via setting up 'RenderDrawListsFn' in the ImGuiIO structure)
-    // If text or lines are blurry when integrating ImGui in your engine:
-    // - in your Render function, try translating your projection matrix by (0.5f,0.5f) or (0.375f,0.375f)
     auto drawData = ImGui::GetDrawData();
 
-    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     auto& io = ImGui::GetIO();
     auto width = static_cast<int>(io.DisplaySize.x * io.DisplayFramebufferScale.x);
     auto height = static_cast<int>(io.DisplaySize.y * io.DisplayFramebufferScale.y);
@@ -566,35 +525,80 @@ void cGui::endFrame()
         return;
     }
 
-    RenderState renderState(drawData, width, height);
+    // Update ImGui textures.
+    if (drawData->Textures != nullptr)
+    {
+        for (auto tex : *drawData->Textures)
+        {
+            if (tex->Status != ImTextureStatus_OK)
+            {
+                updateTexture(tex);
+            }
+        }
+    }
 
-    renderState.resetState();
+    // Save GL state
+    render::pushState();
 
-    // Will project scissor/clipping rectangles into framebuffer space
-    const auto& clipOff = drawData->DisplayPos;         // (0,0) unless using multi-viewports
-    const auto& clipScale = drawData->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
+    // Setup render state
+    GL(glEnable(GL_BLEND));
+    GL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+    GL(glDisable(GL_CULL_FACE));
+    GL(glDisable(GL_DEPTH_TEST));
+    GL(glDisable(GL_STENCIL_TEST));
+    GL(glEnable(GL_SCISSOR_TEST));
+
+    GL(glViewport(0, 0, width, height));
+
+    auto projection = Matrix4::Ortho(
+        drawData->DisplayPos.x,
+        drawData->DisplayPos.x + drawData->DisplaySize.x,
+        drawData->DisplayPos.y + drawData->DisplaySize.y,
+        drawData->DisplayPos.y,
+        -1.0f, 1.0f);
+
+    GL(glUseProgram(ImGuiShaderProgram));
+    GL(glUniformMatrix4fv(ImGuiProjLoc, 1, GL_FALSE, projection.m));
+    GL(glUniform1i(ImGuiTexLoc, 0));
+
+    GL(glBindVertexArray(ImGuiVao));
+    GL(glBindBuffer(GL_ARRAY_BUFFER, ImGuiVbo));
+    GL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ImGuiIbo));
+
+    // Setup vertex attributes for ImDrawVert
+    GL(glEnableVertexAttribArray(0));
+    GL(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<void*>(offsetof(ImDrawVert, pos))));
+    GL(glEnableVertexAttribArray(1));
+    GL(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<void*>(offsetof(ImDrawVert, uv))));
+    GL(glEnableVertexAttribArray(2));
+    GL(glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), reinterpret_cast<void*>(offsetof(ImDrawVert, col))));
+
+    const auto& clipOff = drawData->DisplayPos;
+    const auto& clipScale = drawData->FramebufferScale;
 
     for (const auto drawList : drawData->CmdLists)
     {
-        auto vtx_buffer = reinterpret_cast<const char*>(drawList->VtxBuffer.Data);
-        GL(glVertexPointer(2, GL_FLOAT, sizeof(ImDrawVert),
-                           reinterpret_cast<const GLvoid*>(vtx_buffer + offsetof(ImDrawVert, pos))));
-        GL(glTexCoordPointer(2, GL_FLOAT, sizeof(ImDrawVert),
-                             reinterpret_cast<const GLvoid*>(vtx_buffer + offsetof(ImDrawVert, uv))));
-        GL(glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(ImDrawVert),
-                          reinterpret_cast<const GLvoid*>(vtx_buffer + offsetof(ImDrawVert, col))));
+        // Upload vertex/index data
+        GL(glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(drawList->VtxBuffer.Size * sizeof(ImDrawVert)), drawList->VtxBuffer.Data, GL_STREAM_DRAW));
+        GL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(drawList->IdxBuffer.Size * sizeof(ImDrawIdx)), drawList->IdxBuffer.Data, GL_STREAM_DRAW));
 
         for (int idx = 0; idx < drawList->CmdBuffer.Size; idx++)
         {
             const auto pcmd = &drawList->CmdBuffer[idx];
             if (pcmd->UserCallback)
             {
-                // User callback, registered via ImDrawList::AddCallback()
-                // (ImDrawCallback_ResetRenderState is a special callback value
-                // used by the user to request the renderer to reset render state.)
                 if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
                 {
-                    renderState.resetState();
+                    // Re-setup state if needed
+                    GL(glEnable(GL_BLEND));
+                    GL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+                    GL(glDisable(GL_CULL_FACE));
+                    GL(glDisable(GL_DEPTH_TEST));
+                    GL(glEnable(GL_SCISSOR_TEST));
+                    GL(glViewport(0, 0, width, height));
+                    GL(glUseProgram(ImGuiShaderProgram));
+                    GL(glUniformMatrix4fv(ImGuiProjLoc, 1, GL_FALSE, projection.m));
+                    GL(glUniform1i(ImGuiTexLoc, 0));
                 }
                 else
                 {
@@ -603,7 +607,6 @@ void cGui::endFrame()
             }
             else
             {
-                // Project scissor/clipping rectangles into framebuffer space
                 ImVec2 clipMin{ (pcmd->ClipRect.x - clipOff.x) * clipScale.x,
                                 (pcmd->ClipRect.y - clipOff.y) * clipScale.y };
                 ImVec2 clipMax{ (pcmd->ClipRect.z - clipOff.x) * clipScale.x,
@@ -613,20 +616,20 @@ void cGui::endFrame()
                     continue;
                 }
 
-                // Apply scissor/clipping rectangle (Y is inverted in OpenGL)
                 GL(glScissor(static_cast<int>(clipMin.x),
-                             static_cast<int>((float)height - clipMax.y),
+                             static_cast<int>(static_cast<float>(height) - clipMax.y),
                              static_cast<int>(clipMax.x - clipMin.x),
                              static_cast<int>(clipMax.y - clipMin.y)));
 
-                // Bind texture, Draw
-                cRenderer::bindTexture(pcmd->GetTexID());
+                render::bindTexture(pcmd->GetTexID());
                 auto type = sizeof(ImDrawIdx) == 2
                     ? GL_UNSIGNED_SHORT
                     : GL_UNSIGNED_INT;
-                auto idx_buffer = drawList->IdxBuffer.Data;
-                GL(glDrawElements(GL_TRIANGLES, pcmd->ElemCount, type, idx_buffer + pcmd->IdxOffset));
+                GL(glDrawElements(GL_TRIANGLES, pcmd->ElemCount, type, reinterpret_cast<void*>(static_cast<intptr_t>(pcmd->IdxOffset * sizeof(ImDrawIdx)))));
             }
         }
     }
+
+    // Restore GL state (popState restores VAO, VBO, program, scissor, etc.)
+    render::popState();
 }

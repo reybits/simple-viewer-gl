@@ -26,6 +26,8 @@
 #include "quadimage.h"
 #include "selection.h"
 
+#include <GLFW/glfw3.h>
+
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
@@ -71,14 +73,14 @@ cViewer::~cViewer()
     m_image->clear();
 
     m_imgui.shutdown();
-    cRenderer::shutdown();
+    render::shutdown();
 }
 
 void cViewer::setWindow(GLFWwindow* window)
 {
     m_windowModeChangeRequested = false;
 
-    cRenderer::init(window, 2048);
+    render::init(window, 2048);
     m_imgui.init(window);
 
     m_checkerBoard->init();
@@ -116,14 +118,14 @@ void cViewer::addPaths(const StringsList& paths)
 
 void cViewer::onRender()
 {
-    cRenderer::beginFrame();
+    render::beginFrame();
     m_imgui.beginFrame();
 
     m_checkerBoard->render();
 
     const float scale = m_scale.getScale();
 
-    cRenderer::setGlobals(m_camera, m_angle, scale);
+    render::setGlobals(m_camera, m_angle, scale);
 
     m_image->render();
 
@@ -146,7 +148,7 @@ void cViewer::onRender()
             m_selection->render({ -half_w, -half_h });
         }
     }
-    cRenderer::resetGlobals();
+    render::resetGlobals();
 
     if (isLoaded)
     {
@@ -178,9 +180,9 @@ void cViewer::onRender()
     m_progress->render();
 
     m_imgui.endFrame();
-    cRenderer::endFrame();
+    render::endFrame();
 
-    glfwSwapBuffers(cRenderer::getWindow());
+    glfwSwapBuffers(render::getWindow());
 }
 
 void cViewer::onUpdate()
@@ -248,7 +250,7 @@ void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
     m_ratio = { (float)fbSize.x / winSize.x, (float)fbSize.y / winSize.y };
     // cLog::Debug("fb size {} x {}.\n", m_ratio.x, m_ratio.y);
 
-    auto window = cRenderer::getWindow();
+    auto window = render::getWindow();
 
     auto width = std::max(DefaultWindowSize.x, winSize.x);
     auto height = std::max(DefaultWindowSize.y, winSize.y);
@@ -263,7 +265,7 @@ void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
         }
     }
 
-    cRenderer::setViewportSize(fbSize);
+    render::setViewportSize(fbSize);
 
     // const float scale = m_ratio.x * m_config.fontRatio;
     // m_imgui.setScale(scale);
@@ -280,7 +282,7 @@ void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
 
 void cViewer::onWindowResize(const Vectori& winSize)
 {
-    auto window = cRenderer::getWindow();
+    auto window = render::getWindow();
 
     Vectori fbSize;
     glfwGetFramebufferSize(window, &fbSize.x, &fbSize.y);
@@ -290,7 +292,7 @@ void cViewer::onWindowResize(const Vectori& winSize)
 
 void cViewer::onFramebufferResize(const Vectori& fbSize)
 {
-    auto window = cRenderer::getWindow();
+    auto window = render::getWindow();
 
     Vectori winSize;
     glfwGetWindowSize(window, &winSize.x, &winSize.y);
@@ -436,7 +438,7 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
     case GLFW_KEY_Q:
         if (m_fileSelector->isVisible() == false)
         {
-            glfwSetWindowShouldClose(cRenderer::getWindow(), 1);
+            glfwSetWindowShouldClose(render::getWindow(), 1);
         }
         else
         {
@@ -688,7 +690,7 @@ void cViewer::shiftCamera(const Vectorf& delta)
     m_camera += delta;
 
     const float inv = 1.0f / m_scale.getScale();
-    const auto& viewport = cRenderer::getViewportSize();
+    const auto& viewport = render::getViewportSize();
     const auto half = Vectorf(viewport.x * inv + m_image->getWidth(), viewport.y * inv + m_image->getHeight()) * 0.5f;
     m_camera.x = std::max<float>(m_camera.x, -half.x);
     m_camera.x = std::min<float>(m_camera.x, half.x);
@@ -710,7 +712,7 @@ void cViewer::calculateScale()
         }
 
         // scale only large images
-        const auto& viewport = cRenderer::getViewportSize();
+        const auto& viewport = render::getViewportSize();
         if (w >= viewport.x || h >= viewport.y)
         {
             float aspect = w / h;
@@ -796,7 +798,7 @@ void cViewer::centerWindow()
     {
         if (helpers::getPlatform() != helpers::Platform::Wayland)
         {
-            auto window = cRenderer::getWindow();
+            auto window = render::getWindow();
 
             auto width = m_config.windowSize.w;
             auto height = m_config.windowSize.h;
@@ -914,7 +916,7 @@ void cViewer::updateInfobar()
 
 Vectorf cViewer::screenToImage(const Vectorf& pos) const
 {
-    const auto& viewport = cRenderer::getViewportSize();
+    const auto& viewport = render::getViewportSize();
     auto scale = m_scale.getScale();
     auto size = Vectorf{ viewport.x / scale - m_image->getWidth(),
                          viewport.y / scale - m_image->getHeight() };
@@ -1015,7 +1017,7 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
 
 void cViewer::showCursor(bool show)
 {
-    auto window = cRenderer::getWindow();
+    auto window = render::getWindow();
 
     double x, y;
     glfwGetCursorPos(window, &x, &y);
@@ -1049,7 +1051,7 @@ void cViewer::endLoading()
 
 void cViewer::updateMousePosition()
 {
-    GLFWwindow* window = cRenderer::getWindow();
+    GLFWwindow* window = render::getWindow();
 
     double x, y;
     glfwGetCursorPos(window, &x, &y);

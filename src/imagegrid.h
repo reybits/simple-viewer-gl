@@ -24,5 +24,5 @@ public:
     void render(float x, float y, float w, float h);
 
 private:
-    sLine m_line;
+    Line m_line;
 };

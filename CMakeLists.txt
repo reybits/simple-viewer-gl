@@ -78,6 +78,7 @@ add_subdirectory(third-party/imgui)
 add_subdirectory(third-party/lz4)
 add_subdirectory(third-party/fmtlib)
 add_subdirectory(third-party/astcenc)
+add_subdirectory(third-party/glad)
 
 # set(VERBOSE_PATHS TRUE)
 
@@ -373,6 +374,7 @@ configure_file(
 include_directories(BEFORE
     ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/third-party/fmtlib/include
+    ${PROJECT_SOURCE_DIR}/third-party/glad/include
     )
 
 file(GLOB_RECURSE SVIEW_SOURCES "src/*.cpp")
@@ -403,8 +405,8 @@ else()
     add_executable(${APPLICATION_NAME} ${SVIEW_SOURCES})
 endif()
 
-add_dependencies(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec)
-target_link_libraries(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec)
+add_dependencies(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec GLAD)
+target_link_libraries(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec GLAD)
 
 if(OPENGL_FOUND)
     target_link_libraries(${APPLICATION_NAME} ${OPENGL_LIBRARY})

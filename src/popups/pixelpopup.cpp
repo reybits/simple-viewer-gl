@@ -8,6 +8,9 @@
 \**********************************************/
 
 #include "pixelpopup.h"
+#include "renderer.h"
+
+#include <GLFW/glfw3.h>
 #include "img-icons.c"
 #include "img-pointer-cross.c"
 
@@ -100,10 +103,10 @@ void cPixelPopup::renderCursor()
 void cPixelPopup::renderInfo()
 {
     double x, y;
-    glfwGetCursorPos(cRenderer::getWindow(), &x, &y);
+    glfwGetCursorPos(render::getWindow(), &x, &y);
 
     int width, height;
-    glfwGetWindowSize(cRenderer::getWindow(), &width, &height);
+    glfwGetWindowSize(render::getWindow(), &width, &height);
 
     const float offset = 10.0f;
     const ImVec2 pos{

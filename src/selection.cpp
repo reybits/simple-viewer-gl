@@ -10,6 +10,8 @@
 #include "selection.h"
 #include "log/Log.h"
 #include "quad.h"
+
+#include <GLFW/glfw3.h>
 #include "types/math.h"
 #include "types/vector.h"
 
@@ -220,7 +222,7 @@ void cSelection::render(const Vectorf& offset)
         const float h = rc.height();
 
         const float thickness = 4.0f;
-        const float d = thickness / cRenderer::getZoom();
+        const float d = thickness / render::getZoom();
 
 #if 0
         const Vectori delta{ delta2, delta2 };
@@ -347,14 +349,14 @@ void cSelection::updateCorner(const Vectorf& pos, float scale)
 void cSelection::renderHorizontal(const Vectorf& pos, float w, float thickness)
 {
     const float offset = glfwGetTime() * 30.0f;
-    m_hori->setTextureRect({ offset, 0.0f }, { w * cRenderer::getZoom(), thickness });
+    m_hori->setTextureRect({ offset, 0.0f }, { w * render::getZoom(), thickness });
     m_hori->renderEx(pos, { w, thickness });
 }
 
 void cSelection::renderVertical(const Vectorf& pos, float h, float thickness)
 {
     const float offset = glfwGetTime() * 30.0f;
-    m_vert->setTextureRect({ 0.0f, offset }, { thickness, h * cRenderer::getZoom() });
+    m_vert->setTextureRect({ 0.0f, offset }, { thickness, h * render::getZoom() });
     m_vert->renderEx(pos, { thickness, h });
 }
 

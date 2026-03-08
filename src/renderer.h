@@ -13,80 +13,85 @@
 #include "types/rect.h"
 #include "types/vector.h"
 
-#include <GLFW/glfw3.h>
+#include <glad/glad.h>
 
-struct sVertex
+struct GLFWwindow;
+
+// Legacy format constants removed in GL 3.3 Core but still used by format readers.
+// render::setData() maps these to Core-compatible formats (GL_RED + swizzle).
+#ifndef GL_LUMINANCE
+#define GL_LUMINANCE 0x1909
+#endif
+#ifndef GL_LUMINANCE_ALPHA
+#define GL_LUMINANCE_ALPHA 0x190A
+#endif
+
+struct Vertex
 {
     GLfloat x, y;
     GLfloat tx, ty;
     cColor color;
 };
 
-struct sLine
+struct Line
 {
     GLuint tex = 0;
-    sVertex v[2];
+    Vertex v[2];
 };
 
-struct sQuad
+struct Quad
 {
     GLuint tex = 0;
-    sVertex v[4];
+    Vertex v[4];
 };
 
-class cRenderer
+namespace render
 {
-public:
-    static void init(GLFWwindow* window, uint32_t maxTextureSize);
-    static void shutdown();
+    void init(GLFWwindow* window, uint32_t maxTextureSize);
+    void shutdown();
 
-    static GLFWwindow* getWindow();
+    GLFWwindow* getWindow();
 
-    static void pushState();
-    static void popState();
+    void pushState();
+    void popState();
 
-    static void enableMipmap(bool enable);
-    static bool isMipmapEnabled();
+    GLuint createTexture();
+    void setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format);
+    void setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum internalFormat, uint32_t dataSize);
+    void deleteTexture(GLuint tex);
+    GLuint getCurrentTexture();
+    void bindTexture(GLuint tex);
 
-    static GLuint createTexture();
-    static void setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format);
-    static void setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum internalFormat, uint32_t dataSize);
-    static void deleteTexture(GLuint tex);
-    static GLuint getCurrentTexture();
-    static void bindTexture(GLuint tex);
+    uint32_t calculateTextureSize(uint32_t size);
+    void setColor(Line* line, const cColor& color);
+    void setColor(Quad* quad, const cColor& color);
 
-    static uint32_t calculateTextureSize(uint32_t size);
-    static void setColor(sLine* line, const cColor& color);
-    static void setColor(sQuad* quad, const cColor& color);
+    void beginFrame();
+    void endFrame();
 
-    static void beginFrame();
-    static void endFrame();
+    void render(const Line& line);
+    void render(const Quad& quad);
 
-    static void render(const sLine& quad);
-    static void render(const sQuad& quad);
+    void setClearColor(float r, float g, float b, float a);
+    void clear();
 
-    static void setViewportSize(const Vectori& size);
-    static const Vectori& getViewportSize();
+    void setViewportSize(const Vectori& size);
+    const Vectori& getViewportSize();
 
-    static void resetGlobals();
-    static void setGlobals(const Vectorf& offset, int angle, float zoom);
+    void resetGlobals();
+    void setGlobals(const Vectorf& offset, int angle, float zoom);
 
-    static const Rectf& getRect();
-    static float getZoom();
-    static int getAngle();
+    const Rectf& getRect();
+    float getZoom();
+    int getAngle();
 
-    static bool checkError(const char* msg, const char* file, int line);
-};
+    bool checkError(const char* msg, const char* file, int line);
 
-#define glCheckError(msg)                               \
-    do                                                  \
-    {                                                   \
-        cRenderer::checkError(msg, __FILE__, __LINE__); \
-    } while (0)
+} // namespace render
 
-#define GL(glFunction)                                          \
-    do                                                          \
-    {                                                           \
-        glFunction;                                             \
-        cRenderer::checkError(#glFunction, __FILE__, __LINE__); \
+#define GL(glFunction)                                       \
+    do                                                       \
+    {                                                        \
+        glFunction;                                          \
+        render::checkError(#glFunction, __FILE__, __LINE__); \
     } while (0)

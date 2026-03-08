@@ -65,8 +65,8 @@ void cQuadImage::clearOld()
 
 void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint32_t format, uint32_t bpp, const uint8_t* image)
 {
-    m_texWidth = cRenderer::calculateTextureSize(width);
-    m_texHeight = cRenderer::calculateTextureSize(height);
+    m_texWidth = render::calculateTextureSize(width);
+    m_texHeight = render::calculateTextureSize(height);
     // cLog::Info("Textue size: {} x {}.", m_texWidth, m_texHeight);
 
     m_texPitch = helpers::calculatePitch(m_texWidth, bpp);
@@ -114,7 +114,7 @@ void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t f
     m_started = true;
 }
 
-bool cQuadImage::upload(uint32_t mipmapTextureSize)
+bool cQuadImage::upload(uint32_t /*mipmapTextureSize*/)
 {
     const auto size = m_chunks.size();
     assert(size < m_rows * m_cols);
@@ -162,8 +162,6 @@ bool cQuadImage::upload(uint32_t mipmapTextureSize)
             break;
         }
     }
-
-    cRenderer::enableMipmap(m_width >= mipmapTextureSize || m_height >= mipmapTextureSize);
 
     cQuad* quad = findAndRemoveOld(col, row);
     if (quad == nullptr
@@ -219,7 +217,7 @@ void cQuadImage::useFilter(bool filter)
 
 bool cQuadImage::isInsideViewport(const sChunk& chunk, const Vectorf& pos) const
 {
-    auto& rc = cRenderer::getRect();
+    auto& rc = render::getRect();
     const auto& size = chunk.quad->getSize();
     const Rectf rcQuad{ pos, pos + size };
     return rc.intersect(rcQuad);
@@ -235,7 +233,7 @@ void cQuadImage::render()
     const float texWidth = m_texWidth;
     const float texHeight = m_texHeight;
 
-    bool isInside = cRenderer::getAngle() != 0;
+    bool isInside = render::getAngle() != 0;
 
     for (const auto& chunk : m_chunksOld)
     {

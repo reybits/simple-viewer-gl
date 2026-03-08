@@ -25,7 +25,7 @@ public:
     virtual void render(const Vectorf& pos);
     virtual void renderEx(const Vectorf& pos, const Vectorf& size, int rot = 0);
 
-    const sQuad& getQuad() const;
+    const Quad& getQuad() const;
 
     virtual uint32_t getTexWidth() const
     {
@@ -59,5 +59,5 @@ protected:
 
     bool m_filter;
 
-    sQuad m_quad;
+    Quad m_quad;
 };
