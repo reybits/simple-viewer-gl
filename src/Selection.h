@@ -12,6 +12,7 @@
 #include "Types/Rect.h"
 #include "Types/Vector.h"
 
+#include <cstdint>
 #include <memory>
 
 class cQuad;

@@ -5,6 +5,8 @@
 
 #include "Types/Types.h"
 
+#include <cstdint>
+
 #define UTF8_ACCEPT 0
 #define UTF8_REJECT 12
 

@@ -12,6 +12,7 @@
 #include "Types/Types.h"
 #include "Types/Vector.h"
 
+#include <cstdint>
 #include <functional>
 
 struct GLFWwindow;

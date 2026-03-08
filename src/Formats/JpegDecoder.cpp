@@ -12,6 +12,7 @@
 #include "Common/Buffer.h"
 #include "Common/Helpers.h"
 
+#include <iterator>
 #include <jpeglib.h>
 #include <setjmp.h>
 #include <string.h>

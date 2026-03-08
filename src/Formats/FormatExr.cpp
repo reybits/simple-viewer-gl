@@ -19,6 +19,7 @@
 #include <OpenEXR/ImfRgbaFile.h>
 #include <OpenEXR/ImfStandardAttributes.h>
 #include <OpenEXR/ImfTiledRgbaFile.h>
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 

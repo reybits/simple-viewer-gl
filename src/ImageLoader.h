@@ -11,8 +11,10 @@
 
 #include "Common/BitmapDescription.h"
 
+#include <memory>
 #include <string>
 #include <thread>
+#include <unordered_map>
 
 class cFormat;
 struct sCallbacks;

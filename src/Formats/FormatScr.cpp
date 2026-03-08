@@ -13,6 +13,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <iterator>
 
 namespace
 {

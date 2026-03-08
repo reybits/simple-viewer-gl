@@ -12,6 +12,7 @@
 #include "Quad.h"
 
 #include <algorithm>
+#include <iterator>
 
 namespace
 {

@@ -13,6 +13,7 @@
 #include "Common/Helpers.h"
 
 #include <cstdio>
+#include <iterator>
 #include <string.h>
 
 namespace
