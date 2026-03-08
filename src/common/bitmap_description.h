@@ -10,20 +10,9 @@
 #pragma once
 
 #include "buffer.h"
-
-#include <glad/glad.h>
+#include "PixelFormat.h"
 
 #include <atomic>
-
-// Legacy format constants removed in GL 3.3 Core but still used by format readers.
-// render::setData() maps these to Core-compatible formats (GL_RED + swizzle).
-#ifndef GL_LUMINANCE
-#define GL_LUMINANCE 0x1909
-#endif
-#ifndef GL_LUMINANCE_ALPHA
-#define GL_LUMINANCE_ALPHA 0x190A
-#endif
-
 #include <string>
 
 struct sBitmapDescription
@@ -32,7 +21,7 @@ struct sBitmapDescription
     {
         bitmap.clear();
         bitmapSize  = 0;
-        format      = GL_RGB;
+        format      = ePixelFormat::RGB;
         bpp         = 0;
         pitch       = 0;
         width       = 0;
@@ -59,7 +48,7 @@ struct sBitmapDescription
     Buffer bitmap;
     size_t bitmapSize = 0; // preserved after bitmap is freed for display purposes
     std::atomic<uint32_t> readyHeight{ 0 }; // rows decoded so far (for progressive upload)
-    GLenum format     = GL_RGB;
+    ePixelFormat format = ePixelFormat::RGB;
     uint32_t bpp      = 0;
     uint32_t pitch    = 0;
     uint32_t width    = 0;

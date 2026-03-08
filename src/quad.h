@@ -14,7 +14,7 @@
 class cQuad
 {
 public:
-    cQuad(uint32_t tw, uint32_t th, const uint8_t* data = 0, GLenum bitmapFormat = GL_RGB);
+    cQuad(uint32_t tw, uint32_t th, const uint8_t* data = 0, ePixelFormat bitmapFormat = ePixelFormat::RGB);
     cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum internalFormat, uint32_t dataSize);
     virtual ~cQuad();
 
@@ -43,7 +43,7 @@ public:
 
     virtual void useFilter(bool filter);
 
-    GLenum getFormat() const
+    ePixelFormat getFormat() const
     {
         return m_format;
     }
@@ -52,7 +52,7 @@ protected:
     // texture size
     uint32_t m_tw;
     uint32_t m_th;
-    GLenum m_format;
+    ePixelFormat m_format;
 
     // sprite size
     Vectorf m_size;

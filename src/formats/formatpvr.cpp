@@ -560,45 +560,45 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
         {
         case PVR2TexturePixelFormat::RGBA4444:
             bytes = 2;
-            desc.format = GL_UNSIGNED_SHORT_4_4_4_4;
+            desc.format = ePixelFormat::RGBA4444;
             break;
         case PVR2TexturePixelFormat::RGBA5551:
             bytes = 2;
-            desc.format = GL_UNSIGNED_SHORT_5_5_5_1;
+            desc.format = ePixelFormat::RGBA5551;
             break;
         case PVR2TexturePixelFormat::RGBA8888:
             bytes = 4;
-            desc.format = GL_RGBA;
+            desc.format = ePixelFormat::RGBA;
             break;
         case PVR2TexturePixelFormat::RGB565:
             bytes = 2;
-            desc.format = GL_UNSIGNED_SHORT_5_6_5;
+            desc.format = ePixelFormat::RGB565;
             break;
         case PVR2TexturePixelFormat::RGB555:
             bytes = 2;
-            desc.format = GL_UNSIGNED_SHORT_5_5_5_1;
+            desc.format = ePixelFormat::RGBA5551;
             break;
         case PVR2TexturePixelFormat::RGB888:
             bytes = 3;
-            desc.format = GL_RGB;
+            desc.format = ePixelFormat::RGB;
             break;
         case PVR2TexturePixelFormat::BGRA8888:
             bytes = 4;
-            desc.format = GL_BGRA;
+            desc.format = ePixelFormat::BGRA;
             break;
         case PVR2TexturePixelFormat::A8:
             bytes = 1;
-            desc.format = GL_ALPHA;
+            desc.format = ePixelFormat::Alpha;
             break;
         case PVR2TexturePixelFormat::PVRTC2BPP_RGBA:
             decopmress = Decomp::PVR;
             bytes = 4;
-            desc.format = GL_RGBA;
+            desc.format = ePixelFormat::RGBA;
             break;
         case PVR2TexturePixelFormat::PVRTC4BPP_RGBA:
             decopmress = Decomp::PVR;
             bytes = 4;
-            desc.format = GL_RGBA;
+            desc.format = ePixelFormat::RGBA;
             break;
 
         case PVR2TexturePixelFormat::I8:
@@ -673,52 +673,52 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
             {
             case PVR3TexturePixelFormat::RGBA8888:
                 bytes = 4;
-                desc.format = GL_RGBA;
+                desc.format = ePixelFormat::RGBA;
                 break;
             case PVR3TexturePixelFormat::BGRA8888:
                 bytes = 4;
-                desc.format = GL_BGRA;
+                desc.format = ePixelFormat::BGRA;
                 break;
             case PVR3TexturePixelFormat::RGB888:
                 bytes = 3;
-                desc.format = GL_RGB;
+                desc.format = ePixelFormat::RGB;
                 break;
             case PVR3TexturePixelFormat::RGB565:
                 bytes = 2;
-                desc.format = GL_UNSIGNED_SHORT_5_6_5;
+                desc.format = ePixelFormat::RGB565;
                 break;
             case PVR3TexturePixelFormat::RGBA4444:
                 bytes = 2;
-                desc.format = GL_UNSIGNED_SHORT_4_4_4_4;
+                desc.format = ePixelFormat::RGBA4444;
                 break;
             case PVR3TexturePixelFormat::RGBA5551:
                 bytes = 2;
-                desc.format = GL_UNSIGNED_SHORT_5_5_5_1;
+                desc.format = ePixelFormat::RGBA5551;
                 break;
             case PVR3TexturePixelFormat::A8:
                 bytes = 1;
-                desc.format = GL_ALPHA;
+                desc.format = ePixelFormat::Alpha;
                 break;
             case PVR3TexturePixelFormat::L8:
                 bytes = 1;
-                desc.format = GL_LUMINANCE;
+                desc.format = ePixelFormat::Luminance;
                 break;
             case PVR3TexturePixelFormat::PVRTC2BPP_RGB:
             case PVR3TexturePixelFormat::PVRTC2BPP_RGBA:
                 decopmress = Decomp::PVR;
                 bytes = 4;
-                desc.format = GL_RGBA;
+                desc.format = ePixelFormat::RGBA;
                 break;
             case PVR3TexturePixelFormat::PVRTC4BPP_RGB:
             case PVR3TexturePixelFormat::PVRTC4BPP_RGBA:
                 decopmress = Decomp::PVR;
                 bytes = 4;
-                desc.format = GL_RGBA;
+                desc.format = ePixelFormat::RGBA;
                 break;
             case PVR3TexturePixelFormat::ETC1:
                 decopmress = Decomp::ETC1;
                 bytes = 3;
-                desc.format = GL_RGB;
+                desc.format = ePixelFormat::RGB;
                 break;
 
             default:

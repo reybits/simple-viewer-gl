@@ -19,7 +19,7 @@
 cFormat::cFormat(iCallbacks* callbacks)
     : m_callbacks(callbacks)
 {
-    m_cms.reset(new cCMS());
+    m_cms = std::make_unique<cCMS>();
 }
 
 cFormat::~cFormat()

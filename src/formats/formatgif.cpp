@@ -143,7 +143,7 @@ bool cFormatGif::LoadImpl(const char* filename, sBitmapDescription& desc)
     desc.pitch = desc.width * 4;
     desc.bpp = 32;
     desc.bitmap.resize(desc.pitch * desc.height);
-    desc.format = GL_RGBA;
+    desc.format = ePixelFormat::RGBA;
 
     return load(0, desc);
 }

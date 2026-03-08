@@ -160,7 +160,7 @@ bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
     const auto& entry = m_entries[current];
     auto data = m_icon.data() + entry.offset;
 
-    desc.format = entry.dstBpp == 32 ? GL_RGBA : (entry.dstBpp == 24 ? GL_RGB : GL_LUMINANCE);
+    desc.format = entry.dstBpp == 32 ? ePixelFormat::RGBA : (entry.dstBpp == 24 ? ePixelFormat::RGB : ePixelFormat::Luminance);
     desc.bpp = entry.dstBpp;
     desc.pitch = entry.dstBpp * entry.iconSize / 8;
     desc.width = entry.iconSize;

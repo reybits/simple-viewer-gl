@@ -1047,7 +1047,7 @@ bool cFormatXpm::LoadImpl(const char* filename, sBitmapDescription& desc)
         colorMap[pixel] = parseColor(color);
     }
 
-    desc.format = GL_RGBA;
+    desc.format = ePixelFormat::RGBA;
     desc.bpp = 32;
     desc.width = width;
     desc.height = height;

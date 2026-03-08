@@ -220,7 +220,7 @@ bool cFormatXwd::loadX11(const X11WindowDump& header, cFile& file, sBitmapDescri
     desc.bpp = header.BitsPerPixel;
     desc.bppImage = header.BitsPerPixel;
     desc.pitch = header.BytesPerLine;
-    desc.format = GL_RGB;
+    desc.format = ePixelFormat::RGB;
     desc.bitmap.resize(desc.pitch * desc.height);
 
     if (desc.bitmap.size() != file.read(desc.bitmap.data(), desc.bitmap.size()))

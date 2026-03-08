@@ -12,7 +12,7 @@
 
 void cDeletionMark::init()
 {
-    m_image.reset(new cQuad(imgNa.width, imgNa.height, imgNa.pixel_data, imgNa.bytes_per_pixel == 3 ? GL_RGB : GL_RGBA));
+    m_image.reset(new cQuad(imgNa.width, imgNa.height, imgNa.pixel_data, imgNa.bytes_per_pixel == 3 ? ePixelFormat::RGB : ePixelFormat::RGBA));
 }
 
 void cDeletionMark::render()

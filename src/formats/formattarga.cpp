@@ -614,7 +614,7 @@ bool cFormatTarga::LoadImpl(const char* filename, sBitmapDescription& desc)
         ? "targa/rle"
         : "targa";
 
-    desc.format = desc.bpp == 32 ? GL_RGBA : GL_RGB;
+    desc.format = desc.bpp == 32 ? ePixelFormat::RGBA : ePixelFormat::RGB;
 
     return true;
 }

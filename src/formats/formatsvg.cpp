@@ -96,7 +96,7 @@ bool cFormatSvg::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     desc.size = file.getSize();
     desc.images = 1;
-    desc.format = GL_RGBA;
+    desc.format = ePixelFormat::RGBA;
     desc.bpp = 32;
     desc.bppImage = 32;
     desc.width = image->width * scale;

@@ -120,7 +120,7 @@ bool cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescripti
 
     desc.width = cinfo.output_width;
     desc.height = cinfo.output_height;
-    desc.format = GL_RGB;
+    desc.format = ePixelFormat::RGB;
 
     /* Step 6: while (scan lines remain to be read) */
     /*           jpeg_read_scanlines(...); */

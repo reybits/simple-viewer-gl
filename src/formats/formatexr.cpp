@@ -171,7 +171,7 @@ namespace
             desc.bitmap.resize(desc.pitch * desc.height);
 
             desc.bpp = 32;
-            desc.format = GL_RGBA;
+            desc.format = ePixelFormat::RGBA;
 
             auto bitmap = reinterpret_cast<sRgba8888*>(desc.bitmap.data());
 
@@ -290,7 +290,7 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
         desc.bitmap.resize(desc.pitch * desc.height);
 
         desc.bpp = bytes * 8;
-        desc.format = hasA ? GL_RGBA : GL_RGB;
+        desc.format = hasA ? ePixelFormat::RGBA : ePixelFormat::RGB;
 
         if (hasA)
         {

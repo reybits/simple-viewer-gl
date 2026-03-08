@@ -90,7 +90,7 @@ namespace
 
     bool readAscii1(cFile& file, sBitmapDescription& desc)
     {
-        desc.format = GL_LUMINANCE;
+        desc.format = ePixelFormat::Luminance;
         desc.bpp = 8;
         desc.bppImage = 1;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
@@ -122,7 +122,7 @@ namespace
 
     bool readRaw1(cFile& file, sBitmapDescription& desc)
     {
-        desc.format = GL_LUMINANCE;
+        desc.format = ePixelFormat::Luminance;
         desc.bpp = 8;
         desc.bppImage = 1;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
@@ -156,7 +156,7 @@ namespace
 
     bool readAscii8(cFile& file, sBitmapDescription& desc, uint32_t maxValue)
     {
-        desc.format = GL_LUMINANCE;
+        desc.format = ePixelFormat::Luminance;
         desc.bpp = 8;
         desc.bppImage = 8;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
@@ -192,7 +192,7 @@ namespace
 
     bool readRaw8(cFile& file, sBitmapDescription& desc, uint32_t maxValue)
     {
-        desc.format = GL_LUMINANCE;
+        desc.format = ePixelFormat::Luminance;
         desc.bpp = 8;
         desc.bppImage = 8;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);

@@ -91,7 +91,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
         desc.pitch = features.width * 4;
         desc.bpp = 32;
         desc.bppImage = 32;
-        desc.format = GL_RGBA;
+        desc.format = ePixelFormat::RGBA;
         desc.bitmap.resize(desc.pitch * desc.height);
         signalBitmapAllocated();
 
@@ -106,7 +106,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
         desc.pitch = features.width * 3;
         desc.bpp = 24;
         desc.bppImage = 24;
-        desc.format = GL_RGB;
+        desc.format = ePixelFormat::RGB;
         desc.bitmap.resize(desc.pitch * desc.height);
         signalBitmapAllocated();
 

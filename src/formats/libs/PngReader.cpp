@@ -277,19 +277,19 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
     // #define PNG_COLOR_MASK_ALPHA      4
     if (colorType == PNG_COLOR_TYPE_GRAY) // 0b00000000 (gray)
     {
-        desc.format = GL_ALPHA;
+        desc.format = ePixelFormat::Alpha;
     }
     else if (colorType == PNG_COLOR_MASK_ALPHA) // 0b00000100 (gray + alpha)
     {
-        desc.format = GL_LUMINANCE_ALPHA;
+        desc.format = ePixelFormat::LuminanceAlpha;
     }
     else if (colorType == PNG_COLOR_TYPE_RGB) // 0b00000010 (rgb)
     {
-        desc.format = GL_RGB;
+        desc.format = ePixelFormat::RGB;
     }
     else if (colorType == PNG_COLOR_TYPE_RGB_ALPHA) // 0b00000110 (rgb + alpha)
     {
-        desc.format = GL_RGBA;
+        desc.format = ePixelFormat::RGBA;
     }
     else
     {

@@ -381,7 +381,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         if (channels == 3)
         {
-            desc.format = GL_RGB;
+            desc.format = ePixelFormat::RGB;
             for (uint32_t y = 0; y < desc.height; y++)
             {
                 auto out = bitmap + y * desc.pitch;
@@ -397,7 +397,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
         else
         {
-            desc.format = GL_RGBA;
+            desc.format = ePixelFormat::RGBA;
             switch (depth)
             {
             case 8:
@@ -422,7 +422,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         if (channels == 4)
         {
-            desc.format = GL_RGB;
+            desc.format = ePixelFormat::RGB;
             for (uint32_t y = 0; y < desc.height; y++)
             {
                 auto out = bitmap + y * desc.pitch;
@@ -444,7 +444,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
         else if (channels == 5)
         {
-            desc.format = GL_RGBA;
+            desc.format = ePixelFormat::RGBA;
             for (uint32_t y = 0; y < desc.height; y++)
             {
                 auto out = bitmap + y * desc.pitch;
@@ -477,7 +477,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
             (void)bitmap;
             signalBitmapAllocated();
 
-            desc.format = GL_RGBA;
+            desc.format = ePixelFormat::RGBA;
             switch (depth)
             {
             case 8:
@@ -512,7 +512,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
             auto bitmap = allocBitmap(desc);
             signalBitmapAllocated();
 
-            desc.format = GL_RGB;
+            desc.format = ePixelFormat::RGB;
             for (uint32_t y = 0; y < desc.height; y++)
             {
                 auto out = bitmap + y * desc.pitch;

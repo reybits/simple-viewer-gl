@@ -339,82 +339,50 @@ void render::readTexPixel(GLuint tex, uint32_t x, uint32_t y, uint8_t* rgba)
     GL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
-void render::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format)
+void render::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, ePixelFormat format)
 {
     if (tex != 0 && data != nullptr)
     {
         setTextureFilter(tex, GL_LINEAR, GL_NEAREST);
         setTextureWrap(tex, GL_CLAMP_TO_EDGE);
 
-        GLenum type = GL_UNSIGNED_BYTE;
-        GLint internalFormat = static_cast<GLint>(format);
-        GLenum uploadFormat = format;
+        static constexpr struct
+        {
+            ePixelFormat format;
+            GLenum internalFormat;
+            GLenum uploadFormat;
+            GLenum type;
+        } FormatInfo[] = {
+            { ePixelFormat::RGB, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE },
+            { ePixelFormat::RGBA, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE },
+            { ePixelFormat::BGR, GL_RGB8, GL_BGR, GL_UNSIGNED_BYTE },
+            { ePixelFormat::BGRA, GL_RGBA8, GL_BGRA, GL_UNSIGNED_BYTE },
+            { ePixelFormat::Luminance, GL_R8, GL_RED, GL_UNSIGNED_BYTE },
+            { ePixelFormat::LuminanceAlpha, GL_RG8, GL_RG, GL_UNSIGNED_BYTE },
+            { ePixelFormat::Alpha, GL_R8, GL_RED, GL_UNSIGNED_BYTE },
+            { ePixelFormat::RGB565, GL_RGB8, GL_RGB, GL_UNSIGNED_SHORT_5_6_5 },
+            { ePixelFormat::RGBA5551, GL_RGB5_A1, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1 },
+            { ePixelFormat::RGBA4444, GL_RGBA4, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4 },
+        };
 
-        if (format == GL_RGB || format == GL_BGR)
-        {
-            internalFormat = GL_RGB8;
-            uploadFormat = format;
-            type = GL_UNSIGNED_BYTE;
-        }
-        else if (format == GL_RGBA || format == GL_BGRA)
-        {
-            internalFormat = GL_RGBA8;
-            uploadFormat = format;
-            type = GL_UNSIGNED_BYTE;
-        }
-        else if (format == GL_UNSIGNED_SHORT_4_4_4_4)
-        {
-            internalFormat = GL_RGBA4;
-            uploadFormat = GL_RGBA;
-            type = GL_UNSIGNED_SHORT_4_4_4_4;
-        }
-        else if (format == GL_UNSIGNED_SHORT_5_6_5)
-        {
-            internalFormat = GL_RGB8;
-            uploadFormat = GL_RGB;
-            type = GL_UNSIGNED_SHORT_5_6_5;
-        }
-        else if (format == GL_UNSIGNED_SHORT_5_5_5_1)
-        {
-            internalFormat = GL_RGB5_A1;
-            uploadFormat = GL_RGBA;
-            type = GL_UNSIGNED_SHORT_5_5_5_1;
-        }
-        else if (format == GL_LUMINANCE)
-        {
-            // GL_LUMINANCE removed in Core — use GL_RED + swizzle
-            internalFormat = GL_R8;
-            uploadFormat = GL_RED;
-            type = GL_UNSIGNED_BYTE;
-        }
-        else if (format == GL_LUMINANCE_ALPHA)
-        {
-            internalFormat = GL_RG8;
-            uploadFormat = GL_RG;
-            type = GL_UNSIGNED_BYTE;
-        }
-        else if (format == GL_ALPHA)
-        {
-            internalFormat = GL_R8;
-            uploadFormat = GL_RED;
-            type = GL_UNSIGNED_BYTE;
-        }
+        auto& info = FormatInfo[static_cast<size_t>(format)];
+        assert(info.format == format);
 
         GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
-        GL(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, uploadFormat, type, data));
+        GL(glTexImage2D(GL_TEXTURE_2D, 0, info.internalFormat, w, h, 0, info.uploadFormat, info.type, data));
 
-        // Set swizzle masks for legacy format compatibility
-        if (format == GL_LUMINANCE)
+        // Set swizzle masks for format compatibility
+        if (format == ePixelFormat::Luminance)
         {
             GLint swizzle[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
             GL(glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle));
         }
-        else if (format == GL_LUMINANCE_ALPHA)
+        else if (format == ePixelFormat::LuminanceAlpha)
         {
             GLint swizzle[] = { GL_RED, GL_RED, GL_RED, GL_GREEN };
             GL(glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle));
         }
-        else if (format == GL_ALPHA)
+        else if (format == ePixelFormat::Alpha)
         {
             GLint swizzle[] = { GL_ZERO, GL_ZERO, GL_ZERO, GL_RED };
             GL(glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle));

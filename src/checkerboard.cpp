@@ -40,7 +40,7 @@ void cCheckerboard::init()
         }
     }
 
-    m_cb.reset(new cQuad(texSize, texSize, buffer.data(), GL_LUMINANCE));
+    m_cb.reset(new cQuad(texSize, texSize, buffer.data(), ePixelFormat::Luminance));
     render::setTextureWrap(m_cb->getQuad().tex, GL_REPEAT);
     m_cb->useFilter(false);
 }

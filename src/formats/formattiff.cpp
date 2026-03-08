@@ -136,7 +136,7 @@ bool cFormatTiff::load(unsigned current, sBitmapDescription& desc)
                 desc.bitmap.resize(desc.pitch * desc.height);
                 desc.bpp = 32;
                 desc.bppImage = img.bitspersample * img.samplesperpixel;
-                desc.format = GL_RGBA;
+                desc.format = ePixelFormat::RGBA;
                 signalBitmapAllocated();
 
                 // set desired orientation

@@ -100,7 +100,7 @@ bool cFormatCommon::LoadImpl(const char* filename, sBitmapDescription& desc)
     desc.bitmap.resize(desc.pitch * desc.height);
     ::memcpy(desc.bitmap.data(), imlib_image_get_data_for_reading_only(), desc.bitmap.size());
 
-    desc.format = GL_BGRA;
+    desc.format = ePixelFormat::BGRA;
 
     auto formatName = imlib_image_format();
     LastFormat = formatName != nullptr ? formatName : "n/a";

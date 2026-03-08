@@ -15,7 +15,7 @@
 #include <cmath>
 #include <cstdio>
 
-cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum bitmapFormat)
+cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, ePixelFormat bitmapFormat)
     : m_tw(tw)
     , m_th(th)
     , m_format(bitmapFormat)
@@ -35,7 +35,7 @@ cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum bitmapFormat)
 cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum internalFormat, uint32_t dataSize)
     : m_tw(tw)
     , m_th(th)
-    , m_format(internalFormat)
+    , m_format(ePixelFormat::RGBA)
     , m_size(tw, th)
     , m_filter(true)
 {

@@ -135,7 +135,7 @@ bool cFormatRaw::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
     desc.bpp = desc.bppImage = bytespp * 8;
-    desc.format = (bytespp == 3 ? GL_RGB : GL_RGBA);
+    desc.format = (bytespp == 3 ? ePixelFormat::RGB : ePixelFormat::RGBA);
     desc.width = header.w;
     desc.height = header.h;
     desc.pitch = desc.width * bytespp;

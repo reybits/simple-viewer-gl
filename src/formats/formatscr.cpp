@@ -609,7 +609,7 @@ bool cFormatScr::LoadImpl(const char* filename, sBitmapDescription& desc)
     desc.size = size;
     desc.bppImage = 1;
     desc.bpp = 24;
-    desc.format = GL_RGB;
+    desc.format = ePixelFormat::RGB;
 
     desc.width = prop.cw;
     desc.height = prop.ch;

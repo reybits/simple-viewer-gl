@@ -13,54 +13,13 @@
 #include "formats/format.h"
 
 #include <memory>
+#include <string>
 #include <thread>
+#include <unordered_map>
 
 class iCallbacks;
 struct sConfig;
-
-enum class eImageType
-{
-#if defined(IMLIB2_SUPPORT)
-    COMMON,
-#endif
-#if defined(OPENEXR_SUPPORT)
-    EXR,
-#endif
-    JPG,
-#if defined(JPEG2000_SUPPORT)
-    JP2,
-#endif
-    PSD,
-    EPS,
-    PNG,
-#if defined(GIF_SUPPORT)
-    GIF,
-#endif
-    ICO,
-    ICNS,
-#if defined(TIFF_SUPPORT)
-    TIF,
-#endif
-    XWD,
-    XPM,
-    DDS,
-    RAW,
-    AGE,
-    PNM,
-    PVR,
-    SCR,
-    TGA,
-    BMP,
-    XCF,
-    SVG,
-#if defined(WEBP_SUPPORT)
-    WEBP,
-#endif
-
-    NOTAVAILABLE,
-
-    COUNT
-};
+struct sFormatEntry;
 
 class cImageLoader final
 {
@@ -89,18 +48,32 @@ public:
         return m_desc;
     }
 
-    sBitmapDescription& getDescription()
+    uint32_t getReadyHeight() const
     {
-        return m_desc;
+        return m_desc.readyHeight.load(std::memory_order_acquire);
+    }
+
+    const uint8_t* getBitmapData() const
+    {
+        return m_desc.bitmap.data();
+    }
+
+    bool isBitmapAvailable() const
+    {
+        return !m_desc.bitmap.empty();
+    }
+
+    void releaseBitmap()
+    {
+        m_desc.bitmapSize = m_desc.bitmap.size();
+        Buffer().swap(m_desc.bitmap);
     }
 
 private:
-    cFormat* createLoader(eImageType type) const;
-    cFormat* getLoader(eImageType type) const;
+    cFormat* getOrCreateReader(const sFormatEntry& entry);
 
     void stop();
     void clear();
-    eImageType getType(const char* name) const;
     void load(const char* path);
 
 private:
@@ -109,7 +82,7 @@ private:
 
     Mode m_mode = Mode::Image;
     std::thread m_loader;
-    cFormat* m_image = nullptr;
-    mutable std::unique_ptr<cFormat> m_formats[(unsigned)eImageType::COUNT];
+    cFormat* m_activeReader = nullptr;
+    std::unordered_map<const char*, std::unique_ptr<cFormat>> m_formatCache;
     sBitmapDescription m_desc;
 };
