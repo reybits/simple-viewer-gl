@@ -847,22 +847,28 @@ void cViewer::centerWindow()
                     : 0.0f;
                 auto scale = m_scale.getScale();
 
+                // Use rotated dimensions for window sizing
+                auto imgWidth = static_cast<float>(m_image->getWidth());
+                auto imgHeight = static_cast<float>(m_image->getHeight());
+                if (m_angle == 90 || m_angle == 270)
+                {
+                    std::swap(imgWidth, imgHeight);
+                }
+
                 // When fit-to-window is enabled for large images,
                 // pre-calculate the fit scale so the window matches the fitted size
                 if (m_config.fitImage && m_loader->isLoaded())
                 {
-                    auto w = static_cast<float>(m_image->getWidth());
-                    auto h = static_cast<float>(m_image->getHeight());
                     auto maxW = screen.x * m_ratio.x;
                     auto maxH = screen.y * m_ratio.y;
-                    if (w > maxW || h > maxH)
+                    if (imgWidth > maxW || imgHeight > maxH)
                     {
-                        scale = std::min(maxW / w, maxH / h);
+                        scale = std::min(maxW / imgWidth, maxH / imgHeight);
                     }
                 }
 
-                auto imgw = m_image->getWidth() * scale + tickness;
-                auto imgh = m_image->getHeight() * scale + tickness;
+                auto imgw = imgWidth * scale + tickness;
+                auto imgh = imgHeight * scale + tickness;
 
                 width = std::max<int>(imgw / m_ratio.x, DefaultWindowSize.w);
                 height = std::max<int>(imgh / m_ratio.y, DefaultWindowSize.h);
@@ -882,8 +888,8 @@ void cViewer::centerWindow()
                 if (m_config.fitImage && m_loader->isLoaded())
                 {
                     scale = m_scale.getScale();
-                    imgw = m_image->getWidth() * scale + tickness;
-                    imgh = m_image->getHeight() * scale + tickness;
+                    imgw = imgWidth * scale + tickness;
+                    imgh = imgHeight * scale + tickness;
 
                     width = std::max<int>(imgw / m_ratio.x, DefaultWindowSize.w);
                     height = std::max<int>(imgh / m_ratio.y, DefaultWindowSize.h);
