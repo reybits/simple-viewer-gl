@@ -226,7 +226,14 @@ void cViewer::onUpdate()
         auto& desc = m_loader->getDescription();
         const uint32_t ready = desc.readyHeight.load(std::memory_order_acquire);
         const bool isDone = m_image->upload(ready);
-        m_progress->setProgress(0.5f + m_image->getProgress() * 0.5f);
+
+        // Only show upload progress after at least one chunk has been uploaded,
+        // otherwise the decode-phase progress from doProgress() is more accurate.
+        const float uploadProgress = m_image->getProgress();
+        if (uploadProgress > 0.0f)
+        {
+            m_progress->setProgress(0.5f + uploadProgress * 0.5f);
+        }
 
         if (isDone)
         {
