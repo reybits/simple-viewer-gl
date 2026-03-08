@@ -47,7 +47,7 @@ struct Quad
 
 namespace render
 {
-    void init(GLFWwindow* window, uint32_t maxTextureSize);
+    void init(GLFWwindow* window);
     void shutdown();
 
     GLFWwindow* getWindow();

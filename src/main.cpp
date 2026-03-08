@@ -66,7 +66,6 @@ namespace
         printf("  -f             start in fullscreen mode (default: %s);\n", getValue(config.fullScreen));
         printf("  -r             recursive directory scan (default: %s);\n", getValue(config.recursiveScan));
         printf("  -wz            enable wheel zoom (default: %s);\n", getValue(config.wheelZoom));
-        printf("  -mipmap VALUE  min texture size for mipmap creation (default: %u px);\n", config.mipmapTextureSize);
         printf("  -svg SIZE      min SVG size (default: %g px);\n", config.minSvgSize);
         printf("  -C RRGGBB      background color in hex format (default: %.2X%.2X%.2X);\n",
                (uint32_t)config.bgColor.r,
@@ -330,13 +329,6 @@ int main(int argc, char* argv[])
             if (i + 1 < argc)
             {
                 config.className = argv[++i];
-            }
-        }
-        else if (::strncmp(argv[i], "-mipmap", 7) == 0)
-        {
-            if (i + 1 < argc)
-            {
-                config.mipmapTextureSize = (uint32_t)::atoi(argv[++i]);
             }
         }
         else if (::strncmp(argv[i], "-svg", 4) == 0)

@@ -80,7 +80,7 @@ void cViewer::setWindow(GLFWwindow* window)
 {
     m_windowModeChangeRequested = false;
 
-    render::init(window, 2048);
+    render::init(window);
     m_imgui.init(window);
 
     m_checkerBoard->init();
@@ -214,7 +214,7 @@ void cViewer::onUpdate()
 
     if (isUploading())
     {
-        const bool isDone = m_image->upload(m_config.mipmapTextureSize);
+        const bool isDone = m_image->upload();
         m_progress->setProgress(0.5f + m_image->getProgress() * 0.5f);
 
         if (isDone)

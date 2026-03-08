@@ -40,7 +40,6 @@ struct sConfig
 #endif
     bool keepScale = false;
 
-    uint32_t mipmapTextureSize = 4096;
     uint32_t fileMaxLength = 100;
 
     uint32_t backgroundIndex = 0;
