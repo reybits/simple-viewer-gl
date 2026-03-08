@@ -865,6 +865,7 @@ void cViewer::loadImage(const char* path)
     m_image->stop();
 
     m_loader->loadImage(path);
+    updateInfobar();
 }
 
 void cViewer::loadSubImage(int subStep)
