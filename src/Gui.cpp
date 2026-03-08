@@ -16,6 +16,7 @@
 
 #include <GLFW/glfw3.h>
 #include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 
 namespace
 {
@@ -524,6 +525,19 @@ void cGui::beginFrame()
     m_time = current_time;
 
     ImGui::NewFrame();
+
+    auto dockId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+
+    if (auto node = ImGui::DockBuilderGetCentralNode(dockId))
+    {
+        m_centralPos = { node->Pos.x, node->Pos.y };
+        m_centralSize = { node->Size.x, node->Size.y };
+    }
+    else
+    {
+        m_centralPos = { 0.0f, 0.0f };
+        m_centralSize = { io.DisplaySize.x, io.DisplaySize.y };
+    }
 }
 
 void cGui::endFrame()
