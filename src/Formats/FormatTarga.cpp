@@ -11,8 +11,7 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
-
-#include <cstdio>
+#include "Log/Log.h"
 
 namespace
 {
@@ -100,19 +99,19 @@ namespace
     {
         if (header.colorMapType != 1)
         {
-            ::printf("(EE) Unknown color-mapped format.\n");
+            cLog::Error("Unknown color-mapped format.");
             return false;
         }
 
         if (header.pixelDepth != 8)
         {
-            ::printf("(EE) Non 8 bit color-mapped format.\n");
+            cLog::Error("Non 8 bit color-mapped format.");
             return false;
         }
 
         if (header.colorMapEntrySize != 24)
         {
-            ::printf("(EE) 8 bit with non 24 bit color map entry size currently not supported.\n");
+            cLog::Error("8 bit with non 24 bit color map entry size currently not supported.");
         }
 
         desc.bppImage = 8;
@@ -219,7 +218,7 @@ namespace
     {
         if (header.colorMapType != 0)
         {
-            ::printf("(EE) Unknown color-mapped format.\n");
+            cLog::Error("Unknown color-mapped format.");
             return false;
         }
 
@@ -293,7 +292,7 @@ namespace
         }
         else
         {
-            ::printf("(EE) unsupported uncompressed RGB format\n");
+            cLog::Error("Unsupported uncompressed RGB format.");
             return false;
         }
 
@@ -304,7 +303,7 @@ namespace
     {
         if (header.colorMapType != 0)
         {
-            ::printf("(EE) Unknown color-mapped format.\n");
+            cLog::Error("Unknown color-mapped format.");
             return false;
         }
 
@@ -505,7 +504,7 @@ namespace
         }
         else
         {
-            ::printf("(EE) Unsupported compressed RGB format\n");
+            cLog::Error("Unsupported compressed RGB format.");
             return false;
         }
 
@@ -543,7 +542,7 @@ bool cFormatTarga::LoadImpl(const char* filename, sBitmapDescription& desc)
     std::vector<uint8_t> tga(desc.size);
     if (desc.size != file.read(tga.data(), desc.size))
     {
-        ::printf("(EE) Can't read TARGA data.\n");
+        cLog::Error("Can't read TARGA data.");
         return false;
     }
 
@@ -554,18 +553,18 @@ bool cFormatTarga::LoadImpl(const char* filename, sBitmapDescription& desc)
     desc.height = header.height;
 
 #if defined(_DEBUG)
-    ::printf("(II) idLength:          %u\n", (uint32_t)header.idLength);
-    ::printf("(II) colorMapType:      %u\n", (uint32_t)header.colorMapType);
-    ::printf("(II) imageType:         %u\n", (uint32_t)header.imageType);
-    ::printf("(II) firstEntryIndex:   %u\n", (uint32_t)header.firstEntryIndex);
-    ::printf("(II) colorMapLength:    %u\n", (uint32_t)header.colorMapLength);
-    ::printf("(II) colorMapEntrySize: %u\n", (uint32_t)header.colorMapEntrySize);
-    ::printf("(II) xOrigin:           %u\n", (uint32_t)header.xOrigin);
-    ::printf("(II) yOrigin:           %u\n", (uint32_t)header.yOrigin);
-    ::printf("(II) width:             %u\n", (uint32_t)header.width);
-    ::printf("(II) height:            %u\n", (uint32_t)header.height);
-    ::printf("(II) pixelDepth:        %u\n", (uint32_t)header.pixelDepth);
-    ::printf("(II) imageDescriptor:   %u\n", (uint32_t)header.imageDescriptor);
+    cLog::Debug("idLength:          {}", (uint32_t)header.idLength);
+    cLog::Debug("colorMapType:      {}", (uint32_t)header.colorMapType);
+    cLog::Debug("imageType:         {}", (uint32_t)header.imageType);
+    cLog::Debug("firstEntryIndex:   {}", (uint32_t)header.firstEntryIndex);
+    cLog::Debug("colorMapLength:    {}", (uint32_t)header.colorMapLength);
+    cLog::Debug("colorMapEntrySize: {}", (uint32_t)header.colorMapEntrySize);
+    cLog::Debug("xOrigin:           {}", (uint32_t)header.xOrigin);
+    cLog::Debug("yOrigin:           {}", (uint32_t)header.yOrigin);
+    cLog::Debug("width:             {}", (uint32_t)header.width);
+    cLog::Debug("height:            {}", (uint32_t)header.height);
+    cLog::Debug("pixelDepth:        {}", (uint32_t)header.pixelDepth);
+    cLog::Debug("imageDescriptor:   {}", (uint32_t)header.imageDescriptor);
 #endif
 
     bool result = false;
@@ -593,7 +592,7 @@ bool cFormatTarga::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (result == false)
     {
-        ::printf("(EE) Unknown image type.\n");
+        cLog::Error("Unknown image type.");
         return false;
     }
 

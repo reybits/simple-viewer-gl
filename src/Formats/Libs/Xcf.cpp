@@ -9,6 +9,7 @@
 
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
 #include <algorithm>
 #include <array>
@@ -261,9 +262,9 @@ namespace
                 // auto [prop, pos] = property;
                 auto prop = property.first;
                 auto pos = property.second;
-                ::printf("(II) Property %u at %u pos.\n",
-                         static_cast<uint32_t>(prop.type),
-                         pos);
+                cLog::Info("Property {} at position {}.",
+                           static_cast<uint32_t>(prop.type),
+                           pos);
             }
 #endif
         }
@@ -533,7 +534,7 @@ namespace
         if (ver >= 12)
         {
             // const auto comps = 0;
-            ::printf("(WW) Unsupported version %u\n", ver);
+            cLog::Warning("Unsupported XCF version: {}.", ver);
         }
 
         const auto tile_stride = tile_rect.w * hierarchy.bpp;
@@ -935,7 +936,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
 
     if (sig.find_first_of("gimp xcf ") != 0)
     {
-        ::printf("(EE) Invalid gimp file.\n");
+        cLog::Error("Invalid gimp file.");
         return false;
     }
 
@@ -943,7 +944,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
     const uint32_t height = fread<uint32_t>(file, true);
     const xcf_col_mode col_mode = fread<xcf_col_mode>(file, true);
 #if defined(DEBUG)
-    ::printf("(II) Color mode %u.\n", static_cast<uint32_t>(col_mode));
+    cLog::Info("Color mode: {}.", static_cast<uint32_t>(col_mode));
 #endif
 
     xcf_comp_mode compression = xcf_comp_mode::none;
@@ -961,7 +962,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         file.seek(pos + sizeof(xcf_property_t), SEEK_SET);
 
 #if defined(DEBUG)
-        ::printf("(II) Property type %u\n", static_cast<uint32_t>(prop.type));
+        cLog::Info("Property type: {}.", static_cast<uint32_t>(prop.type));
 #endif
 
         switch (prop.type)
@@ -969,12 +970,12 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         case xcf_property_type::col_map: {
             xcf_property_col_map_t col_map(prop, file);
 #if defined(DEBUG)
-            ::printf("(II) Palette size: %u\n", col_map.count);
+            cLog::Info("Palette size: {}.", col_map.count);
 
             for (uint32_t i = 0; i < col_map.count; i++)
             {
                 palette[i] = col_map.palette.get()[i];
-                ::printf("(II) Col %u: (%u, %u, %u)\n", i, uint32_t(col_map.palette.get()[i].r), uint32_t(col_map.palette.get()[i].g), uint32_t(col_map.palette.get()[i].b));
+                cLog::Info("Color {}: ({}, {}, {}).", i, uint32_t(col_map.palette.get()[i].r), uint32_t(col_map.palette.get()[i].g), uint32_t(col_map.palette.get()[i].b));
             }
 #endif
         }
@@ -984,7 +985,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
             xcf_property_comp_t p(prop, file);
             compression = p.compression;
 #if defined(DEBUG)
-            ::printf("(II) Compression %s\n", toCompMode(p.compression));
+            cLog::Info("Compression: {}.", toCompMode(p.compression));
 #endif
         }
         break;
@@ -992,7 +993,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         case xcf_property_type::resolution: {
             xcf_property_res_t p(prop, file);
 #if defined(DEBUG)
-            ::printf("(II) Resolution %.3f x %.3f\n", p.hres, p.vres);
+            cLog::Info("Resolution: {:.3f} x {:.3f}.", p.hres, p.vres);
 #endif
         }
         break;
@@ -1000,7 +1001,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         case xcf_property_type::layer_mode: {
             xcf_property_layer_mode_t p(prop, file);
 #if defined(DEBUG)
-            ::printf("(II) Layer mode %u\n", static_cast<uint32_t>(p.mode));
+            cLog::Info("Layer mode: {}.", static_cast<uint32_t>(p.mode));
 #endif
         }
         break;
@@ -1008,7 +1009,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         case xcf_property_type::layer_offset: {
             xcf_property_layer_offset_t p(prop, file);
 #if defined(DEBUG)
-            ::printf("(II) Offset %d , %d\n", p.x_offset, p.y_offset);
+            cLog::Info("Offset: {}, {}.", p.x_offset, p.y_offset);
 #endif
         }
         break;
@@ -1043,13 +1044,13 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
     for (const auto& layer : layers)
     {
 #if defined(DEBUG)
-        ::printf("Layer '%s' properties:\n", layer.name.c_str());
+        cLog::Debug("Layer '{}' properties:", layer.name);
         for (auto& p : layer.properties)
         {
-            ::printf("  type 0x%2x = %s (0x%x)\n",
-                     static_cast<uint32_t>(p.first.type),
-                     toBits(p.second).c_str(),
-                     p.second);
+            cLog::Debug("  type {:#4x} = {} ({:#x})",
+                        static_cast<uint32_t>(p.first.type),
+                        toBits(p.second),
+                        p.second);
         }
 #endif
 
@@ -1117,7 +1118,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
 
             if (offset1 < *offset0 || offset1 - *offset0 > max_data_len)
             {
-                ::printf("(EE) Invalid tile data length.\n");
+                cLog::Error("Invalid tile data length.");
                 return false;
             }
 
@@ -1130,7 +1131,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
             case xcf_comp_mode::none:
             case xcf_comp_mode::zlib:
             case xcf_comp_mode::fractal:
-                ::printf("(EE) Unsupported compression: %s.\n", toCompMode(compression));
+                cLog::Error("Unsupported compression: {}.", toCompMode(compression));
                 return false;
             }
 

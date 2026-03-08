@@ -11,8 +11,8 @@
 #include "Common/BitmapDescription.h"
 #include "Common/CachedReader.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
 #include <iterator>
 
@@ -195,12 +195,12 @@ namespace
         auto ver = getVersion(header.size);
         if (ver == Version::Core)
         {
-            ::printf("-- BITMAPCOREHEADER\n");
-            ::printf("     header size   : %u\n", header.size);
-            ::printf("     image width   : %u\n", (uint32_t)header.width);
-            ::printf("     image height  : %u\n", (uint32_t)header.height);
-            ::printf("     planes        : %u\n", (uint32_t)header.planes);
-            ::printf("     bitCount      : %u\n", (uint32_t)header.bitCount);
+            cLog::Debug("-- BITMAPCOREHEADER");
+            cLog::Debug("     header size   : {}", header.size);
+            cLog::Debug("     image width   : {}", (uint32_t)header.width);
+            cLog::Debug("     image height  : {}", (uint32_t)header.height);
+            cLog::Debug("     planes        : {}", (uint32_t)header.planes);
+            cLog::Debug("     bitCount      : {}", (uint32_t)header.bitCount);
         }
 #endif
         (void)header;
@@ -209,55 +209,55 @@ namespace
     void debugHeader(const BITMAPCOMMON& header)
     {
 #if defined(_DEBUG)
-        ::printf("-- BITMAPCOMMON\n");
-        ::printf("     header size   : %u\n", header.size);
-        ::printf("     image width   : %u\n", header.width);
-        ::printf("     image height  : %u\n", header.height);
-        ::printf("     planes        : %u\n", header.planes);
-        ::printf("     bitCount      : %u\n", header.bitCount);
-        ::printf("     compression   : %s\n", compressionToName(header.compression));
-        ::printf("     sizeImage     : %u\n", header.sizeImage);
+        cLog::Debug("-- BITMAPCOMMON");
+        cLog::Debug("     header size   : {}", header.size);
+        cLog::Debug("     image width   : {}", header.width);
+        cLog::Debug("     image height  : {}", header.height);
+        cLog::Debug("     planes        : {}", header.planes);
+        cLog::Debug("     bitCount      : {}", header.bitCount);
+        cLog::Debug("     compression   : {}", compressionToName(header.compression));
+        cLog::Debug("     sizeImage     : {}", header.sizeImage);
 
         auto ver = getVersion(header.size);
         if (ver == Version::Info)
         {
             auto& h = reinterpret_cast<const BITMAPINFOHEADER&>(header);
-            ::printf("-- BITMAPINFOHEADER\n");
-            ::printf("     horiResolution  : %u\n", h.horiResolution);
-            ::printf("     vertResolution  : %u\n", h.vertResolution);
-            ::printf("     paletteColors   : %u\n", h.paletteColors);
-            ::printf("     importantColors : %u\n", h.importantColors);
+            cLog::Debug("-- BITMAPINFOHEADER");
+            cLog::Debug("     horiResolution  : {}", h.horiResolution);
+            cLog::Debug("     vertResolution  : {}", h.vertResolution);
+            cLog::Debug("     paletteColors   : {}", h.paletteColors);
+            cLog::Debug("     importantColors : {}", h.importantColors);
         }
         else
         {
             if (ver == Version::V4 || ver == Version::V5)
             {
                 auto& h = reinterpret_cast<const BITMAPV4HEADER&>(header);
-                ::printf("-- BITMAPV4HEADER\n");
-                ::printf("     xPelsPerMeter : %u\n", h.xPelsPerMeter);
-                ::printf("     yPelsPerMeter : %u\n", h.yPelsPerMeter);
-                ::printf("     clrUsed       : %u\n", h.clrUsed);
-                ::printf("     clrImportant  : %u\n", h.clrImportant);
-                ::printf("     redMask       : %u\n", h.redMask);
-                ::printf("     greenMask     : %u\n", h.greenMask);
-                ::printf("     blueMask      : %u\n", h.blueMask);
-                ::printf("     alphaMask     : %u\n", h.alphaMask);
-                ::printf("     cSType        : %u\n", h.cSType);
-                ::printf("     endp red      : %d %d %d\n", h.endpoints.r.x, h.endpoints.r.y, h.endpoints.r.z);
-                ::printf("     endp green    : %d %d %d\n", h.endpoints.g.x, h.endpoints.g.y, h.endpoints.g.z);
-                ::printf("     endp blue     : %d %d %d\n", h.endpoints.b.x, h.endpoints.b.y, h.endpoints.b.z);
-                ::printf("     gammaRed      : %u\n", h.gammaRed);
-                ::printf("     gammaGreen    : %u\n", h.gammaGreen);
-                ::printf("     gammaBlue     : %u\n", h.gammaBlue);
+                cLog::Debug("-- BITMAPV4HEADER");
+                cLog::Debug("     xPelsPerMeter : {}", h.xPelsPerMeter);
+                cLog::Debug("     yPelsPerMeter : {}", h.yPelsPerMeter);
+                cLog::Debug("     clrUsed       : {}", h.clrUsed);
+                cLog::Debug("     clrImportant  : {}", h.clrImportant);
+                cLog::Debug("     redMask       : {}", h.redMask);
+                cLog::Debug("     greenMask     : {}", h.greenMask);
+                cLog::Debug("     blueMask      : {}", h.blueMask);
+                cLog::Debug("     alphaMask     : {}", h.alphaMask);
+                cLog::Debug("     cSType        : {}", h.cSType);
+                cLog::Debug("     endp red      : {} {} {}", h.endpoints.r.x, h.endpoints.r.y, h.endpoints.r.z);
+                cLog::Debug("     endp green    : {} {} {}", h.endpoints.g.x, h.endpoints.g.y, h.endpoints.g.z);
+                cLog::Debug("     endp blue     : {} {} {}", h.endpoints.b.x, h.endpoints.b.y, h.endpoints.b.z);
+                cLog::Debug("     gammaRed      : {}", h.gammaRed);
+                cLog::Debug("     gammaGreen    : {}", h.gammaGreen);
+                cLog::Debug("     gammaBlue     : {}", h.gammaBlue);
             }
 
             if (ver == Version::V5)
             {
                 auto& h = reinterpret_cast<const BITMAPV5HEADER&>(header);
-                ::printf("-- BITMAPV5HEADER\n");
-                ::printf("     intent        : %u\n", h.intent);
-                ::printf("     profileData   : %u\n", h.profileData);
-                ::printf("     profileSize   : %u\n", h.profileSize);
+                cLog::Debug("-- BITMAPV5HEADER");
+                cLog::Debug("     intent        : {}", h.intent);
+                cLog::Debug("     profileData   : {}", h.profileData);
+                cLog::Debug("     profileSize   : {}", h.profileSize);
             }
         }
 #endif
@@ -393,7 +393,7 @@ namespace
         }                                 \
         else                              \
         {                                 \
-            ::printf("Out of bitmap\n");  \
+            cLog::Warning("Out of bitmap bounds.");  \
         }                                 \
     } while (0)
 
@@ -630,13 +630,13 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
     BmpHeader bmpHeader;
     if (file.read(&bmpHeader, sizeof(bmpHeader)) != sizeof(bmpHeader))
     {
-        ::printf("(EE) Can't read BMP header.\n");
+        cLog::Error("Can't read BMP header.");
         return false;
     }
 
     if (isValidFormat(bmpHeader, file.getSize()) == false)
     {
-        ::printf("(EE) Invalid BMP header.\n");
+        cLog::Error("Invalid BMP header.");
         return false;
     }
 
@@ -644,7 +644,7 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
     BITMAPCOMMON common;
     if (file.read(&common, sizeof(common)) != sizeof(common))
     {
-        ::printf("(EE) Can't read DIB header size.\n");
+        cLog::Error("Can't read DIB header size.");
         return false;
     }
     file.seek(offset, SEEK_SET);
@@ -658,7 +658,7 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
         BITMAPV5HEADER header;
         if (file.read(&header, common.size) != common.size)
         {
-            ::printf("(EE) Can't read DIB header.\n");
+            cLog::Error("Can't read DIB header.");
             return false;
         }
 
@@ -713,7 +713,7 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
 
             if (result == false)
             {
-                ::printf("(EE) Can't read bitmap data.\n");
+                cLog::Error("Can't read bitmap data.");
                 return false;
             }
         }
@@ -730,7 +730,7 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
 
             if (result == false)
             {
-                ::printf("(EE) Can't read bitmap data.\n");
+                cLog::Error("Can't read bitmap data.");
                 return false;
             }
         }
@@ -747,13 +747,13 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
 
             if (result == false)
             {
-                ::printf("(EE) Can't read bitmap data.\n");
+                cLog::Error("Can't read bitmap data.");
                 return false;
             }
         }
         else
         {
-            ::printf("(EE) Unsupported compression : %s\n", compressionToName(compression));
+            cLog::Error("Unsupported compression: {}.", compressionToName(compression));
             return false;
         }
     }
@@ -764,14 +764,14 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
             BITMAPCOREHEADER header;
             if (file.read(&header, sizeof(header)) != sizeof(header))
             {
-                ::printf("(EE) Can't read DIB header.\n");
+                cLog::Error("Can't read DIB header.");
                 return false;
             }
 
             debugHeader(header);
         }
 
-        ::printf("(EE) Unsupported BMP header.\n");
+        cLog::Error("Unsupported BMP header.");
 
         return false;
     }

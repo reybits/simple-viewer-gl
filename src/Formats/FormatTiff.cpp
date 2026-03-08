@@ -13,6 +13,7 @@
 #include "Cms/Cms.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
 #include <cstring>
 #include <stdarg.h>
@@ -149,7 +150,7 @@ bool cFormatTiff::load(unsigned current, sBitmapDescription& desc)
             }
             else
             {
-                ::printf("(EE) Error: '%s'\n", emsg);
+                cLog::Error("TIFF error: '{}'.", emsg);
             }
         }
 

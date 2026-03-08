@@ -176,9 +176,9 @@ bool cQuadImage::upload(uint32_t readyHeight)
         }
         else
         {
-            cLog::Debug("cols {} : col {} : w {}.", m_cols, col, w);
-            cLog::Debug("rows {} : row {} : h {}.", m_rows, row, h);
-            cLog::Debug("out at line {} sx {} sy {} bpp: {}.", y, sx, sy, m_bitsPerPixel);
+            cLog::Debug("Cols: {}, col: {}, w: {}.", m_cols, col, w);
+            cLog::Debug("Rows: {}, row: {}, h: {}.", m_rows, row, h);
+            cLog::Debug("Out at line {}, sx: {}, sy: {}, bpp: {}.", y, sx, sy, m_bitsPerPixel);
             break;
         }
     }

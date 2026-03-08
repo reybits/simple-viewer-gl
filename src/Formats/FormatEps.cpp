@@ -11,8 +11,8 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
 
 namespace
@@ -95,7 +95,7 @@ bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (file.read(data, size) != file.getSize())
     {
-        ::printf("(EE) Error loading EPS/AI.\n");
+        cLog::Error("Can't load EPS/AI file.");
         return false;
     }
 
@@ -122,7 +122,7 @@ bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     else
     {
-        ::printf("(EE) Cant get xmpGImg:image\n");
+        cLog::Error("Can't get xmpGImg:image.");
     }
 
     return false;

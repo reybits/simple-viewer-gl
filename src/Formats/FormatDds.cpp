@@ -10,10 +10,10 @@
 #include "FormatDds.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
 #include <cassert>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -320,13 +320,13 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
     DDS_HEADER header;
     if (sizeof(header) != file.read(&header, sizeof(header)))
     {
-        ::printf("(EE) Wrong DDS header size.\n");
+        cLog::Error("Invalid DDS header size.");
         return false;
     }
 
     if (!isValidFormat(header, desc.size))
     {
-        ::printf("(EE) Wrong DDS header.\n");
+        cLog::Error("Invalid DDS header.");
         return false;
     }
 
@@ -341,7 +341,7 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
         {
             if (sizeof(header10) != file.read(&header10, sizeof(header10)))
             {
-                ::printf("(EE) Error load DDS file '%s': wrong DX10 header size.\n", filename);
+                cLog::Error("Can't load DDS file '{}': invalid DX10 header size.", filename);
                 return false;
             }
             format = DDS_DXT10;
@@ -379,7 +379,7 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (format == DDS_ERROR)
     {
-        ::printf("(EE) Error load DDS file '%s': unknown format 0x%x RGB %d.\n", filename, header.ddspf.dwFlags, header.ddspf.dwRGBBitCount);
+        cLog::Error("Can't load DDS file '{}': unknown format {:#x} RGB {}.", filename, header.ddspf.dwFlags, header.ddspf.dwRGBBitCount);
         return false;
     }
 
@@ -388,7 +388,7 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
     uint8_t* src = buffer.data();
     if (data_size != file.read(src, data_size))
     {
-        ::printf("(EE) Error load DDS file '%s': wrong data size.\n", filename);
+        cLog::Error("Can't load DDS file '{}': invalid data size.", filename);
         return false;
     }
 

@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "File.h"
+#include "Log/Log.h"
 
 #include <cstdio>
 
@@ -32,7 +33,7 @@ bool cFile::open(const char* path, const char* mode)
         return true;
     }
 
-    ::printf("(EE) Can't open \"%s\".\n", path);
+    cLog::Error("Can't open '{}'.", path);
     return false;
 }
 

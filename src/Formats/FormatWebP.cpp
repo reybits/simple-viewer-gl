@@ -12,8 +12,8 @@
 #include "FormatWebP.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
 #include <webp/decode.h>
 
@@ -53,7 +53,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
     buffer.resize(file.getSize());
     if (file.read(buffer.data(), file.getSize()) != file.getSize())
     {
-        ::printf("(EE) Error loading WebP.\n");
+        cLog::Error("Can't load WebP file.");
         return false;
     }
 
@@ -61,7 +61,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
     auto error = WebPGetFeatures(buffer.data(), buffer.size(), &features);
     if (error != VP8_STATUS_OK)
     {
-        ::printf("(EE) Error loading WebP: %d.\n", error);
+        cLog::Error("Can't load WebP file: {}.", static_cast<int>(error));
         return false;
     }
 
@@ -81,7 +81,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         if (WebPDecodeRGBAInto(buffer.data(), buffer.size(), desc.bitmap.data(), desc.bitmap.size(), desc.pitch) == nullptr)
         {
-            ::printf("(EE) Error decoding WebP.\n");
+            cLog::Error("Can't decode WebP data.");
             return false;
         }
     }
@@ -92,7 +92,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         if (WebPDecodeRGBInto(buffer.data(), buffer.size(), desc.bitmap.data(), desc.bitmap.size(), desc.pitch) == nullptr)
         {
-            ::printf("(EE) Error decoding WebP.\n");
+            cLog::Error("Can't decode WebP data.");
             return false;
         }
     }

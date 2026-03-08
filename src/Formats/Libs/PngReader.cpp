@@ -181,14 +181,14 @@ bool cPngReader::loadPng(sBitmapDescription& desc, const uint8_t* data, uint32_t
 {
     if (isValid(data, size) == false)
     {
-        cLog::Error("Frame is not recognized as a PNG format.");
+        cLog::Error("Unrecognized PNG frame format.");
         return false;
     }
 
     cPngWrapper wrapper;
     if (wrapper.createMemoryReader(data, size) == false)
     {
-        cLog::Error("Cannot create PNG memory reader.");
+        cLog::Error("Can't create PNG memory reader.");
         return false;
     }
 
@@ -203,14 +203,14 @@ bool cPngReader::loadPng(sBitmapDescription& desc, cFile& file)
     if (file.read(&header, HeaderSize) != HeaderSize
         || isValid(header, file.getSize()) == false)
     {
-        cLog::Error("Is not recognized as a PNG file.");
+        cLog::Error("Unrecognized PNG file format.");
         return false;
     }
 
     cPngWrapper wrapper;
     if (wrapper.createFileReader(file) == false)
     {
-        cLog::Error("Cannot create PNG file reader.");
+        cLog::Error("Can't create PNG file reader.");
         return false;
     }
 
@@ -224,7 +224,7 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
 
     if (setjmp(png_jmpbuf(png)) != 0)
     {
-        cLog::Error("Error during PNG read.");
+        cLog::Error("Can't read PNG data.");
         return false;
     }
 

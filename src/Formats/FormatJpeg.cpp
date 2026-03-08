@@ -13,8 +13,8 @@
 #include "Common/File.h"
 #include "Common/Helpers.h"
 #include "Formats/JpegDecoder.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
 #include <jpeglib.h>
 #include <setjmp.h>
@@ -57,7 +57,7 @@ namespace
             helpers::trimRightSpaces(buf);
             if (*buf != 0)
             {
-                ::printf("ifd %d , tag 0x%.4x : '%s': '%s'\n", ifd, tag, exif_tag_get_name_in_ifd(tag, ifd), buf);
+                cLog::Debug("ifd {} , tag {:#06x} : '{}': '{}'", static_cast<int>(ifd), static_cast<unsigned>(tag), exif_tag_get_name_in_ifd(tag, ifd), buf);
             }
         }
     }

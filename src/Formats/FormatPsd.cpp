@@ -11,8 +11,8 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <iterator>
 #include <string.h>
 
@@ -214,27 +214,27 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
     PSD_HEADER header;
     if (sizeof(PSD_HEADER) != file.read(&header, sizeof(PSD_HEADER)))
     {
-        ::printf("(EE) Can't read PSD header.\n");
+        cLog::Error("Can't read PSD header.");
         return false;
     }
 
     if (isValidFormat(header) == false)
     {
-        ::printf("(EE) Not valid PSD file.\n");
+        cLog::Error("Not valid PSD file.");
         return false;
     }
 
     const ColorMode colorMode = (ColorMode)helpers::read_uint16((uint8_t*)&header.colorMode);
     if (colorMode != ColorMode::RGB && colorMode != ColorMode::CMYK && colorMode != ColorMode::GRAYSCALE)
     {
-        ::printf("(EE) Unsupported color mode: %s\n", modeToString(colorMode));
+        cLog::Error("Unsupported color mode: {}.", modeToString(colorMode));
         return false;
     }
 
     const uint32_t depth = helpers::read_uint16((uint8_t*)&header.depth);
     if (depth != 8 && depth != 16 && depth != 32)
     {
-        ::printf("(EE) Unsupported depth: %u\n", depth);
+        cLog::Error("Unsupported depth: {}.", depth);
         return false;
     }
     const uint32_t bytes_per_component = depth / 8;
@@ -244,21 +244,21 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
     // skip Color Mode Data Block
     if (false == skipNextBlock(file))
     {
-        ::printf("(EE) Can't read Color Mode Data Block\n");
+        cLog::Error("Can't read color mode data block.");
         return false;
     }
 
     // skip Image Resources Block
     if (false == skipNextBlock(file))
     {
-        ::printf("(EE) Can't read Image Resources Block\n");
+        cLog::Error("Can't read image resources block.");
         return false;
     }
 
     // skip Layer and Mask Information Block
     if (false == skipNextBlock(file))
     {
-        ::printf("(EE) Can't read Layer and Mask Information Block\n");
+        cLog::Error("Can't read layer and mask information block.");
         return false;
     }
 
@@ -266,13 +266,13 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
     CompressionMethod compression;
     if (sizeof(uint16_t) != file.read(&compression, sizeof(uint16_t)))
     {
-        ::printf("(EE) Can't read compression info\n");
+        cLog::Error("Can't read compression info.");
         return false;
     }
     compression = (CompressionMethod)helpers::read_uint16((uint8_t*)&compression);
     if (compression != CompressionMethod::RAW && compression != CompressionMethod::RLE)
     {
-        ::printf("(EE) Unsupported compression: %u\n", (uint32_t)compression);
+        cLog::Error("Unsupported compression: {}.", (uint32_t)compression);
         return false;
     }
 
@@ -290,7 +290,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
 
             if (desc.height * sizeof(uint16_t) != file.read(&linesLengths[pos], desc.height * sizeof(uint16_t)))
             {
-                ::printf("(EE) Can't read length of lines\n");
+                cLog::Error("Can't read length of lines");
                 return false;
             }
         }
@@ -327,14 +327,14 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
                 uint32_t lineLength = linesLengths[ch * desc.height + row] * bytes_per_component;
                 if (max_line_length < lineLength)
                 {
-                    ::printf("(WW) Wrong line length: %u\n", lineLength);
+                    cLog::Warning("Invalid line length: {}.", lineLength);
                     lineLength = max_line_length;
                 }
 
                 const size_t readed = file.read(buffer.data(), lineLength);
                 if (lineLength != readed)
                 {
-                    ::printf("(WW) Error reading Image Data Block\n");
+                    cLog::Warning("Can't read image data block.");
                 }
 
                 decodeRle(chBufs[ch] + pos, buffer.data(), lineLength);
@@ -346,7 +346,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
                 const size_t readed = file.read(chBufs[ch] + pos, lineLength);
                 if (lineLength != readed)
                 {
-                    ::printf("(WW) Error reading Image Data Block\n");
+                    cLog::Warning("Can't read image data block.");
                 }
             }
 

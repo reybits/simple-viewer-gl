@@ -12,8 +12,8 @@
 #include "FormatGif.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
 #include <memory>
 
@@ -97,7 +97,7 @@ bool cFormatGif::LoadImpl(const char* filename, sBitmapDescription& desc)
     cFile file;
     if (!openFile(file, filename, desc))
     {
-        ::printf("(EE) Error Opening GIF image.\n");
+        cLog::Error("Can't open GIF image.");
         return false;
     }
     file.close();
@@ -106,20 +106,20 @@ bool cFormatGif::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (m_gif.get() == nullptr)
     {
-        ::printf("(EE) Error Opening GIF image: '%s'.\n", GetError(m_gif.get()));
+        cLog::Error("Can't open GIF image: '{}'.", GetError(m_gif.get()));
         return false;
     }
 
     int res = DGifSlurp(m_gif.get());
     if (res != GIF_OK)
     {
-        ::printf("(EE) Error Reading GIF image: '%s'.\n", GetError(m_gif.get()));
+        cLog::Error("Can't read GIF image: '{}'.", GetError(m_gif.get()));
         return false;
     }
 
     if (m_gif->ImageCount < 1)
     {
-        ::printf("(EE) Wrong ImagesCount: %d.\n", m_gif->ImageCount);
+        cLog::Error("Invalid GIF image count: {}.", m_gif->ImageCount);
         return false;
     }
 
@@ -153,7 +153,7 @@ bool cFormatGif::load(uint32_t current, sBitmapDescription& desc)
     }
     if (cmap == nullptr)
     {
-        ::printf("(EE) Invalid GIF colormap.\n");
+        cLog::Error("Invalid GIF colormap.");
         return false;
     }
 

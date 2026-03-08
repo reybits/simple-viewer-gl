@@ -11,12 +11,12 @@
 \**********************************************/
 
 #include "Renderer.h"
+#include "Log/Log.h"
 #include "Types/Matrix.h"
 #include "Types/Vector.h"
 
 #include <algorithm>
 #include <cassert>
-#include <cstdio>
 #include <iterator>
 #include <vector>
 
@@ -115,7 +115,7 @@ void main()
         {
             char log[512];
             glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
-            std::printf("(EE) Shader compilation error: %s\n", log);
+            cLog::Error("Shader compilation error: {}.", log);
         }
         return shader;
     }
@@ -136,7 +136,7 @@ void main()
         {
             char log[512];
             glGetProgramInfoLog(program, sizeof(log), nullptr, log);
-            std::printf("(EE) Program link error: %s\n", log);
+            cLog::Error("Program link error: {}.", log);
         }
 
         glDeleteShader(vert);
@@ -413,7 +413,7 @@ bool render::checkError(const char* msg, const char* file, int line)
     for (auto e = glGetError(); e != GL_NO_ERROR; e = glGetError())
     {
         result = true;
-        printf("(EE) %s error 0x%x at %s:%d\n", msg, e, file, line);
+        cLog::Error("{} error {:#x} at {}:{}", msg, e, file, line);
     }
 
     return result;

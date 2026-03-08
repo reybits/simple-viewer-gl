@@ -13,6 +13,7 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Log/Log.h"
 
 #include <OpenEXR/ImfArray.h>
 #include <OpenEXR/ImfPreviewImage.h>
@@ -20,7 +21,6 @@
 #include <OpenEXR/ImfStandardAttributes.h>
 #include <OpenEXR/ImfTiledRgbaFile.h>
 #include <algorithm>
-#include <cstdio>
 #include <cstring>
 
 namespace
@@ -230,7 +230,7 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     catch (...)
     {
-        ::printf("(EE) Error reading scanline EXR.\n");
+        cLog::Error("Can't read scanline EXR data.");
 
         try
         {
@@ -239,7 +239,7 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
         catch (...)
         {
             result = false;
-            ::printf("(EE) Error reading tiled EXR.\n");
+            cLog::Error("Can't read tiled EXR data.");
         }
     }
 

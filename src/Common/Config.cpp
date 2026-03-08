@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Config.h"
+#include "Log/Log.h"
 #include "Viewer.h"
 
 #include <cstdio>
@@ -20,7 +21,7 @@ namespace
     template <typename T>
     T getValue(const char* /*value*/, T def)
     {
-        ::printf("(EE) Unknown config value type!\n");
+        cLog::Error("Unknown config value type.");
         return def;
     }
 
@@ -142,11 +143,11 @@ cConfig::cConfig()
 
     if (m_path.empty())
     {
-        ::printf("Using default config.\n");
+        cLog::Info("Using default config.");
     }
     else
     {
-        ::printf("Using config file: '%s'.\n", m_path.c_str());
+        cLog::Info("Using config file: '{}'.", m_path.c_str());
     }
 }
 

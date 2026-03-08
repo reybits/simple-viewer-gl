@@ -11,6 +11,7 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Libs/PngReader.h"
+#include "Log/Log.h"
 
 #include <cstring>
 
@@ -158,7 +159,7 @@ bool cFormatIco::loadPngFrame(sBitmapDescription& desc, cFile& file, const IcoDi
     file.seek(image->offset, SEEK_SET);
     if (size != file.read(data, size))
     {
-        ::printf("(EE) Can't read ico/png frame.\n");
+        cLog::Error("Can't read ICO/PNG frame.");
         return false;
     }
 
@@ -191,7 +192,7 @@ bool cFormatIco::loadOrdinaryFrame(sBitmapDescription& desc, cFile& file, const 
     std::vector<uint8_t> p(image->size);
     if (image->size != file.read(p.data(), p.size()))
     {
-        ::printf("(EE) Can't read icon data.\n");
+        cLog::Error("Can't read icon data.");
         return false;
     }
 
@@ -204,7 +205,7 @@ bool cFormatIco::loadOrdinaryFrame(sBitmapDescription& desc, cFile& file, const 
     int pitch = calcIcoPitch(desc.bppImage, desc.width);
     if (pitch == -1)
     {
-        ::printf("(EE) Invalid icon pitch.\n");
+        cLog::Error("Invalid icon pitch.");
         return false;
     }
 
@@ -358,7 +359,7 @@ int cFormatIco::calcIcoPitch(uint32_t bppImage, uint32_t width)
         return width * 4;
     }
 
-    ::printf("(EE) Invalid bits count: %u.\n", bppImage);
+    cLog::Error("Invalid bits count: {}.", bppImage);
     return -1; // width * (bppImage / 8);
 }
 

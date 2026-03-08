@@ -10,6 +10,7 @@
 #include "Gui.h"
 #include "Common/Timing.h"
 #include "DroidSans.h"
+#include "Log/Log.h"
 #include "Renderer.h"
 #include "Types/Matrix.h"
 #include "Window.h"
@@ -66,7 +67,7 @@ void main()
         {
             char log[512];
             glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
-            printf("(EE) ImGui shader error: %s\n", log);
+            cLog::Error("ImGui shader error: {}.", log);
         }
         return shader;
     }

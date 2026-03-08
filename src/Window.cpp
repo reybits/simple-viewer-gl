@@ -185,7 +185,7 @@ bool cWindow::init(const sConfig& config)
 
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
-        cLog::Error("Failed to initialize GLAD.");
+        cLog::Error("Can't initialize GLAD.");
         glfwDestroyWindow(m_window);
         m_window = nullptr;
         glfwTerminate();
@@ -354,7 +354,7 @@ void cWindow::toggleFullscreen(const sConfig& config)
 
     if (newWindow == nullptr)
     {
-        cLog::Error("Failed to create new window for fullscreen toggle.");
+        cLog::Error("Can't create new window for fullscreen toggle.");
         return;
     }
 
@@ -362,7 +362,7 @@ void cWindow::toggleFullscreen(const sConfig& config)
 
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
-        cLog::Error("Failed to re-initialize GLAD, keeping old window.");
+        cLog::Error("Can't re-initialize GLAD, keeping old window.");
         glfwDestroyWindow(newWindow);
         glfwMakeContextCurrent(m_window);
         return;

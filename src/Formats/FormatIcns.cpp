@@ -12,6 +12,7 @@
 #include "Common/File.h"
 #include "Common/Helpers.h"
 #include "Libs/PngReader.h"
+#include "Log/Log.h"
 
 #include <cstring>
 
@@ -102,7 +103,7 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
         {
             if (desc.type == Type::TOC_)
             {
-                ::printf("---- TOC ----\n");
+                cLog::Debug("---- TOC ----");
                 offset += chunkSize;
                 iterateContent(icon, offset, size);
             }
@@ -113,16 +114,16 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
                 entry.offset = offset + sizeof(Chunk);
                 entry.size = chunkSize - sizeof(Chunk);
 
-                ::printf("   chunk size: %u\n", chunkSize);
+                cLog::Debug("   chunk size: {}", chunkSize);
 
-                ::printf("   icon bpp: %u -> %u\n", entry.srcBpp, entry.dstBpp);
-                ::printf("   icon resolution: %u x %u\n", entry.iconSize, entry.iconSize);
+                cLog::Debug("   icon bpp: {} -> {}", entry.srcBpp, entry.dstBpp);
+                cLog::Debug("   icon resolution: {} x {}", entry.iconSize, entry.iconSize);
 
                 auto compression = CompressionToName(entry.compression);
-                ::printf("   compression: %s\n", compression);
+                cLog::Debug("   compression: {}", compression);
 
-                ::printf("   offset: %u\n", entry.offset);
-                ::printf("   size: %u\n", entry.size);
+                cLog::Debug("   offset: {}", entry.offset);
+                cLog::Debug("   size: {}", entry.size);
 
                 m_entries.push_back(entry);
 
@@ -164,7 +165,7 @@ bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
     desc.bitmap.resize(desc.pitch * desc.height);
     auto buffer = desc.bitmap.data();
 
-    ::printf(" Decoding: %s\n", CompressionToName(entry.compression));
+    cLog::Debug(" Decoding: {}", CompressionToName(entry.compression));
 
     if (entry.compression == Compression::PngJ)
     {
@@ -190,7 +191,7 @@ bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
         }
         else
         {
-            ::printf("(EE) Error loading PNG frame.\n");
+            cLog::Error("Can't load PNG frame.");
         }
     }
     else
@@ -247,7 +248,7 @@ void cFormatIcns::unpackBits(uint8_t* buffer, const uint8_t* chunk, uint32_t siz
         }
     }
 
-    ::printf("-- %u\n", c);
+    cLog::Debug("-- {}", c);
 }
 
 void cFormatIcns::ICNSAtoRGBA(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const
@@ -329,13 +330,13 @@ const cFormatIcns::Entry& cFormatIcns::getDescription(const Chunk& chunk) const
     {
         if (::memcmp(e.id, type, 4) == 0)
         {
-            ::printf("Type: '%s'\n", e.id);
+            cLog::Debug("Type: '{}'", e.id);
 
             return e.entry;
         }
     }
 
-    ::printf("(EE) Unexpected chunk type: '%c%c%c%c'\n", type[0], type[1], type[2], type[3]);
+    cLog::Error("Unexpected chunk type: '{}{}{}{}'.", type[0], type[1], type[2], type[3]);
 
     static const Entry Error{ Type::Count, Compression::Count, 0, 0, 0, 0, 0 };
     return Error;

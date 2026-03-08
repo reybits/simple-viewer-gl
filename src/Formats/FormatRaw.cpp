@@ -11,8 +11,8 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Libs/Rle.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
 
 namespace
@@ -90,7 +90,7 @@ bool cFormatRaw::LoadImpl(const char* filename, sBitmapDescription& desc)
     sHeader header;
     if (sizeof(header) != file.read(&header, sizeof(header)))
     {
-        ::printf("(EE) Not valid RAW format.\n");
+        cLog::Error("Invalid RAW format.");
         return false;
     }
 
@@ -120,7 +120,7 @@ bool cFormatRaw::LoadImpl(const char* filename, sBitmapDescription& desc)
         bytespp = 4;
         break;
     default:
-        ::printf("(EE) Unknown RAW format.\n");
+        cLog::Error("Unknown RAW format.");
         return false;
     }
     desc.bppImage = bytespp * 8;
@@ -152,7 +152,7 @@ bool cFormatRaw::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
         if (!decoded)
         {
-            ::printf("(EE) Error decode RLE.\n");
+            cLog::Error("Can't decode RLE data.");
             return false;
         }
 

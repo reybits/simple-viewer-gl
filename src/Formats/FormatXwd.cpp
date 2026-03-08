@@ -11,8 +11,8 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
 
 struct sXwdCommon
@@ -109,7 +109,7 @@ bool cFormatXwd::LoadImpl(const char* filename, sBitmapDescription& desc)
     sXwdCommon common;
     if (sizeof(common) != file.read(&common, sizeof(common)))
     {
-        printf("(EE) Can't read XWD header.\n");
+        cLog::Error("Can't read XWD header.");
         return false;
     }
 
@@ -126,7 +126,7 @@ bool cFormatXwd::LoadImpl(const char* filename, sBitmapDescription& desc)
         X10WindowDump header;
         if (sizeof(header) != file.read(&header, sizeof(header)))
         {
-            printf("(EE) Can't read XWD header.\n");
+            cLog::Error("Can't read XWD header.");
             return false;
         }
         helpers::swap_uint32s((uint8_t*)&header, sizeof(header));
@@ -151,7 +151,7 @@ bool cFormatXwd::LoadImpl(const char* filename, sBitmapDescription& desc)
         X11WindowDump header;
         if (sizeof(header) != file.read(&header, sizeof(header)))
         {
-            printf("(EE) Can't read XWD header.\n");
+            cLog::Error("Can't read XWD header.");
             return false;
         }
         helpers::swap_uint32s((uint8_t*)&header, sizeof(header));
@@ -183,7 +183,7 @@ bool cFormatXwd::LoadImpl(const char* filename, sBitmapDescription& desc)
         return loadX11(header, file, desc);
     }
 
-    printf("(EE) Invalid XWD file version.\n");
+    cLog::Error("Invalid XWD file version.");
 
     return false;
 }
@@ -201,7 +201,7 @@ bool cFormatXwd::loadX11(const X11WindowDump& header, cFile& file, sBitmapDescri
     const unsigned color_map_size = sizeof(X11ColorMap) * header.ColorMapEntries;
     if (color_map_size != file.read(colors.data(), color_map_size))
     {
-        printf("(EE) Can't read colormap.\n");
+        cLog::Error("Can't read colormap.");
         return false;
     }
 
@@ -215,7 +215,7 @@ bool cFormatXwd::loadX11(const X11WindowDump& header, cFile& file, sBitmapDescri
 
     if (desc.bitmap.size() != file.read(desc.bitmap.data(), desc.bitmap.size()))
     {
-        printf("(EE) Can't read pixmap.\n");
+        cLog::Error("Can't read pixmap.");
         return false;
     }
 

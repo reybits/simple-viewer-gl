@@ -14,8 +14,8 @@
 #include "Libs/AGEheader.h"
 #include "Libs/GpuDecode.h"
 #include "Libs/Rle.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
 #include <lz4/lz4hc.h>
 
@@ -117,7 +117,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
     AGE::Header header;
     if (sizeof(header) != file.read(&header, sizeof(header)))
     {
-        ::printf("(EE) Not valid AGE image format.\n");
+        cLog::Error("Invalid AGE image format.");
         return false;
     }
 
@@ -134,7 +134,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
         format = AGE::remapV1Format(static_cast<unsigned>(header.format));
         if (format == AGE::Format::UNKNOWN)
         {
-            ::printf("(EE) Unknown AGE v1 format.\n");
+            cLog::Error("Unknown AGE v1 format.");
             return false;
         }
     }
@@ -180,7 +180,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
     default:
         if (!isCompressed)
         {
-            ::printf("(EE) Unknown AGE format.\n");
+            cLog::Error("Unknown AGE format.");
             return false;
         }
         // compressed formats will be decoded to RGBA
@@ -233,7 +233,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
 
             if (decoded == 0)
             {
-                ::printf("(EE) Error decompressing AGE data.\n");
+                cLog::Error("Can't decompress AGE data.");
                 return false;
             }
         }
@@ -252,7 +252,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         if (!decodeCompressedToRGBA(format, compressedBuf.data(), desc.bitmap.data(), desc.width, desc.height))
         {
-            ::printf("(EE) Failed to decode compressed AGE texture.\n");
+            cLog::Error("Failed to decode compressed AGE texture.");
             return false;
         }
 
@@ -281,10 +281,10 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
                 decoded = LZ4_decompress_safe(reinterpret_cast<const char*>(in.data()), reinterpret_cast<char*>(desc.bitmap.data()), in.size(), desc.bitmap.size());
                 if (decoded <= 0)
                 {
-                    ::printf("(EE) Error decode %s.\n",
-                             header.compression == AGE::Compression::LZ4
-                                 ? "LZ4"
-                                 : "LZ4HC");
+                    cLog::Error("Can't decode {}.",
+                               header.compression == AGE::Compression::LZ4
+                                   ? "LZ4"
+                                   : "LZ4HC");
                     return false;
                 }
             }
@@ -294,7 +294,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
                 decoded = decoder.decode(in.data(), in.size(), desc.bitmap.data(), desc.bitmap.size());
                 if (decoded == 0)
                 {
-                    ::printf("(EE) Error decode ZLIB.\n");
+                    cLog::Error("Can't decode ZLIB data.");
                     return false;
                 }
             }
@@ -312,7 +312,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
 
                 if (decoded == 0)
                 {
-                    ::printf("(EE) Error decode RLE.\n");
+                    cLog::Error("Can't decode RLE data.");
                     return false;
                 }
             }

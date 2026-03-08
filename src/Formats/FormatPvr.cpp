@@ -13,8 +13,8 @@
 #include "Common/Helpers.h"
 #include "Libs/Etc1.h"
 #include "Libs/PVRTDecompress.h"
+#include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
 #include <zlib.h>
 
@@ -259,7 +259,7 @@ namespace
             // ::printf("version: %u\n", (uint32_t)version);
             if (version > 2)
             {
-                ::printf("(EE) Unsupported CCZ header format\n");
+                cLog::Error("Unsupported CCZ header format.");
                 return false;
             }
 
@@ -268,7 +268,7 @@ namespace
             // ::printf("compressionType: %u\n", (uint32_t)compressionType);
             if (compressionType != CCZHeader::CompressionType::ZLIB)
             {
-                ::printf("(EE) CCZ Unsupported compression method\n");
+                cLog::Error("Unsupported CCZ compression method.");
                 return false;
             }
         }
@@ -282,7 +282,7 @@ namespace
             // ::printf("version: %u\n", (uint32_t)version);
             if (version > 0)
             {
-                ::printf("(EE) Unsupported CCZ header format\n");
+                cLog::Error("Unsupported CCZ header format.");
                 return false;
             }
 
@@ -291,7 +291,7 @@ namespace
             // ::printf("compressionType: %u\n", (uint32_t)compressionType);
             if (compressionType != CCZHeader::CompressionType::ZLIB)
             {
-                ::printf("(EE) CCZ Unsupported compression method\n");
+                cLog::Error("Unsupported CCZ compression method.");
                 return false;
             }
 
@@ -308,14 +308,14 @@ namespace
 
         if (calculated != required)
         {
-            ::printf("Can't decrypt image file. Is the decryption key valid?");
+            cLog::Error("Can't decrypt image file. Is the decryption key valid?");
             return -1;
         }
 #endif
         }
         else
         {
-            ::printf("(EE) Invalid CCZ file\n");
+            cLog::Error("Invalid CCZ file.");
             return false;
         }
 
@@ -462,7 +462,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (file.read(buffer.data(), (uint32_t)buffer.size()) != (uint32_t)buffer.size())
     {
-        ::printf("(EE) Can't read file!\n");
+        cLog::Error("Can't read file.");
         return false;
     }
 
@@ -475,7 +475,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
         auto result = inflateCCZBuffer(buffer.data(), buffer.size(), unpacked);
         if (result == false)
         {
-            ::printf("(EE) Failed to uncompress CCZ data!\n");
+            cLog::Error("Can't decompress CCZ data.");
             return false;
         }
 
@@ -487,7 +487,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
         auto result = inflateMemory(buffer.data(), buffer.size(), unpacked);
         if (result == false)
         {
-            ::printf("(EE) Failed to uncompress GZip data!\n");
+            cLog::Error("Can't decompress GZip data.");
             return false;
         }
 
@@ -511,7 +511,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
         auto flipped = (flags & (uint32_t)PVR2TextureFlag::VerticalFlip) ? true : false;
         if (flipped)
         {
-            ::printf("(WW) Image is flipped. Regenerate it using PVRTexTool\n");
+            cLog::Warning("Image is flipped. Regenerate it using PVRTexTool.");
         }
 
         // auto t = (char*)&header.pvrTag;
@@ -593,7 +593,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
         case PVR2TexturePixelFormat::I8:
         case PVR2TexturePixelFormat::AI88:
         default:
-            ::printf("(EE) pvr2 usupported pixelFormat %u\n", static_cast<uint32_t>(pixelFormat));
+            cLog::Error("Unsupported PVR2 pixel format: {}.", static_cast<uint32_t>(pixelFormat));
             return false;
         }
 
@@ -711,7 +711,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
                 break;
 
             default:
-                ::printf("(EE) pvr3 usupported pixelFormat %llu\n", static_cast<long long unsigned>(pixelFormat));
+                cLog::Error("Unsupported PVR3 pixel format: {}.", static_cast<long long unsigned>(pixelFormat));
                 return false;
             }
 
@@ -740,12 +740,12 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
             return result;
         }
 
-        ::printf("(EE) pvr3 version mismatch\n");
+        cLog::Error("PVR3 version mismatch.");
 
         return false;
     }
 
-    ::printf("(EE) unknown pvr!\n");
+    cLog::Error("Unknown PVR format.");
 
     return false;
 }

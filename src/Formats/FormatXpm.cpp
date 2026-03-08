@@ -10,6 +10,7 @@
 #include "FormatXpm.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
 #include <cstdio>
 #include <cstring>
@@ -892,7 +893,7 @@ namespace
                 return toRGBA(r, g, b);
             }
 
-            ::printf("(WW) Unknown color #: '%s'\n", color);
+            cLog::Warning("Unknown color #: '{}'.", color);
         }
         else if (::strncasecmp(color, "none", 4) != 0)
         {
@@ -910,7 +911,7 @@ namespace
                 return parseColor(fallBack + 3);
             }
 
-            ::printf("(WW) Unknown color name: '%s'\n", color);
+            cLog::Warning("Unknown color name: '{}'.", color);
         }
 
         return 0;
@@ -990,7 +991,7 @@ bool cFormatXpm::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (file.read(data, size) != size)
     {
-        ::printf("(EE) Can't read XPM data.\n");
+        cLog::Error("Can't read XPM data.");
         return false;
     }
 
@@ -998,7 +999,7 @@ bool cFormatXpm::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (isValidFormat(data, buffer.size()) == false)
     {
-        ::printf("(EE) Invalid XPM header.\n");
+        cLog::Error("Invalid XPM header.");
         return false;
     }
 
@@ -1014,7 +1015,7 @@ bool cFormatXpm::LoadImpl(const char* filename, sBitmapDescription& desc)
     unsigned cpp;
     if (::sscanf(line, "%u %u %u %u", &width, &height, &colorsCount, &cpp) != 4)
     {
-        ::printf("(EE) Invalid XPM header.\n");
+        cLog::Error("Invalid XPM header.");
         return false;
     }
 
@@ -1030,7 +1031,7 @@ bool cFormatXpm::LoadImpl(const char* filename, sBitmapDescription& desc)
         char type;
         if (::sscanf(line + cpp, "\t%c %99[^\"]", &type, color) != 2)
         {
-            ::printf("(EE) Can't read colors.\n");
+            cLog::Error("Can't read colors.");
             return false;
         }
 

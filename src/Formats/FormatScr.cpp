@@ -10,6 +10,7 @@
 #include "FormatScr.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
 #include <cstdio>
 #include <cstring>
@@ -585,14 +586,14 @@ bool cFormatScr::LoadImpl(const char* filename, sBitmapDescription& desc)
     std::vector<uint8_t> buffer(size);
     if (file.read(buffer.data(), size) != size)
     {
-        ::printf("(EE) Can't read ZX-Spectrum screen data.\n");
+        cLog::Error("Can't read ZX-Spectrum screen data.");
         return false;
     }
 
     const auto prop = getType(size, buffer.data());
     if (prop.type == ZXProperty::Type::Unknown)
     {
-        ::printf("(EE) Not a ZX-Spectrum screen.\n");
+        cLog::Error("Not a ZX-Spectrum screen.");
         return false;
     }
 

@@ -11,6 +11,7 @@
 #include "Common/BitmapDescription.h"
 #include "Common/Config.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
 #include <cfloat>
 #include <cmath>
@@ -53,28 +54,28 @@ bool cFormatSvg::LoadImpl(const char* filename, sBitmapDescription& desc)
 {
     if (m_rasterizer == nullptr)
     {
-        ::printf("(EE) SVG rasterizer isn't created.\n");
+        cLog::Error("Can't create SVG rasterizer.");
         return false;
     }
 
     cFile file;
     if (!openFile(file, filename, desc))
     {
-        ::printf("(EE) Couldn't open file.\n");
+        cLog::Error("Can't open SVG file.");
         return false;
     }
 
     std::vector<char> data(file.getSize());
     if (file.read(data.data(), file.getSize()) != file.getSize())
     {
-        ::printf("(EE) Couldn't read file.\n");
+        cLog::Error("Can't read SVG file.");
         return false;
     }
 
     auto image = nsvgParse(data.data(), "px", 96.0f);
     if (image == nullptr)
     {
-        ::printf("(EE) Couldn't parse SVG image.\n");
+        cLog::Error("Can't parse SVG image.");
         return false;
     }
 
@@ -88,8 +89,8 @@ bool cFormatSvg::LoadImpl(const char* filename, sBitmapDescription& desc)
         const auto sw = minSize / image->width;
         const auto sh = minSize / image->height;
         scale = std::min(sw, sh);
-        ::printf("SVG size to small, upscale to %.1f x %.1f\n", image->width * scale, image->width * scale);
-        ::printf("Calculated scale: %.1f x %.1f\n", sw, sh);
+        cLog::Info("SVG size too small, upscaling to {} x {}.", image->width * scale, image->width * scale);
+        cLog::Info("Calculated scale: {} x {}.", sw, sh);
     }
 
     // ::printf("Selected scale: %.1f\n", scale);

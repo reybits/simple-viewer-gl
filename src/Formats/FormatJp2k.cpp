@@ -14,6 +14,7 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Log/Log.h"
 
 #include <cstring>
 #include <openjpeg.h>
@@ -35,7 +36,7 @@ namespace
 
     void j2k_error_callback(const char* msg, void* /*client_data*/)
     {
-        ::printf("(EE) %s", msg);
+        cLog::Error("{}", msg);
     }
 
     // int int_ceildivpow2(int a, int b)
@@ -266,7 +267,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
     // setup the decoder decoding parameters using user parameters
     if (!opj_setup_decoder(d_codec, &parameters))
     {
-        ::printf("Failed to setup the decoder\n");
+        cLog::Error("Can't set up JPEG2000 decoder.");
         return false;
     }
 
@@ -279,7 +280,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
     // read the main header of the codestream and if necessary the JP2 boxes
     if (!opj_read_header(stream, d_codec, &image))
     {
-        ::printf("(EE) Failed to read the header.\n");
+        cLog::Error("Can't read JPEG2000 header.");
         return false;
     }
 
@@ -287,7 +288,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
     // show the image frame and progress bar immediately.
     if (!preAllocateBitmap(image, desc))
     {
-        ::printf("(EE) Unsupported JPEG2000 format.\n");
+        cLog::Error("Unsupported JPEG2000 format.");
         opj_destroy_codec(d_codec);
         opj_image_destroy(image);
         opj_stream_destroy(stream);
@@ -299,7 +300,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
     // because loading runs in a background thread.
     if (!(opj_decode(d_codec, stream, image) && opj_end_decompress(d_codec, stream)))
     {
-        ::printf("(EE) Failed to decode image.\n");
+        cLog::Error("Can't decode JPEG2000 image.");
         opj_destroy_codec(d_codec);
         opj_image_destroy(image);
         opj_stream_destroy(stream);
@@ -313,7 +314,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
     // convert decoded planar components to interleaved output bitmap
     if (convertPixels(image, desc) == false)
     {
-        ::printf("(EE) Failed to import JPEG2000 image.\n");
+        cLog::Error("Can't import JPEG2000 image.");
         opj_image_destroy(image);
         opj_stream_destroy(stream);
         return false;
@@ -369,13 +370,12 @@ bool cFormatJp2k::preAllocateBitmap(void* img, sBitmapDescription& desc)
     desc.bppImage = numcomps * image->comps[0].prec;
     desc.images = 1;
 
-    ::printf("\n");
-    ::printf("Components: %u\n", numcomps);
-    ::printf("  Colorspace: %s\n", getColorSpaceName(colorspace));
-    ::printf("  Prec: %u\n", image->comps[0].prec);
-    ::printf("  Signed: %u\n", image->comps[0].sgnd);
-    ::printf("  Factor: %u\n", image->comps[0].factor);
-    ::printf("  Decoded resolution: %u\n", image->comps[0].resno_decoded);
+    cLog::Debug("Components: {}.", numcomps);
+    cLog::Debug("  Colorspace: {}.", getColorSpaceName(colorspace));
+    cLog::Debug("  Prec: {}.", image->comps[0].prec);
+    cLog::Debug("  Signed: {}.", image->comps[0].sgnd);
+    cLog::Debug("  Factor: {}.", image->comps[0].factor);
+    cLog::Debug("  Decoded resolution: {}.", image->comps[0].resno_decoded);
 
     desc.formatName = "jpeg2000";
 

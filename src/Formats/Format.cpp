@@ -12,9 +12,9 @@
 #include "Common/BitmapDescription.h"
 #include "Common/Callbacks.h"
 #include "Common/File.h"
+#include "Log/Log.h"
 
 #include <cassert>
-#include <cstdio>
 
 cFormat::cFormat(sCallbacks* callbacks)
     : m_callbacks(callbacks)
@@ -59,17 +59,17 @@ bool cFormat::LoadSubImage(uint32_t subImage, sBitmapDescription& desc)
 
 void cFormat::dump(sBitmapDescription& desc) const
 {
-    // ::printf("(II) %s\n", getFormatName(format));
-    ::printf("(II) bits per pixel: %u\n", desc.bpp);
-    ::printf("(II) image bpp:      %u\n", desc.bppImage);
-    ::printf("(II) width:          %u\n", desc.width);
-    ::printf("(II) height:         %u\n", desc.height);
-    ::printf("(II) pitch:          %u\n", desc.pitch);
-    ::printf("(II) size:           %ld\n", desc.size);
-    ::printf("(II) frames count:   %u\n", desc.images);
-    ::printf("(II) current frame:  %u\n", desc.current);
-    ::printf("(II) animation:      %s\n", desc.isAnimation ? "true" : "false");
-    ::printf("(II) frame duration: %u\n", desc.delay);
+    // cLog::Debug("{}", getFormatName(format));
+    cLog::Debug("bits per pixel: {}", desc.bpp);
+    cLog::Debug("image bpp:      {}", desc.bppImage);
+    cLog::Debug("width:          {}", desc.width);
+    cLog::Debug("height:         {}", desc.height);
+    cLog::Debug("pitch:          {}", desc.pitch);
+    cLog::Debug("size:           {}", desc.size);
+    cLog::Debug("frames count:   {}", desc.images);
+    cLog::Debug("current frame:  {}", desc.current);
+    cLog::Debug("animation:      {}", desc.isAnimation ? "true" : "false");
+    cLog::Debug("frame duration: {}", desc.delay);
 }
 
 void cFormat::updateProgress(float percent)

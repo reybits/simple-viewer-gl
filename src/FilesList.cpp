@@ -116,10 +116,10 @@ void cFilesList::sortList()
     m_files.erase(last, m_files.end());
 
 #if 0
-    cLog::Debug("Sorted unique file {}:", m_files.size());
+    cLog::Debug("Sorted unique files: {}.", m_files.size());
     for (const auto& f : m_files)
     {
-        cLog::Debug("'{}'", f.path);
+        cLog::Debug("  '{}'.", f.path);
     }
 #endif
 }
