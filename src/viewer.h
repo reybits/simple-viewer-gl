@@ -109,6 +109,7 @@ private:
     Vectorf m_ratio;
     std::atomic<bool> m_bitmapAllocated{ false };
     std::atomic<bool> m_imagePrepared{ false };
+    std::atomic<float> m_loadProgress{ -1.0f };
     bool m_uploadFinal = false;
     cScale m_scale;
     bool m_cursorInside = false;

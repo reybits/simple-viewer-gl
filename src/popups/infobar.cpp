@@ -56,6 +56,13 @@ void cInfoBar::render()
             ? ColorCenter
             : ColorYellow;
         ImGui::TextColored(color, "%s", m_bottominfo.c_str());
+
+        if (m_progressText.empty() == false)
+        {
+            const float textWidth = ImGui::CalcTextSize(m_progressText.c_str()).x;
+            ImGui::SameLine(static_cast<float>(width) - textWidth - s.WindowPadding.x);
+            ImGui::TextColored(ColorYellow, "%s", m_progressText.c_str());
+        }
     }
     ImGui::End();
 
@@ -86,6 +93,21 @@ void cInfoBar::render()
     s.WindowRounding = oldRounding;
 }
 
+void cInfoBar::setProgressText(const std::string& text)
+{
+    m_progressText = text;
+}
+
+void cInfoBar::setProgressPercent(float progress)
+{
+    m_progressText = fmt::format("[{}%]", static_cast<int>(progress * 100.0f));
+}
+
+void cInfoBar::clearProgress()
+{
+    m_progressText.clear();
+}
+
 void cInfoBar::setInfo(const sInfo& p)
 {
     const auto fileName = getFilename(p.path);
@@ -108,9 +130,10 @@ void cInfoBar::setInfo(const sInfo& p)
     auto mem_size = static_cast<float>(p.mem_size);
     auto mem_s = getHumanSize(mem_size);
 
+    const char* type = p.type != nullptr ? p.type : "unknown";
     m_bottominfo = fmt::format("{}{}{} | {} | {} x {} x {} bpp | {:.1f}% | {:.1f} {} ({:.1f} {})",
                                idxImg, shortName, subImage,
-                               p.type, p.width, p.height, p.bpp, p.scale * 100.0f,
+                               type, p.width, p.height, p.bpp, p.scale * 100.0f,
                                file_size, file_s, mem_size, mem_s);
 }
 
