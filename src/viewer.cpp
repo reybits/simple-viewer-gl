@@ -11,6 +11,7 @@
 #include "checkerboard.h"
 #include "common/config.h"
 #include "common/helpers.h"
+#include "common/timing.h"
 #include "deletionmark.h"
 #include "fileslist.h"
 #include "imageborder.h"
@@ -31,6 +32,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 
 namespace
 {
@@ -44,28 +46,26 @@ namespace
 
 } // namespace
 
-cViewer::cViewer(sConfig& config)
+cViewer::cViewer(sConfig& config, cWindow& window)
     : m_config(config)
-    , m_isWindowed(true)
-    , m_mouseLB(false)
-    , m_mouseMB(false)
-    , m_mouseRB(false)
-    , m_angle(0)
+    , m_window(window)
 {
-    m_image.reset(new cQuadImage());
-    m_loader.reset(new cImageLoader(&config, this));
-    m_checkerBoard.reset(new cCheckerboard(config));
-    m_deletionMark.reset(new cDeletionMark());
-    m_infoBar.reset(new cInfoBar(config));
-    m_pixelPopup.reset(new cPixelPopup());
-    m_exifPopup.reset(new cExifPopup());
-    m_helpPopup.reset(new cHelpPopup());
-    m_progress.reset(new cProgress());
-    m_border.reset(new cImageBorder());
-    m_grid.reset(new cImageGrid());
-    m_selection.reset(new cSelection());
-    m_filesList.reset(new cFilesList(config.skipFilter, config.recursiveScan));
-    m_fileSelector.reset(new cFileBrowser());
+    m_image = std::make_unique<cQuadImage>();
+    m_loader = std::make_unique<cImageLoader>(&config, this);
+    m_checkerBoard = std::make_unique<cCheckerboard>(config);
+    m_deletionMark = std::make_unique<cDeletionMark>();
+    m_infoBar = std::make_unique<cInfoBar>(config);
+    m_pixelPopup = std::make_unique<cPixelPopup>();
+    m_exifPopup = std::make_unique<cExifPopup>();
+    m_helpPopup = std::make_unique<cHelpPopup>();
+    m_progress = std::make_unique<cProgress>();
+    m_border = std::make_unique<cImageBorder>();
+    m_grid = std::make_unique<cImageGrid>();
+    m_selection = std::make_unique<cSelection>();
+    m_filesList = std::make_unique<cFilesList>(config.skipFilter, config.recursiveScan);
+    m_fileSelector = std::make_unique<cFileBrowser>();
+
+    onContextRecreated();
 }
 
 cViewer::~cViewer()
@@ -76,26 +76,19 @@ cViewer::~cViewer()
     render::shutdown();
 }
 
-void cViewer::setWindow(GLFWwindow* window)
+void cViewer::onContextRecreated()
 {
-    m_windowModeChangeRequested = false;
-
-    render::init(window);
-    m_imgui.init(window);
+    render::init();
+    m_imgui.init(m_window);
 
     m_checkerBoard->init();
     m_deletionMark->init();
-    // m_infoBar->init();
     m_pixelPopup->init();
-    // m_exifPopup->init();
-    // m_helpPopup->init();
     m_progress->init();
     m_selection->init();
 
-    Vectori fbSize;
-    glfwGetFramebufferSize(window, &fbSize.x, &fbSize.y);
-    Vectori winSize;
-    glfwGetWindowSize(window, &winSize.x, &winSize.y);
+    auto fbSize = m_window.getFramebufferSize();
+    auto winSize = m_window.getWindowSize();
     onResize(winSize, fbSize);
 }
 
@@ -106,7 +99,6 @@ void cViewer::addPaths(const StringsList& paths)
         for (auto& path : paths)
         {
             m_filesList->addFile(path.c_str());
-            // cLog::Debug("path added: {}.", paths[i]);
         }
 
         m_filesList->sortList();
@@ -182,7 +174,7 @@ void cViewer::onRender()
     m_imgui.endFrame();
     render::endFrame();
 
-    glfwSwapBuffers(render::getWindow());
+    m_window.swapBuffers();
 }
 
 void cViewer::onUpdate()
@@ -258,10 +250,10 @@ void cViewer::onUpdate()
     else if (m_animation && m_subImageForced == false)
     {
         const auto& desc = m_loader->getDescription();
-        if (m_animationTime + desc.delay * 0.001f <= glfwGetTime())
+        if (m_animationTime + desc.delay * 0.001f <= timing::seconds())
         {
             m_animation = false;
-            m_animationTime = glfwGetTime();
+            m_animationTime = timing::seconds();
             loadSubImage(1);
         }
     }
@@ -274,35 +266,17 @@ bool cViewer::isUploading() const
 
 void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
 {
-    // cLog::Degug("win size {} x {}.", winSize.x, winSize.y);
-    // cLog::Degug("fb size {} x {}.\n", fbSize.x, fbSize.y);
-
-    m_ratio = { (float)fbSize.x / winSize.x, (float)fbSize.y / winSize.y };
-    // cLog::Debug("fb size {} x {}.\n", m_ratio.x, m_ratio.y);
-
-    auto window = render::getWindow();
+    m_ratio = { static_cast<float>(fbSize.x) / winSize.x, static_cast<float>(fbSize.y) / winSize.y };
 
     auto width = std::max(DefaultWindowSize.x, winSize.x);
     auto height = std::max(DefaultWindowSize.y, winSize.y);
 
-    if (m_isWindowed)
+    if (m_window.isWindowed())
     {
         m_config.windowSize = { width, height };
-
-        if (helpers::getPlatform() != helpers::Platform::Wayland)
-        {
-            glfwGetWindowPos(window, &m_config.windowPos.x, &m_config.windowPos.y);
-        }
     }
 
     render::setViewportSize(fbSize);
-
-    // const float scale = m_ratio.x * m_config.fontRatio;
-    // m_imgui.setScale(scale);
-    // m_pixelPopup->setScale(scale);
-    // m_exifPopup->setScale(scale);
-    // m_helpPopup->setScale(scale);
-    // m_infoBar->setScale(scale);
 
     m_fileSelector->setWindowSize(width, height);
 
@@ -312,27 +286,24 @@ void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
 
 void cViewer::onWindowResize(const Vectori& winSize)
 {
-    auto window = render::getWindow();
-
-    Vectori fbSize;
-    glfwGetFramebufferSize(window, &fbSize.x, &fbSize.y);
-
+    auto fbSize = m_window.getFramebufferSize();
     onResize(winSize, fbSize);
 }
 
 void cViewer::onFramebufferResize(const Vectori& fbSize)
 {
-    auto window = render::getWindow();
-
-    Vectori winSize;
-    glfwGetWindowSize(window, &winSize.x, &winSize.y);
-
+    auto winSize = m_window.getWindowSize();
     onResize(winSize, fbSize);
 }
 
-void cViewer::onPosition(const Vectori& pos)
+void cViewer::onWindowPosition(const Vectori& pos)
 {
     m_config.windowPos = pos;
+}
+
+void cViewer::onWindowRefresh()
+{
+    onRender();
 }
 
 Vectorf cViewer::calculateMousePosition(const Vectorf& pos) const
@@ -340,7 +311,7 @@ Vectorf cViewer::calculateMousePosition(const Vectorf& pos) const
     return pos * m_ratio / m_scale.getScale();
 }
 
-void cViewer::onMouse(const Vectorf& pos)
+void cViewer::onMouseMove(const Vectorf& pos)
 {
     m_imgui.onMousePosition(pos);
 
@@ -376,11 +347,6 @@ void cViewer::onMouse(const Vectorf& pos)
     }
 }
 
-void cViewer::onCursorEnter(bool entered)
-{
-    m_cursorInside = entered;
-}
-
 void cViewer::onMouseScroll(const Vectorf& offset)
 {
     m_imgui.onScroll(offset);
@@ -403,7 +369,7 @@ void cViewer::onMouseScroll(const Vectorf& offset)
     }
 }
 
-void cViewer::onMouseButtons(int button, int action, int /*mods*/)
+void cViewer::onMouseButton(int button, int action, int /*mods*/)
 {
     m_imgui.onMouseButton(button, action);
 
@@ -441,7 +407,7 @@ void cViewer::onMouseButtons(int button, int action, int /*mods*/)
     }
 }
 
-void cViewer::onKey(int key, int scancode, int action, int mods)
+void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
 {
     m_imgui.onKey(key, scancode, action);
 
@@ -468,7 +434,7 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
     case GLFW_KEY_Q:
         if (m_fileSelector->isVisible() == false)
         {
-            glfwSetWindowShouldClose(render::getWindow(), 1);
+            m_window.requestClose();
         }
         else
         {
@@ -486,7 +452,6 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
                 [this](cFileBrowser::Result result) {
                     auto path = result.directory + "/" + result.fileName;
 
-                    // cLog::Debug("Selected file: {}.", path);
                     m_filesList->addFile(path.c_str());
                     loadImage(path.c_str());
                 },
@@ -498,7 +463,6 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
 
     case GLFW_KEY_I:
         m_config.hideInfobar = !m_config.hideInfobar;
-        // calculateScale();
         centerWindow();
         break;
 
@@ -585,7 +549,6 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
             m_config.centerWindow = !m_config.centerWindow;
             if (m_config.centerWindow)
             {
-                // m_scale.setScalePercent(100);
                 centerWindow();
             }
         }
@@ -597,8 +560,11 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
 
     case GLFW_KEY_ENTER:
     case GLFW_KEY_KP_ENTER:
-        m_windowModeChangeRequested = true;
+    {
+        m_window.toggleFullscreen(m_config);
+        onContextRecreated();
         break;
+    }
 
     case GLFW_KEY_H:
     case GLFW_KEY_LEFT:
@@ -664,9 +630,14 @@ void cViewer::onKey(int key, int scancode, int action, int mods)
     }
 }
 
-void cViewer::onChar(uint32_t c)
+void cViewer::onCharEvent(uint32_t c)
 {
     m_imgui.onChar(c);
+}
+
+void cViewer::onFileDrop(const StringsList& paths)
+{
+    addPaths(paths);
 }
 
 float cViewer::getStepVert(bool byPixel) const
@@ -768,7 +739,6 @@ void cViewer::calculateScale()
             }
             if (new_w != 0.0f && new_h != 0.0f)
             {
-                // m_scale = static_cast<float>((angle == 0 || angle == 180) ? new_w : new_h) / w;
                 m_scale.setScale(new_w / w);
             }
         }
@@ -824,19 +794,16 @@ void cViewer::updateFiltering()
 
 void cViewer::centerWindow()
 {
-    if (m_isWindowed)
+    if (m_window.isWindowed())
     {
         if (helpers::getPlatform() != helpers::Platform::Wayland)
         {
-            auto window = render::getWindow();
-
             auto width = m_config.windowSize.w;
             auto height = m_config.windowSize.h;
 
             if (m_config.centerWindow)
             {
-                auto monitor = glfwGetPrimaryMonitor();
-                auto mode = glfwGetVideoMode(monitor);
+                auto screen = m_window.getScreenSize();
 
                 // calculate image size with border
                 auto tickness = m_config.showImageBorder
@@ -850,19 +817,19 @@ void cViewer::centerWindow()
                 height = std::max<int>(imgh / m_ratio.y, DefaultWindowSize.h);
 
                 // clamp to screen size and store window size
-                width = std::min<int>(width, mode->width);
-                height = std::min<int>(height, mode->height);
+                width = std::min<int>(width, screen.x);
+                height = std::min<int>(height, screen.y);
 
                 // calculate and store window position
-                auto x = (mode->width - width) / 2;
-                auto y = (mode->height - height) / 2;
+                auto x = (screen.x - width) / 2;
+                auto y = (screen.y - height) / 2;
                 m_config.windowPos = { x, y };
-                glfwSetWindowPos(window, x, y);
+                m_window.setPosition({ x, y });
 
                 m_config.windowSize = { width, height };
             }
 
-            glfwSetWindowSize(window, width, height);
+            m_window.setSize({ width, height });
         }
 
         calculateScale();
@@ -942,6 +909,18 @@ void cViewer::updateInfobar()
         s.type = "unknown";
     }
     m_infoBar->setInfo(s);
+
+    // Set window title to current filename
+    if (s.path != nullptr)
+    {
+        const char* name = s.path;
+        const char* p = std::strrchr(s.path, '/');
+        if (p != nullptr)
+        {
+            name = p + 1;
+        }
+        m_window.setTitle(name);
+    }
 }
 
 Vectorf cViewer::screenToImage(const Vectorf& pos) const
@@ -987,16 +966,12 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
 
 void cViewer::showCursor(bool show)
 {
-    auto window = render::getWindow();
-
-    double x, y;
-    glfwGetCursorPos(window, &x, &y);
+    auto cursorPos = m_window.getCursorPos();
 
     auto& size = m_config.windowSize;
-    // cLog::Debug("cursor {} x {} , window: {} x {}.", pos.x, pos.y, size.w, size.h);
-    m_cursorInside = !(x < 0.0 || x >= size.w || y < 0.0 || y >= size.h);
+    m_cursorInside = !(cursorPos.x < 0.0f || cursorPos.x >= size.w || cursorPos.y < 0.0f || cursorPos.y >= size.h);
 
-    glfwSetInputMode(window, GLFW_CURSOR, show ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
+    m_window.setCursorVisible(show);
 }
 
 void cViewer::startLoading()
@@ -1028,11 +1003,8 @@ void cViewer::endLoading()
 
 void cViewer::updateMousePosition()
 {
-    GLFWwindow* window = render::getWindow();
-
-    double x, y;
-    glfwGetCursorPos(window, &x, &y);
-    m_lastMouse = calculateMousePosition({ (float)x, (float)y });
+    auto cursorPos = m_window.getCursorPos();
+    m_lastMouse = calculateMousePosition(cursorPos);
 }
 
 void cViewer::enablePixelInfo(bool show)

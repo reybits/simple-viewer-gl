@@ -16,8 +16,6 @@
 
 #include <glad/glad.h>
 
-struct GLFWwindow;
-
 // Legacy format constants removed in GL 3.3 Core.
 // Used internally by the renderer for GL format mapping.
 #ifndef GL_LUMINANCE
@@ -48,10 +46,8 @@ struct Quad
 
 namespace render
 {
-    void init(GLFWwindow* window);
+    void init();
     void shutdown();
-
-    GLFWwindow* getWindow();
 
     void pushState();
     void popState();

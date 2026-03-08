@@ -12,7 +12,7 @@
 #include "quad.h"
 #include "types/types.h"
 
-#include <GLFW/glfw3.h>
+#include "common/timing.h"
 
 #include <algorithm>
 #include <cmath>
@@ -46,8 +46,8 @@ void cProgress::render()
             m_dot[m_index].alpha = 255.0f;
         }
 
-        int w, h;
-        glfwGetFramebufferSize(render::getWindow(), &w, &h);
+        const auto& vp = render::getViewportSize();
+        int w = vp.x, h = vp.y;
 
         const Vectorf pos{ w - distance * 2.0f, h - distance * 2.0f };
 

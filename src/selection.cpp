@@ -11,7 +11,7 @@
 #include "log/Log.h"
 #include "quad.h"
 
-#include <GLFW/glfw3.h>
+#include "common/timing.h"
 #include "types/math.h"
 #include "types/vector.h"
 
@@ -346,14 +346,14 @@ void cSelection::updateCorner(const Vectorf& pos, float scale)
 
 void cSelection::renderHorizontal(const Vectorf& pos, float w, float thickness)
 {
-    const float offset = glfwGetTime() * 30.0f;
+    const float offset = timing::seconds() * 30.0f;
     m_hori->setTextureRect({ offset, 0.0f }, { w * render::getZoom(), thickness });
     m_hori->renderEx(pos, { w, thickness });
 }
 
 void cSelection::renderVertical(const Vectorf& pos, float h, float thickness)
 {
-    const float offset = glfwGetTime() * 30.0f;
+    const float offset = timing::seconds() * 30.0f;
     m_vert->setTextureRect({ 0.0f, offset }, { thickness, h * render::getZoom() });
     m_vert->renderEx(pos, { thickness, h });
 }

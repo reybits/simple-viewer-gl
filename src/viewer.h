@@ -14,6 +14,7 @@
 #include "gui.h"
 #include "types/types.h"
 #include "types/vector.h"
+#include "window.h"
 
 #include <atomic>
 #include <memory>
@@ -32,55 +33,43 @@ class cPixelPopup;
 class cProgress;
 class cQuadImage;
 class cSelection;
-struct GLFWwindow;
 struct sConfig;
 
-class cViewer final : public iCallbacks
+class cViewer final : public iWindowEvents, public iCallbacks
 {
 public:
-    explicit cViewer(sConfig& config);
+    cViewer(sConfig& config, cWindow& window);
     ~cViewer();
-
-    void setWindow(GLFWwindow* window);
 
     void addPaths(const StringsList& paths);
 
     bool isUploading() const;
 
-    bool isWindowModeRequested() const
-    {
-        return m_windowModeChangeRequested;
-    }
-
-    bool isWindowed() const
-    {
-        return m_isWindowed;
-    }
-    void setWindowed(bool windowed)
-    {
-        m_isWindowed = windowed;
-    }
-
-public:
-    virtual void startLoading() override;
-    virtual void onBitmapAllocated(const sBitmapDescription& desc) override;
-    virtual void doProgress(float progress) override;
-    virtual void endLoading() override;
-
     void onRender();
     void onUpdate();
-    void onWindowResize(const Vectori& winSize);
-    void onFramebufferResize(const Vectori& fbSize);
-    void onPosition(const Vectori& pos);
-    void onMouse(const Vectorf& pos);
-    void onCursorEnter(bool entered);
-    void onMouseScroll(const Vectorf& offset);
-    void onMouseButtons(int button, int action, int mods);
-    void onKey(int key, int scancode, int action, int mods);
-    void onChar(uint32_t c);
+
+    // iWindowEvents
+    void onWindowResize(const Vectori& winSize) override;
+    void onFramebufferResize(const Vectori& fbSize) override;
+    void onWindowPosition(const Vectori& pos) override;
+    void onWindowRefresh() override;
+    void onKeyEvent(int key, int scancode, int action, int mods) override;
+    void onCharEvent(uint32_t codepoint) override;
+    void onMouseButton(int button, int action, int mods) override;
+    void onMouseMove(const Vectorf& pos) override;
+    void onMouseScroll(const Vectorf& offset) override;
+    void onFileDrop(const StringsList& paths) override;
+
+    // iCallbacks
+    void startLoading() override;
+    void onBitmapAllocated(const sBitmapDescription& desc) override;
+    void doProgress(float progress) override;
+    void endLoading() override;
+
+    // Called by cWindow after fullscreen toggle to reinit GL resources
+    void onContextRecreated();
 
     void centerWindow();
-    void showCursor(bool show);
 
 private:
     void onResize(const Vectori& winSize, const Vectori& fbSize);
@@ -110,23 +99,25 @@ private:
     Vectorf screenToImage(const Vectorf& pos) const;
     Vectorf calculateMousePosition(const Vectorf& pos) const;
     void updateMousePosition();
+    void showCursor(bool show);
     void enablePixelInfo(bool show);
 
 private:
     sConfig& m_config;
+    cWindow& m_window;
 
     Vectorf m_ratio;
     std::atomic<bool> m_bitmapAllocated{ false };
     std::atomic<bool> m_imagePrepared{ false };
     bool m_uploadFinal = false;
     cScale m_scale;
-    bool m_isWindowed;
     bool m_cursorInside = false;
-    bool m_windowModeChangeRequested = false;
-    bool m_mouseLB, m_mouseMB, m_mouseRB;
+    bool m_mouseLB = false;
+    bool m_mouseMB = false;
+    bool m_mouseRB = false;
     Vectorf m_lastMouse;
     Vectorf m_camera;
-    int m_angle;
+    int m_angle = 0;
 
     bool m_subImageForced = false;
     bool m_animation = false;
