@@ -53,9 +53,8 @@ void cQuadImage::clear()
 
     m_buffer.resize(0);
 
-    m_pixelCache.col = UINT32_MAX;
-    m_pixelCache.row = UINT32_MAX;
-    m_pixelCache.data.clear();
+    m_pixelCache.x = UINT32_MAX;
+    m_pixelCache.y = UINT32_MAX;
 }
 
 void cQuadImage::clearOld()
@@ -92,9 +91,8 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint
 
     m_buffer.resize(m_texPitch * m_texHeight);
 
-    m_pixelCache.col = UINT32_MAX;
-    m_pixelCache.row = UINT32_MAX;
-    m_pixelCache.data.clear();
+    m_pixelCache.x = UINT32_MAX;
+    m_pixelCache.y = UINT32_MAX;
 
     m_started = true;
 }
@@ -103,9 +101,8 @@ void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t f
 {
     moveToOld();
 
-    m_pixelCache.col = UINT32_MAX;
-    m_pixelCache.row = UINT32_MAX;
-    m_pixelCache.data.clear();
+    m_pixelCache.x = UINT32_MAX;
+    m_pixelCache.y = UINT32_MAX;
 
     m_compressed = true;
     m_compressedSize = compressedSize;
@@ -337,6 +334,16 @@ bool cQuadImage::getPixel(uint32_t x, uint32_t y, cColor& color) const
         return false;
     }
 
+    // Return cached pixel if coordinates match
+    if (m_pixelCache.x == x && m_pixelCache.y == y)
+    {
+        color.r = m_pixelCache.rgba[0];
+        color.g = m_pixelCache.rgba[1];
+        color.b = m_pixelCache.rgba[2];
+        color.a = m_pixelCache.rgba[3];
+        return true;
+    }
+
     const uint32_t col = x / m_texWidth;
     const uint32_t row = y / m_texHeight;
 
@@ -356,62 +363,53 @@ bool cQuadImage::getPixel(uint32_t x, uint32_t y, cColor& color) const
         return false;
     }
 
-    const uint32_t texW = quad->getTexWidth();
-    const uint32_t texH = quad->getTexHeight();
-
-    // Cache: read texture data only when chunk changes
-    if (m_pixelCache.col != col || m_pixelCache.row != row)
-    {
-        m_pixelCache.col = col;
-        m_pixelCache.row = row;
-        m_pixelCache.texW = texW;
-        m_pixelCache.texH = texH;
-        m_pixelCache.data.resize(texW * texH * 4);
-        render::getTexImage(quad->getQuad().tex, texW, texH, m_pixelCache.data.data());
-    }
-
+    // Read a single pixel from the texture via FBO
     const uint32_t lx = x - col * m_texWidth;
     const uint32_t ly = y - row * m_texHeight;
-    const uint32_t idx = (ly * m_pixelCache.texW + lx) * 4;
+    uint8_t rgba[4] = {};
+    render::readTexPixel(quad->getQuad().tex, lx, ly, rgba);
 
-    const uint8_t r = m_pixelCache.data[idx + 0];
-    const uint8_t g = m_pixelCache.data[idx + 1];
-    const uint8_t b = m_pixelCache.data[idx + 2];
-    const uint8_t a = m_pixelCache.data[idx + 3];
-
-    // glGetTexImage returns raw stored channels without applying texture swizzle
-    // masks. Apply the same swizzle logic as render::setData() to get correct RGBA.
+    // FBO readback returns raw stored channels without applying texture swizzle.
+    // Apply the same swizzle logic as render::setData() to get correct RGBA.
     if (m_format == GL_LUMINANCE)
     {
-        // GL_R8 with swizzle {R,R,R,1} — readback gives (R, 0, 0, 255)
-        color.r = r;
-        color.g = r;
-        color.b = r;
+        // GL_R8 with swizzle {R,R,R,1}
+        color.r = rgba[0];
+        color.g = rgba[0];
+        color.b = rgba[0];
         color.a = 255;
     }
     else if (m_format == GL_LUMINANCE_ALPHA)
     {
-        // GL_RG8 with swizzle {R,R,R,G} — readback gives (R, G, 0, 255)
-        color.r = r;
-        color.g = r;
-        color.b = r;
-        color.a = g;
+        // GL_RG8 with swizzle {R,R,R,G}
+        color.r = rgba[0];
+        color.g = rgba[0];
+        color.b = rgba[0];
+        color.a = rgba[1];
     }
     else if (m_format == GL_ALPHA)
     {
-        // GL_R8 with swizzle {0,0,0,R} — readback gives (R, 0, 0, 255)
+        // GL_R8 with swizzle {0,0,0,R}
         color.r = 0;
         color.g = 0;
         color.b = 0;
-        color.a = r;
+        color.a = rgba[0];
     }
     else
     {
-        color.r = r;
-        color.g = g;
-        color.b = b;
-        color.a = a;
+        color.r = rgba[0];
+        color.g = rgba[1];
+        color.b = rgba[2];
+        color.a = rgba[3];
     }
+
+    // Cache this pixel
+    m_pixelCache.x = x;
+    m_pixelCache.y = y;
+    m_pixelCache.rgba[0] = color.r;
+    m_pixelCache.rgba[1] = color.g;
+    m_pixelCache.rgba[2] = color.b;
+    m_pixelCache.rgba[3] = color.a;
 
     return true;
 }
