@@ -11,209 +11,377 @@
 \**********************************************/
 
 #include "renderer.h"
-#include "common/helpers.h"
+#include "types/matrix.h"
 #include "types/vector.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <vector>
 
 namespace
 {
     GLFWwindow* Window = nullptr;
     Rectf ViewRect;
     float ViewZoom = 1.0f;
-    int ViewAngle = 0.0f;
+    int ViewAngle = 0;
     Vectori ViewportSize;
-    uint32_t CurrentTextureId = 0;
-    sVertex Vb[4];
-    uint16_t Ib[6] = { 0, 1, 2, 0, 2, 3 };
-    bool Npot = false;
+    GLuint CurrentTextureId = 0;
     uint32_t TextureSizeLimit = 1024;
-    bool IsMipmapEnabled = false;
+
+    // Shader programs
+    GLuint TexturedProgram = 0;
+    GLuint ColoredProgram = 0;
+
+    // Uniform locations
+    GLint TexturedProjLoc = -1;
+    GLint TexturedTexLoc = -1;
+    GLint ColoredProjLoc = -1;
+
+    // VAO/VBO/IBO
+    GLuint Vao = 0;
+    GLuint Vbo = 0;
+    GLuint Ibo = 0;
+
+    // Current projection matrix
+    Matrix4 Projection = Matrix4::Identity();
 
     struct GLState
     {
-        GLint texture = 0;
-        GLint polygon_mode[2] = { 0 };
+        GLuint texture = 0;
         GLint viewport[4] = { 0 };
-        GLint scissor_box[4] = { 0 };
-        GLint shade_model = 0;
-        GLint tex_env_mode = 0;
+        GLint scissorBox[4] = { 0 };
+        GLboolean blendEnabled = GL_FALSE;
+        GLboolean scissorEnabled = GL_FALSE;
+        GLint arrayBuffer = 0;
+        GLint vertexArray = 0;
+        GLint program = 0;
+        Matrix4 projection;
     };
 
     std::vector<GLState> GLStates;
 
+    constexpr const char* VertexShaderSource = R"glsl(
+#version 330 core
+layout(location = 0) in vec2 aPos;
+layout(location = 1) in vec2 aTexCoord;
+layout(location = 2) in vec4 aColor;
+uniform mat4 uProjection;
+out vec2 vTexCoord;
+out vec4 vColor;
+void main()
+{
+    gl_Position = uProjection * vec4(aPos, 0.0, 1.0);
+    vTexCoord = aTexCoord;
+    vColor = aColor;
+}
+)glsl";
+
+    constexpr const char* TexturedFragSource = R"glsl(
+#version 330 core
+in vec2 vTexCoord;
+in vec4 vColor;
+uniform sampler2D uTexture;
+out vec4 FragColor;
+void main()
+{
+    FragColor = texture(uTexture, vTexCoord) * vColor;
+}
+)glsl";
+
+    constexpr const char* ColoredFragSource = R"glsl(
+#version 330 core
+in vec2 vTexCoord;
+in vec4 vColor;
+out vec4 FragColor;
+void main()
+{
+    FragColor = vColor;
+}
+)glsl";
+
+    GLuint compileShader(GLenum type, const char* source)
+    {
+        GLuint shader = glCreateShader(type);
+        glShaderSource(shader, 1, &source, nullptr);
+        glCompileShader(shader);
+
+        GLint success = 0;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if (!success)
+        {
+            char log[512];
+            glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
+            std::printf("(EE) Shader compilation error: %s\n", log);
+        }
+        return shader;
+    }
+
+    GLuint createProgram(const char* vertSrc, const char* fragSrc)
+    {
+        GLuint vert = compileShader(GL_VERTEX_SHADER, vertSrc);
+        GLuint frag = compileShader(GL_FRAGMENT_SHADER, fragSrc);
+
+        GLuint program = glCreateProgram();
+        glAttachShader(program, vert);
+        glAttachShader(program, frag);
+        glLinkProgram(program);
+
+        GLint success = 0;
+        glGetProgramiv(program, GL_LINK_STATUS, &success);
+        if (!success)
+        {
+            char log[512];
+            glGetProgramInfoLog(program, sizeof(log), nullptr, log);
+            std::printf("(EE) Program link error: %s\n", log);
+        }
+
+        glDeleteShader(vert);
+        glDeleteShader(frag);
+        return program;
+    }
+
 } // namespace
 
-void cRenderer::init(GLFWwindow* window, uint32_t maxTextureSize)
+void render::init(GLFWwindow* window, uint32_t maxTextureSize)
 {
     Window = window;
     CurrentTextureId = 0;
 
-    int maxSize = maxTextureSize;
+    int maxSize = static_cast<int>(maxTextureSize);
     GL(glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize));
-    // ::printf("(II) Max texture size: %d.\n", maxSize);
+    TextureSizeLimit = std::min<uint32_t>(static_cast<uint32_t>(maxSize), maxTextureSize);
 
-    TextureSizeLimit = std::min<uint32_t>(maxSize, maxTextureSize);
-    // ::printf("(II) Limit texture size: %u.\n", TextureSizeLimit);
+    // Create shader programs
+    TexturedProgram = createProgram(VertexShaderSource, TexturedFragSource);
+    TexturedProjLoc = glGetUniformLocation(TexturedProgram, "uProjection");
+    TexturedTexLoc = glGetUniformLocation(TexturedProgram, "uTexture");
 
-    Npot = glfwExtensionSupported("GL_ARB_texture_non_power_of_two");
-    // ::printf("(II) Non Power of Two extension %s\n", Npot ? "available." : "not available.");
+    ColoredProgram = createProgram(VertexShaderSource, ColoredFragSource);
+    ColoredProjLoc = glGetUniformLocation(ColoredProgram, "uProjection");
+
+    // Create VAO
+    GL(glGenVertexArrays(1, &Vao));
+    GL(glBindVertexArray(Vao));
+
+    // Create VBO (streaming)
+    GL(glGenBuffers(1, &Vbo));
+    GL(glBindBuffer(GL_ARRAY_BUFFER, Vbo));
+    GL(glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 4, nullptr, GL_DYNAMIC_DRAW));
+
+    // Create IBO with quad indices
+    const uint16_t indices[6] = { 0, 1, 2, 0, 2, 3 };
+    GL(glGenBuffers(1, &Ibo));
+    GL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Ibo));
+    GL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW));
+
+    // Setup vertex attributes: pos(2f), texcoord(2f), color(4ub)
+    // Vertex layout: x,y (8 bytes), tx,ty (8 bytes), color rgba (4 bytes) = 20 bytes
+    GL(glEnableVertexAttribArray(0));
+    GL(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, x))));
+    GL(glEnableVertexAttribArray(1));
+    GL(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, tx))));
+    GL(glEnableVertexAttribArray(2));
+    GL(glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, color))));
+
+    GL(glBindVertexArray(0));
 }
 
-void cRenderer::shutdown()
+void render::shutdown()
 {
+    if (Vao)
+    {
+        glDeleteVertexArrays(1, &Vao);
+        Vao = 0;
+    }
+    if (Vbo)
+    {
+        glDeleteBuffers(1, &Vbo);
+        Vbo = 0;
+    }
+    if (Ibo)
+    {
+        glDeleteBuffers(1, &Ibo);
+        Ibo = 0;
+    }
+    if (TexturedProgram)
+    {
+        glDeleteProgram(TexturedProgram);
+        TexturedProgram = 0;
+    }
+    if (ColoredProgram)
+    {
+        glDeleteProgram(ColoredProgram);
+        ColoredProgram = 0;
+    }
+
     Window = nullptr;
     ViewZoom = 1.0f;
-    ViewAngle = 0.0f;
+    ViewAngle = 0;
     CurrentTextureId = 0;
-    Npot = false;
     TextureSizeLimit = 1024;
-    IsMipmapEnabled = false;
 
     assert(GLStates.empty() == true);
 }
 
-void cRenderer::beginFrame()
+void render::beginFrame()
 {
     GL(glEnable(GL_BLEND));
-    GL(glEnable(GL_TEXTURE_2D));
     GL(glDisable(GL_DEPTH_TEST));
     GL(glDisable(GL_CULL_FACE));
-
     GL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
     GL(glClearColor(0, 0, 0, 0));
     GL(glClear(GL_COLOR_BUFFER_BIT));
 
-    GL(glEnableClientState(GL_VERTEX_ARRAY));
-    GL(glEnableClientState(GL_COLOR_ARRAY));
-    GL(glEnableClientState(GL_TEXTURE_COORD_ARRAY));
-
-    GL(glVertexPointer(2, GL_FLOAT, sizeof(sVertex), &Vb->x));
-    GL(glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(sVertex), &Vb->color));
-    GL(glTexCoordPointer(2, GL_FLOAT, sizeof(sVertex), &Vb->tx));
+    GL(glActiveTexture(GL_TEXTURE0));
+    GL(glBindVertexArray(Vao));
+    GL(glBindBuffer(GL_ARRAY_BUFFER, Vbo));
 }
 
-void cRenderer::endFrame()
+void render::endFrame()
 {
+    GL(glBindVertexArray(0));
 }
 
-GLFWwindow* cRenderer::getWindow()
+GLFWwindow* render::getWindow()
 {
     return Window;
 }
 
-void cRenderer::pushState()
+void render::pushState()
 {
     GLState state;
-    state.texture = cRenderer::getCurrentTexture(); // glGetIntegerv(GL_TEXTURE_BINDING_2D, &state.texture);
-
-    GL(glGetIntegerv(GL_POLYGON_MODE, state.polygon_mode));
+    state.texture = CurrentTextureId;
     GL(glGetIntegerv(GL_VIEWPORT, state.viewport));
-    GL(glGetIntegerv(GL_SCISSOR_BOX, state.scissor_box));
-    GL(glGetIntegerv(GL_SHADE_MODEL, &state.shade_model));
-    GL(glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &state.tex_env_mode));
-    GL(glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_TRANSFORM_BIT));
+    GL(glGetIntegerv(GL_SCISSOR_BOX, state.scissorBox));
+    state.blendEnabled = glIsEnabled(GL_BLEND);
+    state.scissorEnabled = glIsEnabled(GL_SCISSOR_TEST);
+    GL(glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &state.arrayBuffer));
+    GL(glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &state.vertexArray));
+    GL(glGetIntegerv(GL_CURRENT_PROGRAM, &state.program));
+    state.projection = Projection;
 
     GLStates.push_back(state);
-    // ::printf("(II) Storing GL state. Stack size: %zu.\n", GLStates.size());
 }
 
-void cRenderer::popState()
+void render::popState()
 {
     assert(GLStates.empty() == false);
 
     auto& state = GLStates.back();
 
-    GL(glPopAttrib());
-    GL(glPolygonMode(GL_FRONT, (GLenum)state.polygon_mode[0]));
-    GL(glPolygonMode(GL_BACK, (GLenum)state.polygon_mode[1]));
-    GL(glViewport(state.viewport[0], state.viewport[1], (GLsizei)state.viewport[2], (GLsizei)state.viewport[3]));
-    GL(glScissor(state.scissor_box[0], state.scissor_box[1], (GLsizei)state.scissor_box[2], (GLsizei)state.scissor_box[3]));
-    GL(glShadeModel(state.shade_model));
-    GL(glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, state.tex_env_mode));
+    GL(glUseProgram(static_cast<GLuint>(state.program)));
+    GL(glBindVertexArray(static_cast<GLuint>(state.vertexArray)));
+    GL(glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(state.arrayBuffer)));
 
-    bindTexture((GLuint)state.texture);
+    GL(glViewport(state.viewport[0], state.viewport[1], static_cast<GLsizei>(state.viewport[2]), static_cast<GLsizei>(state.viewport[3])));
+    GL(glScissor(state.scissorBox[0], state.scissorBox[1], static_cast<GLsizei>(state.scissorBox[2]), static_cast<GLsizei>(state.scissorBox[3])));
+
+    if (state.blendEnabled)
+        glEnable(GL_BLEND);
+    else
+        glDisable(GL_BLEND);
+
+    if (state.scissorEnabled)
+        glEnable(GL_SCISSOR_TEST);
+    else
+        glDisable(GL_SCISSOR_TEST);
+
+    Projection = state.projection;
+    bindTexture(state.texture);
 
     GLStates.pop_back();
-    // ::printf("(II) Restoring GL state. Stack size: %zu.\n", GLStates.size());
 }
 
-void cRenderer::enableMipmap(bool enable)
-{
-    IsMipmapEnabled = enable;
-}
-
-bool cRenderer::isMipmapEnabled()
-{
-    return IsMipmapEnabled;
-}
-
-void cRenderer::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format)
+void render::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format)
 {
     bindTexture(tex);
 
     if (tex != 0 && data != nullptr)
     {
-        if (isMipmapEnabled())
-        {
-            GL(glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST));
-            GL(glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE));
-            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
-        }
-        else
-        {
-            GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-        }
-
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
         GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
         GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
         GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
-        // std::cout << "creating " << tw << " x " << th << " texture" << std::endl;
-        GLenum type = 0;
-        GLint internalFormat = format;
+        GLenum type = GL_UNSIGNED_BYTE;
+        GLint internalFormat = static_cast<GLint>(format);
+        GLenum uploadFormat = format;
+
         if (format == GL_RGB || format == GL_BGR)
         {
-            internalFormat = GL_RGB;
+            internalFormat = GL_RGB8;
+            uploadFormat = format;
             type = GL_UNSIGNED_BYTE;
         }
         else if (format == GL_RGBA || format == GL_BGRA)
         {
-            internalFormat = GL_RGBA;
+            internalFormat = GL_RGBA8;
+            uploadFormat = format;
             type = GL_UNSIGNED_BYTE;
         }
         else if (format == GL_UNSIGNED_SHORT_4_4_4_4)
         {
-            internalFormat = GL_RGBA;
-            format = GL_RGBA;
+            internalFormat = GL_RGBA4;
+            uploadFormat = GL_RGBA;
             type = GL_UNSIGNED_SHORT_4_4_4_4;
         }
         else if (format == GL_UNSIGNED_SHORT_5_6_5)
         {
-            internalFormat = GL_RGB;
-            format = GL_RGB;
+            internalFormat = GL_RGB8;
+            uploadFormat = GL_RGB;
             type = GL_UNSIGNED_SHORT_5_6_5;
         }
         else if (format == GL_UNSIGNED_SHORT_5_5_5_1)
         {
-            internalFormat = GL_RGBA;
-            format = GL_RGBA;
+            internalFormat = GL_RGB5_A1;
+            uploadFormat = GL_RGBA;
             type = GL_UNSIGNED_SHORT_5_5_5_1;
         }
-        else if (format == GL_LUMINANCE || format == GL_LUMINANCE_ALPHA || format == GL_ALPHA)
+        else if (format == GL_LUMINANCE)
         {
+            // GL_LUMINANCE removed in Core — use GL_RED + swizzle
+            internalFormat = GL_R8;
+            uploadFormat = GL_RED;
+            type = GL_UNSIGNED_BYTE;
+        }
+        else if (format == GL_LUMINANCE_ALPHA)
+        {
+            internalFormat = GL_RG8;
+            uploadFormat = GL_RG;
+            type = GL_UNSIGNED_BYTE;
+        }
+        else if (format == GL_ALPHA)
+        {
+            internalFormat = GL_R8;
+            uploadFormat = GL_RED;
             type = GL_UNSIGNED_BYTE;
         }
 
         GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
-        GL(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, format, type, data));
+        GL(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, uploadFormat, type, data));
+
+        // Set swizzle masks for legacy format compatibility
+        if (format == GL_LUMINANCE)
+        {
+            GLint swizzle[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
+            GL(glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle));
+        }
+        else if (format == GL_LUMINANCE_ALPHA)
+        {
+            GLint swizzle[] = { GL_RED, GL_RED, GL_RED, GL_GREEN };
+            GL(glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle));
+        }
+        else if (format == GL_ALPHA)
+        {
+            GLint swizzle[] = { GL_ZERO, GL_ZERO, GL_ZERO, GL_RED };
+            GL(glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle));
+        }
     }
 }
 
-void cRenderer::setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum internalFormat, uint32_t dataSize)
+void render::setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum internalFormat, uint32_t dataSize)
 {
     bindTexture(tex);
 
@@ -228,7 +396,7 @@ void cRenderer::setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, u
     }
 }
 
-GLuint cRenderer::createTexture()
+GLuint render::createTexture()
 {
     GLuint tex = 0;
     GL(glGenTextures(1, &tex));
@@ -236,7 +404,7 @@ GLuint cRenderer::createTexture()
     return tex;
 }
 
-bool cRenderer::checkError(const char* msg, const char* file, int line)
+bool render::checkError(const char* msg, const char* file, int line)
 {
     auto result = false;
     for (auto e = glGetError(); e != GL_NO_ERROR; e = glGetError())
@@ -248,7 +416,7 @@ bool cRenderer::checkError(const char* msg, const char* file, int line)
     return result;
 }
 
-void cRenderer::deleteTexture(GLuint tex)
+void render::deleteTexture(GLuint tex)
 {
     if (CurrentTextureId == tex)
     {
@@ -257,12 +425,12 @@ void cRenderer::deleteTexture(GLuint tex)
     GL(glDeleteTextures(1, &tex));
 }
 
-GLuint cRenderer::getCurrentTexture()
+GLuint render::getCurrentTexture()
 {
     return CurrentTextureId;
 }
 
-void cRenderer::bindTexture(GLuint tex)
+void render::bindTexture(GLuint tex)
 {
     if (CurrentTextureId != tex)
     {
@@ -271,15 +439,12 @@ void cRenderer::bindTexture(GLuint tex)
     }
 }
 
-uint32_t cRenderer::calculateTextureSize(uint32_t size)
+uint32_t render::calculateTextureSize(uint32_t size)
 {
-    const auto npotSize = Npot ? size : helpers::nextPot(size);
-    const auto newSize = std::min<uint32_t>(TextureSizeLimit, npotSize);
-    // ::printf("(II) Texutre size: %u.\n", newSize);
-    return newSize;
+    return std::min<uint32_t>(TextureSizeLimit, size);
 }
 
-void cRenderer::setColor(sLine* line, const cColor& color)
+void render::setColor(Line* line, const cColor& color)
 {
     for (uint32_t i = 0; i < 2; i++)
     {
@@ -287,7 +452,7 @@ void cRenderer::setColor(sLine* line, const cColor& color)
     }
 }
 
-void cRenderer::setColor(sQuad* quad, const cColor& color)
+void render::setColor(Quad* quad, const cColor& color)
 {
     for (uint32_t i = 0; i < 4; i++)
     {
@@ -295,72 +460,92 @@ void cRenderer::setColor(sQuad* quad, const cColor& color)
     }
 }
 
-void cRenderer::render(const sLine& line)
+void render::render(const Line& line)
 {
     bindTexture(line.tex);
 
-    Vb[0] = line.v[0];
-    Vb[1] = line.v[1];
+    GLuint program = (line.tex != 0) ? TexturedProgram : ColoredProgram;
+    GLint projLoc = (line.tex != 0) ? TexturedProjLoc : ColoredProjLoc;
 
-    GL(glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, Ib));
+    GL(glUseProgram(program));
+    GL(glUniformMatrix4fv(projLoc, 1, GL_FALSE, Projection.m));
+    if (line.tex != 0)
+    {
+        GL(glUniform1i(TexturedTexLoc, 0));
+    }
+
+    GL(glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * 2, line.v));
+    GL(glDrawArrays(GL_LINES, 0, 2));
 }
 
-void cRenderer::render(const sQuad& quad)
+void render::render(const Quad& quad)
 {
     bindTexture(quad.tex);
 
-    Vb[0] = quad.v[0];
-    Vb[1] = quad.v[1];
-    Vb[2] = quad.v[2];
-    Vb[3] = quad.v[3];
+    GLuint program = (quad.tex != 0) ? TexturedProgram : ColoredProgram;
+    GLint projLoc = (quad.tex != 0) ? TexturedProjLoc : ColoredProjLoc;
 
-    GL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, Ib));
+    GL(glUseProgram(program));
+    GL(glUniformMatrix4fv(projLoc, 1, GL_FALSE, Projection.m));
+    if (quad.tex != 0)
+    {
+        GL(glUniform1i(TexturedTexLoc, 0));
+    }
+
+    GL(glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * 4, quad.v));
+    GL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr));
 }
 
-const Vectori& cRenderer::getViewportSize()
+void render::setClearColor(float r, float g, float b, float a)
+{
+    GL(glClearColor(r, g, b, a));
+}
+
+void render::clear()
+{
+    GL(glClear(GL_COLOR_BUFFER_BIT));
+}
+
+const Vectori& render::getViewportSize()
 {
     return ViewportSize;
 }
 
-void cRenderer::setViewportSize(const Vectori& size)
+void render::setViewportSize(const Vectori& size)
 {
-    GL(glViewport(0, 0, (GLsizei)size.x, (GLsizei)size.y));
+    GL(glViewport(0, 0, static_cast<GLsizei>(size.x), static_cast<GLsizei>(size.y)));
     ViewportSize = size;
 }
 
-void cRenderer::resetGlobals()
+void render::resetGlobals()
 {
-    ViewRect = { { 0.0f, 0.0f }, { (float)ViewportSize.x, (float)ViewportSize.y } };
+    ViewRect = { { 0.0f, 0.0f }, { static_cast<float>(ViewportSize.x), static_cast<float>(ViewportSize.y) } };
     ViewZoom = 1.0f;
 
-    GL(glMatrixMode(GL_PROJECTION));
-    GL(glLoadIdentity());
-    GL(glOrtho(
+    Projection = Matrix4::Ortho(
         0.0f,
-        0.0f + ViewportSize.x,
-        0.0f + ViewportSize.y,
+        static_cast<float>(ViewportSize.x),
+        static_cast<float>(ViewportSize.y),
         0.0f,
-        -1.0f, 1.0f));
-
-    GL(glRotatef(0.0f, 0.0f, 0.0f, -1.0f));
+        -1.0f, 1.0f);
 }
 
-const Rectf& cRenderer::getRect()
+const Rectf& render::getRect()
 {
     return ViewRect;
 }
 
-float cRenderer::getZoom()
+float render::getZoom()
 {
     return ViewZoom;
 }
 
-int cRenderer::getAngle()
+int render::getAngle()
 {
     return ViewAngle;
 }
 
-void cRenderer::setGlobals(const Vectorf& offset, int angle, float zoom)
+void render::setGlobals(const Vectorf& offset, int angle, float zoom)
 {
     const float z = 1.0f / zoom;
     const float w = ViewportSize.x * z;
@@ -373,14 +558,7 @@ void cRenderer::setGlobals(const Vectorf& offset, int angle, float zoom)
     ViewZoom = zoom;
     ViewAngle = angle;
 
-    GL(glMatrixMode(GL_PROJECTION));
-    GL(glLoadIdentity());
-    GL(glOrtho(
-        x,
-        x + w,
-        y + h,
-        y,
-        -1.0f, 1.0f));
-
-    GL(glRotatef((float)angle, 0.0f, 0.0f, -1.0f));
+    auto ortho = Matrix4::Ortho(x, x + w, y + h, y, -1.0f, 1.0f);
+    auto rotate = Matrix4::RotateZ(static_cast<float>(-angle));
+    Projection = ortho * rotate;
 }

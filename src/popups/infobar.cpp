@@ -13,6 +13,8 @@
 #include "imgui/imgui.h"
 #include "renderer.h"
 
+#include <GLFW/glfw3.h>
+
 #include <cstring>
 
 namespace
@@ -31,7 +33,7 @@ void cInfoBar::render()
 {
     int width;
     int height;
-    glfwGetWindowSize(cRenderer::getWindow(), &width, &height);
+    glfwGetWindowSize(render::getWindow(), &width, &height);
 
     auto& s = ImGui::GetStyle();
     auto font = ImGui::GetFont();
@@ -86,7 +88,7 @@ void cInfoBar::render()
 void cInfoBar::setInfo(const sInfo& p)
 {
     const auto fileName = getFilename(p.path);
-    glfwSetWindowTitle(cRenderer::getWindow(), fileName.c_str());
+    glfwSetWindowTitle(render::getWindow(), fileName.c_str());
 
     char idx_img[20] = { 0 };
     if (p.files_count > 1)

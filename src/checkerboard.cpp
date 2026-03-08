@@ -41,8 +41,8 @@ void cCheckerboard::init()
     }
 
     m_cb.reset(new cQuad(texSize, texSize, buffer.data(), GL_LUMINANCE));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+    GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
     m_cb->useFilter(false);
 }
 
@@ -50,7 +50,7 @@ void cCheckerboard::render()
 {
     if (m_config.backgroundIndex == 0)
     {
-        auto& viewport = cRenderer::getViewportSize();
+        auto& viewport = render::getViewportSize();
         Vectorf pos{ -(float)(viewport.x >> 1),
                      -(float)(viewport.y >> 1) };
         Vectorf size{ (float)viewport.x,
@@ -64,21 +64,21 @@ void cCheckerboard::render()
         if (m_config.backgroundIndex == 1)
         {
             auto c = m_config.bgColor.toGL();
-            glClearColor(c.r, c.g, c.b, c.a);
+            render::setClearColor(c.r, c.g, c.b, c.a);
         }
         else if (m_config.backgroundIndex == 2)
         {
-            glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+            render::setClearColor(1.0f, 0.0f, 0.0f, 1.0f);
         }
         else if (m_config.backgroundIndex == 3)
         {
-            glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
+            render::setClearColor(0.0f, 1.0f, 0.0f, 1.0f);
         }
         else // if (m_config.backgroundIndex == 4)
         {
-            glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+            render::setClearColor(0.0f, 0.0f, 1.0f, 1.0f);
         }
 
-        glClear(GL_COLOR_BUFFER_BIT);
+        render::clear();
     }
 }

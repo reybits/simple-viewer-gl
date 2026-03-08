@@ -34,6 +34,6 @@ private:
     void renderLine(float x, float y, float w, float h);
 
 private:
-    sQuad m_line;
+    Quad m_line;
     float m_thickness = 2.0f;
 };

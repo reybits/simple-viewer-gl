@@ -14,6 +14,7 @@
 #include "version.h"
 #include "viewer.h"
 
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <clocale>
@@ -167,6 +168,11 @@ namespace
 
     void setHints(const sConfig& config)
     {
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+
         auto className = config.className.c_str();
 
         glfwWindowHintString(GLFW_X11_CLASS_NAME, className);
@@ -185,6 +191,12 @@ namespace
         glfwSetErrorCallback(callbackError);
 
         glfwMakeContextCurrent(window);
+
+        if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
+        {
+            cLog::Error("Failed to initialize GLAD.");
+        }
+
         glfwSwapInterval(1);
 
         glfwSetWindowSizeCallback(window, callbackResize);

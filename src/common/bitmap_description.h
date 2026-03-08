@@ -11,7 +11,17 @@
 
 #include "buffer.h"
 
-#include <GLFW/glfw3.h>
+#include <glad/glad.h>
+
+// Legacy format constants removed in GL 3.3 Core but still used by format readers.
+// render::setData() maps these to Core-compatible formats (GL_RED + swizzle).
+#ifndef GL_LUMINANCE
+#define GL_LUMINANCE 0x1909
+#endif
+#ifndef GL_LUMINANCE_ALPHA
+#define GL_LUMINANCE_ALPHA 0x190A
+#endif
+
 #include <string>
 
 struct sBitmapDescription

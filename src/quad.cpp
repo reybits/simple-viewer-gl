@@ -22,7 +22,10 @@ cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum bitmapFormat)
     , m_size(tw, th)
     , m_filter(true)
 {
-    m_quad.tex = cRenderer::createTexture();
+    if (data != nullptr)
+    {
+        m_quad.tex = render::createTexture();
+    }
     setData(data);
 
     // by deafult set whole texture size
@@ -36,18 +39,21 @@ cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, GLenum internalForma
     , m_size(tw, th)
     , m_filter(true)
 {
-    m_quad.tex = cRenderer::createTexture();
-    cRenderer::setCompressedData(m_quad.tex, data, tw, th, internalFormat, dataSize);
+    m_quad.tex = render::createTexture();
+    render::setCompressedData(m_quad.tex, data, tw, th, internalFormat, dataSize);
 
     setSpriteSize({ (float)tw, (float)th });
 }
 
 cQuad::~cQuad()
 {
-    cRenderer::deleteTexture(m_quad.tex);
+    if (m_quad.tex != 0)
+    {
+        render::deleteTexture(m_quad.tex);
+    }
 }
 
-const sQuad& cQuad::getQuad() const
+const Quad& cQuad::getQuad() const
 {
     return m_quad;
 }
@@ -55,12 +61,16 @@ const sQuad& cQuad::getQuad() const
 void cQuad::setData(const uint8_t* data)
 {
     m_filter = true;
-    cRenderer::setData(m_quad.tex, data, m_tw, m_th, m_format);
+    if (data != nullptr && m_quad.tex == 0)
+    {
+        m_quad.tex = render::createTexture();
+    }
+    render::setData(m_quad.tex, data, m_tw, m_th, m_format);
 }
 
 void cQuad::setColor(const cColor& color)
 {
-    cRenderer::setColor(&m_quad, color);
+    render::setColor(&m_quad, color);
 }
 
 void cQuad::setTextureRect(const Vectorf& pos, const Vectorf& size)
@@ -127,7 +137,7 @@ void cQuad::renderEx(const Vectorf& pos, const Vectorf& size, int angle)
         m_quad.v[3].y = pos.y + size.y * c;
     }
 
-    cRenderer::render(m_quad);
+    render::render(m_quad);
 }
 
 void cQuad::useFilter(bool filter)
@@ -136,8 +146,8 @@ void cQuad::useFilter(bool filter)
     {
         m_filter = filter;
 
-        cRenderer::bindTexture(m_quad.tex);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter ? GL_LINEAR : GL_NEAREST);
+        render::bindTexture(m_quad.tex);
+        GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter ? GL_LINEAR : GL_NEAREST));
         // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter ? GL_LINEAR : GL_NEAREST);
     }
 }

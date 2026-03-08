@@ -29,7 +29,7 @@ void cImageGrid::setColor(const cColor& color)
 
 void cImageGrid::render(float x, float y, float w, float h)
 {
-    float zoom = cRenderer::getZoom();
+    float zoom = render::getZoom();
     float alpha = zoom / 16.0f;
     int alpha_i = clamp(0, 255, static_cast<int>(alpha * 255.0f));
     if ((alpha_i == 0) || (zoom < 2.0f))
@@ -37,7 +37,7 @@ void cImageGrid::render(float x, float y, float w, float h)
         return;
     }
 
-    cRenderer::bindTexture(0);
+    render::bindTexture(0);
 
     m_line.v[0].color.a = m_line.v[1].color.a = alpha_i;
 
@@ -46,7 +46,7 @@ void cImageGrid::render(float x, float y, float w, float h)
     for (float i = y; i <= y + h; i += 1.0f)
     {
         m_line.v[0].y = m_line.v[1].y = i;
-        cRenderer::render(m_line);
+        render::render(m_line);
     }
 
     m_line.v[0].y = y;
@@ -54,6 +54,6 @@ void cImageGrid::render(float x, float y, float w, float h)
     for (float i = x; i <= x + w; i += 1.0f)
     {
         m_line.v[0].x = m_line.v[1].x = i;
-        cRenderer::render(m_line);
+        render::render(m_line);
     }
 }
