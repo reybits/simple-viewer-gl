@@ -268,7 +268,7 @@ namespace
 
         return true;
     }
-}
+} // namespace
 
 bool cFormatPnm::isSupported(cFile& file, Buffer& buffer) const
 {
@@ -363,32 +363,32 @@ bool cFormatPnm::LoadImpl(const char* filename, sBitmapDescription& desc)
     switch (format)
     {
     case 1: // 1-ascii
-        desc.formatName ="pnm/1-acii";
+        desc.formatName = "pnm/1-acii";
         result = readAscii1(file, desc);
         break;
 
     case 4: // 1-raw
-        desc.formatName ="pnm/1-raw";
+        desc.formatName = "pnm/1-raw";
         result = readRaw1(file, desc);
         break;
 
     case 2: // 8-ascii
-        desc.formatName ="pnm/8-acii";
+        desc.formatName = "pnm/8-acii";
         result = readAscii8(file, desc, maxValue);
         break;
 
     case 5: // 8-raw
-        desc.formatName ="pnm/8-raw";
+        desc.formatName = "pnm/8-raw";
         result = readRaw8(file, desc, maxValue);
         break;
 
     case 3: // 24-ascii
-        desc.formatName ="pnm/24-acii";
+        desc.formatName = "pnm/24-acii";
         result = readAscii24(file, desc, maxValue);
         break;
 
     case 6: // 24-raw
-        desc.formatName ="pnm/24-raw";
+        desc.formatName = "pnm/24-raw";
         result = readRaw24(file, desc, maxValue);
         break;
     }

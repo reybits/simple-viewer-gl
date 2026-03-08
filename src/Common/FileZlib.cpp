@@ -10,10 +10,7 @@
 #include "FileZlib.h"
 
 #include <cstring>
-#include <memory>
 #include <zlib.h>
-
-const uint32_t BUFFER_SIZE = 4 * 1024;
 
 cFileZlib::cFileZlib(cFile* file)
     : cFileInterface()
@@ -28,7 +25,8 @@ cFileZlib::cFileZlib(cFile* file)
 
     inflateInit(st);
 
-    m_buffer.resize(BUFFER_SIZE);
+    constexpr uint32_t BufferSize = 4 * 1024;
+    m_buffer.resize(BufferSize);
 }
 
 cFileZlib::~cFileZlib()
@@ -67,8 +65,7 @@ uint32_t cFileZlib::read(void* ptr, uint32_t size)
         inflate(st, Z_FULL_FLUSH);
 
         readed += st->total_out;
-    }
-    while (st->total_out > 0);
+    } while (st->total_out > 0);
 
     return readed;
 }

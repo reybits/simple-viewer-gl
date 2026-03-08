@@ -10,7 +10,6 @@
 #pragma once
 
 #include "Types/Rect.h"
-#include "Types/Types.h"
 #include "Types/Vector.h"
 
 #include <memory>
@@ -56,11 +55,11 @@ private:
 
     enum Edge : uint32_t
     {
-        EdgeNone   = 0,
-        EdgeTop    = 1 << 0,
-        EdgeRight  = 1 << 1,
+        EdgeNone = 0,
+        EdgeTop = 1 << 0,
+        EdgeRight = 1 << 1,
         EdgeBottom = 1 << 2,
-        EdgeLeft   = 1 << 3,
+        EdgeLeft = 1 << 3,
         EdgeCenter = 1 << 4,
     };
     uint32_t m_corner = EdgeNone;

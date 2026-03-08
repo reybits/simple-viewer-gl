@@ -11,9 +11,7 @@
 #include "Common/BitmapDescription.h"
 #include "Common/CachedReader.h"
 #include "Common/File.h"
-#include "Common/Helpers.h"
 
-#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -76,9 +74,9 @@ namespace
 
     struct Xyz // CIEXYZ
     {
-        int32_t x; //FXPT2DOT30 x;
-        int32_t y; //FXPT2DOT30 y;
-        int32_t z; //FXPT2DOT30 z;
+        int32_t x; // FXPT2DOT30 x;
+        int32_t y; // FXPT2DOT30 y;
+        int32_t z; // FXPT2DOT30 z;
     };
 
     struct XyzTriple // CIEXYZTRIPLE
@@ -286,13 +284,13 @@ namespace
         switch (bitCount)
         {
         case 1:
-            desc.format = ePixelFormat::BGRA; //GL_LUMINANCE;
-            desc.bpp = 32;         //8;
+            desc.format = ePixelFormat::BGRA; // GL_LUMINANCE;
+            desc.bpp = 32;                    // 8;
             break;
 
         case 8:
-            desc.format = ePixelFormat::BGRA; //GL_BGR;
-            desc.bpp = 32;         //24;
+            desc.format = ePixelFormat::BGRA; // GL_BGR;
+            desc.bpp = 32;                    // 24;
             break;
 
         case 16:

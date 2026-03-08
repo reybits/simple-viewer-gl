@@ -61,14 +61,20 @@ public:
 
     // Fullscreen toggle — handles window recreation + GL re-init
     void toggleFullscreen(const sConfig& config);
-    bool isWindowed() const { return m_windowed; }
+    bool isWindowed() const
+    {
+        return m_windowed;
+    }
 
     // Main loop operations
     void pollEvents();
     void swapBuffers();
 
     // For ImGui and renderer init
-    GLFWwindow* getNativeHandle() const { return m_window; }
+    GLFWwindow* getNativeHandle() const
+    {
+        return m_window;
+    }
 
 private:
     void setupCallbacks();

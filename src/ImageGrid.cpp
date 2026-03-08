@@ -11,6 +11,7 @@
 \**********************************************/
 
 #include "ImageGrid.h"
+#include "Renderer.h"
 
 #include <algorithm>
 #include <vector>

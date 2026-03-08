@@ -7,8 +7,9 @@
 *
 \**********************************************/
 
-#include "Types/Types.h"
 #include "Types/Vector.h"
+
+#include <cstdint>
 
 class cWindow;
 

@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "types.h"
+#include <cstdint>
 
 class cColor final
 {

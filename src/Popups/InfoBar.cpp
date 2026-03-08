@@ -9,14 +9,12 @@
 
 #include "InfoBar.h"
 #include "Common/Config.h"
-#include "Common/Unicode.h"
-#include "imgui/imgui.h"
-#include "Renderer.h"
-
 #include "Common/Timing.h"
+#include "Common/Unicode.h"
 
 #include <cstring>
-#include <fmt/format.h>
+#include <fmt/core.h>
+#include <imgui/imgui.h>
 
 namespace
 {

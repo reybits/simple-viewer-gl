@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "Renderer.h"
+#include "Types/Color.h"
 
 class cImageGrid final
 {

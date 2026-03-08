@@ -13,7 +13,6 @@
 #include "Quad.h"
 
 #include <cmath>
-#include <cstdio>
 
 cQuad::cQuad(uint32_t tw, uint32_t th, const uint8_t* data, ePixelFormat bitmapFormat)
     : m_tw(tw)

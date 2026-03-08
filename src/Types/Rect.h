@@ -9,23 +9,25 @@
 
 #pragma once
 
-#include "vector.h"
+#include "Vector.h"
 
 #include <cmath>
 
-template<typename T>
+template <typename T>
 class cRect final
 {
 public:
     cRect()
         : m_isSet(false)
-    { }
+    {
+    }
 
     cRect(const cVector<T>& topLeft, const cVector<T>& bottomRight)
         : m_isSet(true)
         , tl(topLeft)
         , br(bottomRight)
-    { }
+    {
+    }
 
     void clear()
     {
@@ -85,8 +87,7 @@ public:
 
     bool intersect(const cRect<T>& rc) const
     {
-        if (fabs(tl.x + br.x - rc.tl.x - rc.br.x) < (br.x - tl.x + rc.br.x - rc.tl.x) &&
-            fabs(tl.y + br.y - rc.tl.y - rc.br.y) < (br.y - tl.y + rc.br.y - rc.tl.y))
+        if (fabs(tl.x + br.x - rc.tl.x - rc.br.x) < (br.x - tl.x + rc.br.x - rc.tl.x) && fabs(tl.y + br.y - rc.tl.y - rc.br.y) < (br.y - tl.y + rc.br.y - rc.tl.y))
         {
             return true;
         }

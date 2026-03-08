@@ -18,8 +18,8 @@
 #include "ImageGrid.h"
 #include "ImageLoader.h"
 #include "Log/Log.h"
-#include "Popups/FileBrowser.h"
 #include "Popups/ExifPopup.h"
+#include "Popups/FileBrowser.h"
 #include "Popups/HelpPopup.h"
 #include "Popups/InfoBar.h"
 #include "Popups/PixelPopup.h"
@@ -28,7 +28,6 @@
 #include "Selection.h"
 
 #include <GLFW/glfw3.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -426,20 +425,19 @@ void cViewer::onMouseButton(int button, int action, int /*mods*/)
 
     switch (button)
     {
-    case GLFW_MOUSE_BUTTON_LEFT:
-        {
-            auto pressed = (action == GLFW_PRESS);
-            auto isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
-            const Vectorf point = screenToImage(m_lastMouse);
-            m_selection->mouseButton(point, m_scale.getScale(), pressed && isHovered == false);
+    case GLFW_MOUSE_BUTTON_LEFT: {
+        auto pressed = (action == GLFW_PRESS);
+        auto isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
+        const Vectorf point = screenToImage(m_lastMouse);
+        m_selection->mouseButton(point, m_scale.getScale(), pressed && isHovered == false);
 
-            auto& rect = m_selection->getRect();
-            if (rect.isSet() == false)
-            {
-                updatePixelInfo(m_lastMouse);
-            }
+        auto& rect = m_selection->getRect();
+        if (rect.isSet() == false)
+        {
+            updatePixelInfo(m_lastMouse);
         }
-        break;
+    }
+    break;
 
     case GLFW_MOUSE_BUTTON_MIDDLE:
         m_mouseMB = (action == GLFW_PRESS);
@@ -606,8 +604,7 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
         break;
 
     case GLFW_KEY_ENTER:
-    case GLFW_KEY_KP_ENTER:
-    {
+    case GLFW_KEY_KP_ENTER: {
         m_window.toggleFullscreen(m_config);
         onContextRecreated();
         break;

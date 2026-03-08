@@ -210,8 +210,12 @@ namespace
 #pragma pack(pop)
         auto h = reinterpret_cast<const BmpHeader*>(data);
         const uint8_t ids[][2] = {
-            { 'B', 'M' }, { 'B', 'A' }, { 'C', 'I' },
-            { 'C', 'P' }, { 'I', 'C' }, { 'P', 'T' },
+            { 'B', 'M' },
+            { 'B', 'A' },
+            { 'C', 'I' },
+            { 'C', 'P' },
+            { 'I', 'C' },
+            { 'P', 'T' },
         };
         for (const auto& id : ids)
         {
@@ -252,7 +256,7 @@ namespace
         // Big-endian header
         uint32_t headerSize = helpers::read_uint32(data);
         uint32_t fileVersion = helpers::read_uint32(data + 4);
-        return ((headerSize == 40 && fileVersion == 0x06)   // X10
+        return ((headerSize == 40 && fileVersion == 0x06)      // X10
                 || (headerSize == 100 && fileVersion == 0x07)) // X11
             && headerSize < fileSize;
     }
@@ -310,9 +314,10 @@ const std::vector<sFormatEntry>& FormatRegistry::getRegistry()
         // Detection priority order: common formats first, fallback last
         { "jpeg", nullptr, 0, 0, probeJpeg, makeFormat<cFormatJpeg>, 4 },
         { "png", nullptr, 0, 0, [](cFile& file, Buffer& buffer, const uint8_t* /*data*/, uint32_t /*dataSize*/, uint64_t /*fileSize*/) -> bool {
-            cFormatPng reader(nullptr);
-            return reader.isSupported(file, buffer);
-        }, makeFormat<cFormatPng>, 8 },
+             cFormatPng reader(nullptr);
+             return reader.isSupported(file, buffer);
+         },
+          makeFormat<cFormatPng>, 8 },
         { "bmp", nullptr, 0, 0, probeBmp, makeFormat<cFormatBmp>, 14 },
 #if defined(GIF_SUPPORT)
         { "gif", nullptr, 0, 0, probeGif, makeFormat<cFormatGif>, 6 },

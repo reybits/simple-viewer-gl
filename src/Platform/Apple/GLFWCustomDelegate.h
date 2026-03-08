@@ -1,12 +1,13 @@
 /**********************************************\
 *
-*  Andrey A. Ugolnik
+*  Simple Viewer GL edition
+*  by Andrey A. Ugolnik
 *  https://github.com/reybits
 *  and@reybits.dev
 *
-*  https://github.com/glfw/glfw/issues/1024#issuecomment-522667555
-*
 \**********************************************/
+
+// https://github.com/glfw/glfw/issues/1024#issuecomment-522667555
 
 #pragma once
 

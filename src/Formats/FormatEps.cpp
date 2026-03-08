@@ -11,7 +11,6 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
-#include "Formats/FormatJpeg.h"
 
 #include <cstdio>
 #include <cstring>
@@ -45,7 +44,7 @@ namespace
             exifList.push_back({ name, out });
         }
     }
-}
+} // namespace
 
 bool cFormatEps::isSupported(cFile& file, Buffer& buffer) const
 {

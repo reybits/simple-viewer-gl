@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "popup.h"
+#include "Popup.h"
 
 class cHelpPopup final : public cPopup
 {

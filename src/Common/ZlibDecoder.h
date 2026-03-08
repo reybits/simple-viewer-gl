@@ -1,6 +1,7 @@
 /**********************************************\
 *
-*  AGE by Andrey A. Ugolnik
+*  Simple Viewer GL edition
+*  by Andrey A. Ugolnik
 *  https://github.com/reybits
 *  and@reybits.dev
 *

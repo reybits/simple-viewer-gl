@@ -14,14 +14,13 @@
 #include "Common/File.h"
 #include "Common/Helpers.h"
 
-#include <cstdio>
-#include <cstring>
-
 #include <OpenEXR/ImfArray.h>
 #include <OpenEXR/ImfPreviewImage.h>
 #include <OpenEXR/ImfRgbaFile.h>
 #include <OpenEXR/ImfStandardAttributes.h>
 #include <OpenEXR/ImfTiledRgbaFile.h>
+#include <cstdio>
+#include <cstring>
 
 namespace
 {
@@ -48,15 +47,15 @@ namespace
     const char* getFormat(uint32_t format)
     {
         const char* Formats[] = {
-            "exr", // no compression
-            "exr/rle", // run length encoding
-            "exr/zips", // zlib compression, one scan line at a time
-            "exr/zip", // zlib compression, in blocks of 16 scan lines
-            "exr/piz", // piz-based wavelet compression
+            "exr",       // no compression
+            "exr/rle",   // run length encoding
+            "exr/zips",  // zlib compression, one scan line at a time
+            "exr/zip",   // zlib compression, in blocks of 16 scan lines
+            "exr/piz",   // piz-based wavelet compression
             "exr/pxr24", // lossy 24-bit float compression
-            "exr/b44", // lossy 4-by-4 pixel block compression, fixed compression rate
-            "exr/b44a", // lossy 4-by-4 pixel block compression, flat fields are compressed more
-            "exr/dwaa", // lossy DCT based compression, in blocks of 32 scanlines. More efficient for partial buffer access.
+            "exr/b44",   // lossy 4-by-4 pixel block compression, fixed compression rate
+            "exr/b44a",  // lossy 4-by-4 pixel block compression, flat fields are compressed more
+            "exr/dwaa",  // lossy DCT based compression, in blocks of 32 scanlines. More efficient for partial buffer access.
 
             "exr/dwab", // lossy DCT based compression, in blocks
             // of 256 scanlines. More efficient space
@@ -195,7 +194,7 @@ namespace
         return false;
     }
 #endif
-}
+} // namespace
 
 bool cFormatExr::isSupported(cFile& file, Buffer& buffer) const
 {

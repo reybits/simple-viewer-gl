@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include "Common/PixelFormat.h"
 #include "Common/Buffer.h"
+#include "Common/PixelFormat.h"
 
 #include <memory>
 

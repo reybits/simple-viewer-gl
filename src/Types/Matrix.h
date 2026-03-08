@@ -58,11 +58,7 @@ struct Matrix4
         {
             for (int row = 0; row < 4; row++)
             {
-                r.m[col * 4 + row] =
-                    m[0 * 4 + row] * b.m[col * 4 + 0] +
-                    m[1 * 4 + row] * b.m[col * 4 + 1] +
-                    m[2 * 4 + row] * b.m[col * 4 + 2] +
-                    m[3 * 4 + row] * b.m[col * 4 + 3];
+                r.m[col * 4 + row] = m[0 * 4 + row] * b.m[col * 4 + 0] + m[1 * 4 + row] * b.m[col * 4 + 1] + m[2 * 4 + row] * b.m[col * 4 + 2] + m[3 * 4 + row] * b.m[col * 4 + 3];
             }
         }
         return r;

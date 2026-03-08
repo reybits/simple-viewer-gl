@@ -11,7 +11,6 @@
 
 #include "Common/PixelFormat.h"
 #include "Types/Color.h"
-#include "Types/Types.h"
 #include "Types/Vector.h"
 
 #include <memory>

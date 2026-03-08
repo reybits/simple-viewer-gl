@@ -42,7 +42,7 @@ void cQuadSeries::setFrame(uint32_t frame)
     if (tx1 > m_tw - w && cols > 0)
     {
         m_frame -= (int)(m_tw / w);
-        tx1 =  w * (m_frame % cols);
+        tx1 = w * (m_frame % cols);
         ty1 += h * (1 + m_frame / cols);
     }
 

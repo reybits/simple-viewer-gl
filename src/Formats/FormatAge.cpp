@@ -8,9 +8,9 @@
 \**********************************************/
 
 #include "FormatAge.h"
-#include "Common/ZlibDecoder.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
+#include "Common/ZlibDecoder.h"
 #include "Libs/AGEheader.h"
 #include "Libs/GpuDecode.h"
 #include "Libs/Rle.h"
@@ -40,16 +40,15 @@ namespace
 
     const CompressedFormatInfo* getCompressedFormatInfo(AGE::Format format)
     {
-        static const CompressedFormatInfo Formats[] =
-        {
-            { 4, 4, 16 },  // ASTC_4x4
-            { 6, 6, 16 },  // ASTC_6x6
-            { 8, 8, 16 },  // ASTC_8x8
-            { 4, 4,  8 },  // ETC2_RGB
-            { 4, 4, 16 },  // ETC2_RGBA
-            { 4, 4,  8 },  // BC1
-            { 4, 4, 16 },  // BC3
-            { 4, 4, 16 },  // BC7
+        static const CompressedFormatInfo Formats[] = {
+            { 4, 4, 16 }, // ASTC_4x4
+            { 6, 6, 16 }, // ASTC_6x6
+            { 8, 8, 16 }, // ASTC_8x8
+            { 4, 4, 8 },  // ETC2_RGB
+            { 4, 4, 16 }, // ETC2_RGBA
+            { 4, 4, 8 },  // BC1
+            { 4, 4, 16 }, // BC3
+            { 4, 4, 16 }, // BC7
         };
 
         if (!AGE::isCompressedFormat(format))

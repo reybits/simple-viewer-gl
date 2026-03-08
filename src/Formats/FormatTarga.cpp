@@ -511,7 +511,7 @@ namespace
 
         return true;
     }
-}
+} // namespace
 
 bool cFormatTarga::isSupported(cFile& file, Buffer& buffer) const
 {

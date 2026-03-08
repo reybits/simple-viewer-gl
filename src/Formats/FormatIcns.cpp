@@ -159,7 +159,7 @@ bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
 
     desc.bppImage = entry.srcBpp;
 
-    desc.formatName ="icns";
+    desc.formatName = "icns";
 
     desc.bitmap.resize(desc.pitch * desc.height);
     auto buffer = desc.bitmap.data();
@@ -168,7 +168,7 @@ bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
 
     if (entry.compression == Compression::PngJ)
     {
-        desc.formatName ="icns/png";
+        desc.formatName = "icns/png";
 
         cPngReader reader;
         reader.setProgressCallback([this](float percent) {
@@ -184,7 +184,7 @@ bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
             {
                 if (applyIccProfile(desc, iccProfile.data(), iccProfile.size()))
                 {
-                    desc.formatName ="icns/png/icc";
+                    desc.formatName = "icns/png/icc";
                 }
             }
         }

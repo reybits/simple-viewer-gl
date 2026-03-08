@@ -10,8 +10,6 @@
 #include "FormatScr.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
-#include "Common/Helpers.h"
-#include "Types/Types.h"
 
 #include <cstdio>
 #include <cstring>
@@ -81,13 +79,13 @@ namespace
 
         enum class Type : uint32_t
         {
-            Scr, // done
-            ScS, // done
-            Bsc, // done
-            Atr, // done
-            Mc1, // done
-            Mc2, // done
-            Mc4, // done
+            Scr,  // done
+            ScS,  // done
+            Bsc,  // done
+            Atr,  // done
+            Mc1,  // done
+            Mc2,  // done
+            Mc4,  // done
             BMc4, // done
             Img,
             Mgh,
@@ -555,12 +553,12 @@ namespace
                 const uint8_t pixels = *zxPixels++;
                 const uint8_t ink = colors[x * 2 + 0];
                 const uint8_t paper = colors[x * 2 + 1];
-                const uint8_t attribute = ink | (paper << 3); //zxColors[(y / blockHeight) * 32 + x];
+                const uint8_t attribute = ink | (paper << 3); // zxColors[(y / blockHeight) * 32 + x];
                 putEightPixels(&startLine[x * 8], pixels, attribute);
             }
         }
     }
-}
+} // namespace
 
 bool cFormatScr::isSupported(cFile& file, Buffer& buffer) const
 {

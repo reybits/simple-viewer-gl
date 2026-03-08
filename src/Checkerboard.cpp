@@ -10,6 +10,7 @@
 #include "Checkerboard.h"
 #include "Common/Config.h"
 #include "Common/Helpers.h"
+#include "Quad.h"
 
 #include <cmath>
 #include <vector>

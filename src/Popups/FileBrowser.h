@@ -1,19 +1,20 @@
 /**********************************************\
 *
-*  Simple Viewer GL
+*  Simple Viewer GL edition
 *  by Andrey A. Ugolnik
 *  https://github.com/reybits
+*  and@reybits.dev
 *
 \**********************************************/
 
 #pragma once
 
+#include "Types/Vector.h"
+
 #include <functional>
 #include <imgui/imgui.h>
 #include <memory>
 #include <string>
-
-#include "Types/Vector.h"
 
 namespace ImGui
 {

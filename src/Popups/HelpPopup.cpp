@@ -9,7 +9,6 @@
 
 #include "HelpPopup.h"
 #include "imgui/imgui.h"
-#include "Types/Vector.h"
 
 namespace
 {

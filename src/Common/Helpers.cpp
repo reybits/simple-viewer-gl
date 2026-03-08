@@ -10,7 +10,6 @@
 #include "Helpers.h"
 
 #include <GLFW/glfw3.h>
-
 #include <cmath>
 #include <cstring>
 #include <ctime>

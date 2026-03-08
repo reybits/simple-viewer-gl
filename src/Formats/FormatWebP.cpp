@@ -15,7 +15,6 @@
 
 #include <cstdio>
 #include <cstring>
-
 #include <webp/decode.h>
 
 bool cFormatWebP::isSupported(cFile& file, Buffer& buffer) const

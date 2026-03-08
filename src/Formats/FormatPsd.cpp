@@ -38,11 +38,11 @@ namespace
         uint8_t signature[4]; // file ID, always "8BPS"
         uint16_t version;     // version number, always 1
         uint8_t resetved[6];
-        uint16_t channels;    // number of color channels (1-56)
-        uint32_t rows;        // height of image in pixels (1-30000)
-        uint32_t columns;     // width of image in pixels (1-30000)
-        uint16_t depth;       // number of bits per channel (1, 8, 16, 32)
-        ColorMode colorMode;  // color mode as defined below
+        uint16_t channels;   // number of color channels (1-56)
+        uint32_t rows;       // height of image in pixels (1-30000)
+        uint32_t columns;    // width of image in pixels (1-30000)
+        uint16_t depth;      // number of bits per channel (1, 8, 16, 32)
+        ColorMode colorMode; // color mode as defined below
     };
 #pragma pack(pop)
 

@@ -9,8 +9,6 @@
 
 #pragma once
 
-#include "Types/Types.h"
-
 #include <vector>
 
-typedef std::vector<uint8_t> Buffer;
+using Buffer = std::vector<uint8_t>;

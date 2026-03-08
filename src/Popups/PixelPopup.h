@@ -9,14 +9,14 @@
 
 #pragma once
 
-#include "popup.h"
+#include "Popup.h"
 
-#include "imgui/imgui.h"
 #include "QuadSeries.h"
 #include "Types/Color.h"
 #include "Types/Rect.h"
 #include "Types/Vector.h"
 
+#include <imgui/imgui.h>
 #include <memory>
 #include <string>
 #include <vector>

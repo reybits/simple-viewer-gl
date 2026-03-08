@@ -8,10 +8,9 @@
 \**********************************************/
 
 #include "Selection.h"
+#include "Common/Timing.h"
 #include "Log/Log.h"
 #include "Quad.h"
-
-#include "Common/Timing.h"
 #include "Types/Vector.h"
 
 #include <algorithm>

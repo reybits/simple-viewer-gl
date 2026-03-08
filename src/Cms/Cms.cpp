@@ -15,10 +15,14 @@
 #if defined(LCMS2_SUPPORT)
 #include <lcms2.h>
 
-void cmsLogErrorHandler(cmsContext /*ContextID*/, cmsUInt32Number ErrorCode, const char* Text)
+namespace
 {
-    cLog::Error("LCMS2: ({}) '{}'.", ErrorCode, Text);
-}
+    void CmsLogErrorHandler(cmsContext /*ContextID*/, cmsUInt32Number ErrorCode, const char* Text)
+    {
+        cLog::Error("LCMS2: ({}) '{}'.", ErrorCode, Text);
+    }
+} // namespace
+
 #endif
 
 cCMS::cCMS()
@@ -26,7 +30,7 @@ cCMS::cCMS()
 #if defined(LCMS2_SUPPORT)
     m_outProfile = cmsCreate_sRGBProfile();
 
-    cmsSetLogErrorHandler(cmsLogErrorHandler);
+    cmsSetLogErrorHandler(CmsLogErrorHandler);
 #endif
 }
 
@@ -55,7 +59,8 @@ void cCMS::createTransform(const void* iccProfile, uint32_t iccProfileSize, Pixe
 #endif
 }
 
-void cCMS::createTransform(const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb, Pixel format) const
+void cCMS::createTransform(const float* chr, const float* wp, const uint16_t* gmr,
+                           const uint16_t* gmg, const uint16_t* gmb, Pixel format) const
 {
 #if defined(LCMS2_SUPPORT)
     cmsCIExyYTRIPLE Primaries;

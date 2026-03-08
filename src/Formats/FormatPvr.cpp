@@ -11,8 +11,8 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
-#include "Libs/PVRTDecompress.h"
 #include "Libs/Etc1.h"
+#include "Libs/PVRTDecompress.h"
 
 #include <cstdio>
 #include <cstring>

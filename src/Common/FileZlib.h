@@ -29,5 +29,7 @@ public:
 protected:
     cFile* m_file;
     z_stream_s* m_zipStream;
+
+protected:
     std::vector<uint8_t> m_buffer;
 };

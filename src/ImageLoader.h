@@ -10,13 +10,11 @@
 #pragma once
 
 #include "Common/BitmapDescription.h"
-#include "Formats/Format.h"
 
-#include <memory>
 #include <string>
 #include <thread>
-#include <unordered_map>
 
+class cFormat;
 struct sCallbacks;
 struct sConfig;
 struct sFormatEntry;
@@ -60,7 +58,7 @@ public:
 
     bool isBitmapAvailable() const
     {
-        return !m_desc.bitmap.empty();
+        return m_desc.bitmap.empty() == false;
     }
 
     void releaseBitmap()

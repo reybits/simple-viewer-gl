@@ -12,7 +12,6 @@
 #include "Common/Buffer.h"
 
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <vector>
 

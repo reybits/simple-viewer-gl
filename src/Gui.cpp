@@ -8,12 +8,11 @@
 \**********************************************/
 
 #include "Gui.h"
+#include "Common/Timing.h"
 #include "DroidSans.h"
 #include "Renderer.h"
 #include "Types/Matrix.h"
 #include "Window.h"
-
-#include "Common/Timing.h"
 
 #include <GLFW/glfw3.h>
 #include <imgui/imgui.h>
@@ -93,10 +92,26 @@ void main()
 
     void shutdownImGuiGL()
     {
-        if (ImGuiVao) { glDeleteVertexArrays(1, &ImGuiVao); ImGuiVao = 0; }
-        if (ImGuiVbo) { glDeleteBuffers(1, &ImGuiVbo); ImGuiVbo = 0; }
-        if (ImGuiIbo) { glDeleteBuffers(1, &ImGuiIbo); ImGuiIbo = 0; }
-        if (ImGuiShaderProgram) { glDeleteProgram(ImGuiShaderProgram); ImGuiShaderProgram = 0; }
+        if (ImGuiVao)
+        {
+            glDeleteVertexArrays(1, &ImGuiVao);
+            ImGuiVao = 0;
+        }
+        if (ImGuiVbo)
+        {
+            glDeleteBuffers(1, &ImGuiVbo);
+            ImGuiVbo = 0;
+        }
+        if (ImGuiIbo)
+        {
+            glDeleteBuffers(1, &ImGuiIbo);
+            ImGuiIbo = 0;
+        }
+        if (ImGuiShaderProgram)
+        {
+            glDeleteProgram(ImGuiShaderProgram);
+            ImGuiShaderProgram = 0;
+        }
     }
 
     void updateTexture(ImTextureData* textureData)

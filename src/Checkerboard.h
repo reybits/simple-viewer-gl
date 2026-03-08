@@ -9,10 +9,9 @@
 
 #pragma once
 
-#include "Quad.h"
-
 #include <memory>
 
+class cQuad;
 struct sConfig;
 
 class cCheckerboard final

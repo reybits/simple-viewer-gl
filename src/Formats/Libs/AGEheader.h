@@ -1,6 +1,7 @@
 /**********************************************\
 *
-*  AGE by Andrey A. Ugolnik
+*  Simple Viewer GL edition
+*  by Andrey A. Ugolnik
 *  https://github.com/reybits
 *  and@reybits.dev
 *
@@ -65,4 +66,5 @@ namespace AGE
 
     const char* FormatToStr(Format format);
     const char* CompressionToStr(Compression compression);
-}
+
+} // namespace AGE

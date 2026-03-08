@@ -10,7 +10,6 @@
 #include "FormatXpm.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
-#include "Common/Helpers.h"
 
 #include <cstdio>
 #include <cstring>
@@ -962,7 +961,7 @@ namespace
 
         return data + 1;
     }
-}
+} // namespace
 
 bool cFormatXpm::isSupported(cFile& file, Buffer& buffer) const
 {

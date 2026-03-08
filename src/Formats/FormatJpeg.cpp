@@ -8,17 +8,16 @@
 \**********************************************/
 
 #include "FormatJpeg.h"
-#include "Formats/JpegDecoder.h"
 #include "Cms/Cms.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Formats/JpegDecoder.h"
 
 #include <cstdio>
 #include <cstring>
-#include <setjmp.h>
-
 #include <jpeglib.h>
+#include <setjmp.h>
 
 #if defined(EXIF_SUPPORT)
 #include <libexif/exif-data.h>
@@ -194,7 +193,7 @@ namespace
     }
 #endif
 #endif
-}
+} // namespace
 
 bool cFormatJpeg::isSupported(cFile& file, Buffer& buffer) const
 {

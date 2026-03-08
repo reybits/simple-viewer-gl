@@ -131,13 +131,13 @@ bool cFormatIco::load(uint32_t current, sBitmapDescription& desc)
 
     if (image->colors == 0 && image->width == 0 && image->height == 0)
     {
-        desc.formatName ="ico/png";
+        desc.formatName = "ico/png";
 
         result = loadPngFrame(desc, file, image);
     }
     else
     {
-        desc.formatName ="ico";
+        desc.formatName = "ico";
 
         result = loadOrdinaryFrame(desc, file, image);
     }
@@ -176,7 +176,7 @@ bool cFormatIco::loadPngFrame(sBitmapDescription& desc, cFile& file, const IcoDi
         {
             if (applyIccProfile(desc, iccProfile.data(), iccProfile.size()))
             {
-                desc.formatName ="ico/png/icc";
+                desc.formatName = "ico/png/icc";
             }
         }
     }

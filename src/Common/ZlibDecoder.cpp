@@ -1,6 +1,7 @@
 /**********************************************\
 *
-*  AGE by Andrey A. Ugolnik
+*  Simple Viewer GL edition
+*  by Andrey A. Ugolnik
 *  https://github.com/reybits
 *  and@reybits.dev
 *
@@ -8,8 +9,8 @@
 
 #include "ZlibDecoder.h"
 
-#include <zlib.h>
 #include <cstring>
+#include <zlib.h>
 
 cZlibDecoder::cZlibDecoder()
 {
@@ -28,10 +29,10 @@ unsigned cZlibDecoder::decode(const unsigned char* packed, unsigned packedSize, 
     st->data_type = Z_BINARY;
     inflateInit(st);
 
-    st->next_out  = (Bytef*)out;
+    st->next_out = (Bytef*)out;
     st->avail_out = outSize;
 
-    st->next_in  = (Byte*)packed;
+    st->next_in = (Byte*)packed;
     st->avail_in = packedSize;
 
     inflate(st, Z_FULL_FLUSH);

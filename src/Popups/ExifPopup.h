@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include "popup.h"
-#include "Types/Vector.h"
+#include "Popup.h"
+
 #include "Common/BitmapDescription.h"
 
 class cExifPopup final : public cPopup

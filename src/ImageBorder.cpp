@@ -28,9 +28,9 @@ void cImageBorder::render(float x, float y, float w, float h)
     const float delta = getThickness() / render::getZoom();
 
     renderLine(x - delta, y - delta, w + delta * 2, delta); // up
-    renderLine(x - delta,     y + h, w + delta * 2, delta); // down
-    renderLine(x - delta,         y,         delta,     h); // left
-    renderLine(    x + w,         y,         delta,     h); // right
+    renderLine(x - delta, y + h, w + delta * 2, delta);     // down
+    renderLine(x - delta, y, delta, h);                     // left
+    renderLine(x + w, y, delta, h);                         // right
 }
 
 void cImageBorder::renderLine(float x, float y, float w, float h)

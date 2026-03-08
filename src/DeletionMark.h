@@ -9,9 +9,9 @@
 
 #pragma once
 
-#include "Quad.h"
-
 #include <memory>
+
+class cQuad;
 
 class cDeletionMark final
 {

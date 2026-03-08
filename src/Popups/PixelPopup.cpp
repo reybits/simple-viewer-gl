@@ -10,12 +10,12 @@
 #include "PixelPopup.h"
 #include "Renderer.h"
 
-#include <imgui/imgui.h>
 #include "img-icons.c"
 #include "img-pointer-cross.c"
 
 #include <cstring>
-#include <fmt/format.h>
+#include <fmt/core.h>
+#include <imgui/imgui.h>
 
 namespace
 {
@@ -45,14 +45,12 @@ void cPixelPopup::setPixelInfo(const sPixelInfo& pi)
 
     m_info.clear();
 
-    m_info.push_back({ Info::Icon::Position, isInside ? ColorWhite : ColorGray,
-                        fmt::format("{} x {}", static_cast<int>(pi.point.x), static_cast<int>(pi.point.y)), {} });
+    m_info.push_back({ Info::Icon::Position, isInside ? ColorWhite : ColorGray, fmt::format("{} x {}", static_cast<int>(pi.point.x), static_cast<int>(pi.point.y)), {} });
 
     if (isInside)
     {
         const auto& c = pi.color;
-        m_info.push_back({ Info::Icon::Color, ColorWhite,
-                            fmt::format("rgba {:02X} {:02X} {:02X} {:02X}", c.r, c.g, c.b, c.a), {} });
+        m_info.push_back({ Info::Icon::Color, ColorWhite, fmt::format("rgba {:02X} {:02X} {:02X} {:02X}", c.r, c.g, c.b, c.a), {} });
     }
     else
     {
@@ -68,11 +66,9 @@ void cPixelPopup::setPixelInfo(const sPixelInfo& pi)
         const int w = static_cast<int>(rc.width());
         const int h = static_cast<int>(rc.height());
 
-        m_info.push_back({ Info::Icon::Size, ColorWhite,
-                            fmt::format("{} x {}", w, h), {} });
+        m_info.push_back({ Info::Icon::Size, ColorWhite, fmt::format("{} x {}", w, h), {} });
 
-        m_info.push_back({ Info::Icon::Rect, ColorWhite,
-                            fmt::format("{}, {} -> {}, {}", x, y, x + w - 1, y + h - 1), {} });
+        m_info.push_back({ Info::Icon::Rect, ColorWhite, fmt::format("{}, {} -> {}, {}", x, y, x + w - 1, y + h - 1), {} });
     }
 }
 

@@ -29,6 +29,7 @@ namespace
     {
         // ::printf("(WW) \n");
     }
+
 } // namespace
 
 bool cFormatTiff::isSupported(cFile& file, Buffer& buffer) const

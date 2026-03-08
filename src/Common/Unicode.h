@@ -1,13 +1,14 @@
+// Copyright (c) 2008-2010 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+// See http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ for details.
+
 #pragma once
 
 #include "Types/Types.h"
 
-// Copyright (c) 2008-2010 Bjoern Hoehrmann <bjoern@hoehrmann.de>
-// See http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ for details.
-
 #define UTF8_ACCEPT 0
 #define UTF8_REJECT 12
 
+// clang-format off
 static const uint8_t utf8d[] =
 {
     // The first part of the table maps bytes to character classes that
@@ -29,14 +30,15 @@ static const uint8_t utf8d[] =
     12, 12, 12, 12, 12, 12, 12, 36, 12, 36, 12, 12, 12, 36, 12, 12, 12, 12, 12, 36, 12, 36, 12, 12,
     12, 36, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
 };
+// clang-format on
 
 inline uint32_t decode(uint32_t* state, uint32_t* codep, uint32_t byte)
 {
     uint32_t type = utf8d[byte];
 
     *codep = (*state != UTF8_ACCEPT)
-             ? (byte & 0x3fu) | (*codep << 6)
-             : (0xff >> type) & (byte);
+        ? (byte & 0x3fu) | (*codep << 6)
+        : (0xff >> type) & (byte);
 
     *state = utf8d[256 + *state + type];
 

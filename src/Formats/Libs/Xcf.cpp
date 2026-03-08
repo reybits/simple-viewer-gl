@@ -16,7 +16,6 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
-#include <numeric>
 #include <string>
 #include <vector>
 
@@ -213,7 +212,7 @@ namespace
     struct xcf_property_res_t
     {
         xcf_property_t head;
-        float hres, vres; //ppi
+        float hres, vres; // ppi
         xcf_property_res_t(xcf_property_t head, cFile& file)
             : head(head), hres(fread<float>(file, true)), vres(fread<float>(file, true))
         {
@@ -724,8 +723,7 @@ namespace
             {
                 switch (src_bpp)
                 {
-                case 3:
-                {
+                case 3: {
                     switch (dst_bpp)
                     {
                     case 3:
@@ -968,8 +966,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
 
         switch (prop.type)
         {
-        case xcf_property_type::col_map:
-        {
+        case xcf_property_type::col_map: {
             xcf_property_col_map_t col_map(prop, file);
 #if defined(DEBUG)
             ::printf("(II) Palette size: %u\n", col_map.count);
@@ -983,8 +980,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         }
         break;
 
-        case xcf_property_type::compression:
-        {
+        case xcf_property_type::compression: {
             xcf_property_comp_t p(prop, file);
             compression = p.compression;
 #if defined(DEBUG)
@@ -993,8 +989,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         }
         break;
 
-        case xcf_property_type::resolution:
-        {
+        case xcf_property_type::resolution: {
             xcf_property_res_t p(prop, file);
 #if defined(DEBUG)
             ::printf("(II) Resolution %.3f x %.3f\n", p.hres, p.vres);
@@ -1002,8 +997,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         }
         break;
 
-        case xcf_property_type::layer_mode:
-        {
+        case xcf_property_type::layer_mode: {
             xcf_property_layer_mode_t p(prop, file);
 #if defined(DEBUG)
             ::printf("(II) Layer mode %u\n", static_cast<uint32_t>(p.mode));
@@ -1011,8 +1005,7 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         }
         break;
 
-        case xcf_property_type::layer_offset:
-        {
+        case xcf_property_type::layer_offset: {
             xcf_property_layer_offset_t p(prop, file);
 #if defined(DEBUG)
             ::printf("(II) Offset %d , %d\n", p.x_offset, p.y_offset);
