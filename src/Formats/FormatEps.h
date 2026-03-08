@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "JpegDecoder.h"
+#include "Libs/JpegDecoder.h"
 
 class cFormatEps final : public cJpegDecoder
 {

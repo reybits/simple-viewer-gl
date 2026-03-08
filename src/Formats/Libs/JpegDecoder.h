@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Format.h"
+#include "Formats/Format.h"
 
 struct jpeg_decompress_struct;
 

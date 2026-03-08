@@ -12,7 +12,7 @@
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
-#include "Formats/JpegDecoder.h"
+#include "Formats/Libs/JpegDecoder.h"
 #include "Log/Log.h"
 
 #include <cstring>
