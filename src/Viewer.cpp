@@ -126,14 +126,21 @@ void cViewer::addPaths(const StringsList& paths)
 
 void cViewer::onRender()
 {
+    // Sync viewport with current framebuffer size to avoid stale projection.
+    render::setViewportSize(m_window.getFramebufferSize());
+
     render::beginFrame();
+    m_imgui.setInfoBarVisible(m_config.hideInfobar == false);
     m_imgui.beginFrame();
+
+    // Recalculate scale after dock layout is up-to-date.
+    calculateScale();
 
     m_checkerBoard->render();
 
     const float scale = m_scale.getScale();
 
-    render::setGlobals(m_camera, m_angle, scale);
+    render::setGlobals(getAdjustedCamera(), m_angle, scale);
 
     m_image->render();
 
@@ -185,12 +192,10 @@ void cViewer::onRender()
         }
         else if (progress > -1.5f)
         {
-            // -1.0f means no progress
             m_infoBar->clearProgress();
         }
         else
         {
-            // sentinel values for text states
             m_infoBar->setProgressText(progress < -2.5f ? "[decoding...]" : "[loading...]");
         }
         m_infoBar->render();
@@ -428,13 +433,16 @@ void cViewer::onMouseScroll(const Vectorf& offset)
 
     if (m_config.wheelZoom)
     {
+        auto cursorPos = m_window.getCursorPos();
+        Vectorf cursorFb = cursorPos * m_ratio;
         updateScale(offset.y > 0.0f
                         ? ScaleDirection::Up
-                        : ScaleDirection::Down);
+                        : ScaleDirection::Down,
+                    &cursorFb);
     }
     else
     {
-        auto panRatio = m_ratio * m_config.panRatio;
+        auto panRatio = m_ratio * m_config.panRatio / m_scale.getScale();
         shiftCamera({ -offset.x * panRatio.x, -offset.y * panRatio.y });
     }
 }
@@ -532,7 +540,6 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
 
     case GLFW_KEY_I:
         m_config.hideInfobar = !m_config.hideInfobar;
-        centerWindow();
         break;
 
     case GLFW_KEY_E:
@@ -669,7 +676,6 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
         updateCursorState(m_angle == 0
                               ? m_config.showPixelInfo == false
                               : true);
-        calculateScale();
         break;
 
     case GLFW_KEY_PAGE_UP:
@@ -754,17 +760,29 @@ void cViewer::keyRight(bool byPixel)
 void cViewer::shiftCamera(const Vectorf& delta)
 {
     m_camera += delta;
+    clampCamera();
+}
 
-    const float inv = 1.0f / m_scale.getScale();
-    const auto& viewport = render::getViewportSize();
-    const auto half = Vectorf(viewport.x * inv + m_image->getWidth(), viewport.y * inv + m_image->getHeight()) * 0.5f;
-    m_camera.x = std::clamp(m_camera.x, -half.x, half.x);
-    m_camera.y = std::clamp(m_camera.y, -half.y, half.y);
+void cViewer::clampCamera()
+{
+    const float scale = m_scale.getScale();
+    const auto centralFb = getCentralAreaFbSize();
+    const float halfVpW = centralFb.x * 0.5f / scale;
+    const float halfVpH = centralFb.y * 0.5f / scale;
+    const float halfImgW = m_image->getWidth() * 0.5f;
+    const float halfImgH = m_image->getHeight() * 0.5f;
+
+    // Image larger than viewport: pan until edge reaches ~25% from viewport center
+    // Image smaller than viewport: allow nudging off-center by ~25% of viewport
+    const float limitX = std::max(halfImgW - halfVpW, 0.0f) + halfVpW * 0.25f;
+    const float limitY = std::max(halfImgH - halfVpH, 0.0f) + halfVpH * 0.25f;
+    m_camera.x = std::clamp(m_camera.x, -limitX, limitX);
+    m_camera.y = std::clamp(m_camera.y, -limitY, limitY);
 }
 
 void cViewer::calculateScale()
 {
-    if (m_config.fitImage && m_loader->isLoaded())
+    if (m_config.fitImage && m_image->getWidth() > 0 && m_image->getHeight() > 0)
     {
         auto w = static_cast<float>(m_image->getWidth());
         auto h = static_cast<float>(m_image->getHeight());
@@ -773,27 +791,29 @@ void cViewer::calculateScale()
             std::swap(w, h);
         }
 
-        const auto& viewport = render::getViewportSize();
-        if (w >= viewport.x || h >= viewport.y)
+        const auto centralFb = getCentralAreaFbSize();
+        const float vpW = centralFb.x;
+        const float vpH = centralFb.y;
+        if (w >= vpW || h >= vpH)
         {
             auto aspect = w / h;
-            auto dx = w / viewport.x;
-            auto dy = h / viewport.y;
+            auto dx = w / vpW;
+            auto dy = h / vpH;
             auto new_w = 0.0f;
             auto new_h = 0.0f;
             if (dx > dy)
             {
-                if (w > viewport.x)
+                if (w > vpW)
                 {
-                    new_w = viewport.x;
+                    new_w = vpW;
                     new_h = new_w / aspect;
                 }
             }
             else
             {
-                if (h > viewport.y)
+                if (h > vpH)
                 {
-                    new_h = viewport.y;
+                    new_h = vpH;
                     new_w = new_h * aspect;
                 }
             }
@@ -811,10 +831,32 @@ void cViewer::calculateScale()
     updateFiltering();
 }
 
-// TODO: update m_camera according to current mouse position (zoom to cursor)
-void cViewer::updateScale(ScaleDirection direction)
+Vectorf cViewer::getCentralAreaFbSize() const
+{
+    return m_imgui.getCentralSize() * m_ratio;
+}
+
+Vectorf cViewer::getCentralAreaFbCenter() const
+{
+    auto pos = m_imgui.getCentralPos() * m_ratio;
+    auto size = getCentralAreaFbSize();
+    return { pos.x + size.x * 0.5f, pos.y + size.y * 0.5f };
+}
+
+Vectorf cViewer::getAdjustedCamera() const
+{
+    const auto& viewport = render::getViewportSize();
+    const auto centralCenter = getCentralAreaFbCenter();
+    const float scale = m_scale.getScale();
+    return { m_camera.x - (centralCenter.x - viewport.x * 0.5f) / scale,
+             m_camera.y - (centralCenter.y - viewport.y * 0.5f) / scale };
+}
+
+void cViewer::updateScale(ScaleDirection direction, const Vectorf* cursorFb)
 {
     m_config.fitImage = false;
+
+    const float oldScale = m_scale.getScale();
 
     int scale = m_scale.getScalePercent();
 
@@ -835,6 +877,16 @@ void cViewer::updateScale(ScaleDirection direction)
 
     m_scale.setScalePercent(scale);
 
+    // Zoom to cursor: keep the point under the cursor stationary
+    if (cursorFb)
+    {
+        const float newScale = m_scale.getScale();
+        const float invDelta = 1.0f / oldScale - 1.0f / newScale;
+        const Vectorf diff = *cursorFb - getCentralAreaFbCenter();
+        m_camera -= diff * invDelta;
+        clampCamera();
+    }
+
     updateFiltering();
     updateInfobar();
 }
@@ -854,87 +906,91 @@ void cViewer::updateFiltering()
 
 void cViewer::centerWindow()
 {
-    if (m_window.isWindowed())
+    if (m_window.isWindowed() == false
+        || helpers::getPlatform() == helpers::Platform::Wayland)
     {
-        if (helpers::getPlatform() != helpers::Platform::Wayland)
+        return;
+    }
+
+    // When both centerWindow and fitImage are off, the user has full manual
+    // control over window size and zoom — nothing to do.
+    if (m_config.centerWindow == false && m_config.fitImage == false)
+    {
+        return;
+    }
+
+    auto screen = m_window.getScreenSize();
+
+    // Compute overhead from docked windows + infobar.
+    // The central area (from the last frame) already excludes these.
+    const auto centralSize = m_imgui.getCentralSize();
+    float overheadX = 0.0f;
+    float overheadY = m_config.hideInfobar
+        ? 0.0f
+        : m_imgui.getInfoBarHeight();
+
+    if (centralSize.x > 0.0f && centralSize.y > 0.0f)
+    {
+        const auto winSize = m_window.getWindowSize();
+        overheadX = static_cast<float>(winSize.x) - centralSize.x;
+        overheadY = static_cast<float>(winSize.y) - centralSize.y;
+    }
+
+    auto tickness = m_config.showImageBorder
+        ? m_border->getThickness() * 2
+        : 0.0f;
+    auto scale = m_scale.getScale();
+
+    auto imgWidth = static_cast<float>(m_image->getWidth());
+    auto imgHeight = static_cast<float>(m_image->getHeight());
+    if (m_angle == 90 || m_angle == 270)
+    {
+        std::swap(imgWidth, imgHeight);
+    }
+
+    // For fit-to-window: compute scale from the maximum available area
+    // (screen minus overhead from infobar and docked windows).
+    if (m_config.fitImage && m_image->getWidth() > 0 && m_image->getHeight() > 0)
+    {
+        auto maxW = (static_cast<float>(screen.x) - overheadX) * m_ratio.x;
+        auto maxH = (static_cast<float>(screen.y) - overheadY) * m_ratio.y;
+        if (imgWidth > maxW || imgHeight > maxH)
         {
-            auto width = m_config.windowSize.w;
-            auto height = m_config.windowSize.h;
-
-            if (m_config.centerWindow)
-            {
-                auto screen = m_window.getScreenSize();
-
-                // calculate image size with border
-                auto tickness = m_config.showImageBorder
-                    ? m_border->getThickness() * 2
-                    : 0.0f;
-                auto scale = m_scale.getScale();
-
-                // Use rotated dimensions for window sizing
-                auto imgWidth = static_cast<float>(m_image->getWidth());
-                auto imgHeight = static_cast<float>(m_image->getHeight());
-                if (m_angle == 90 || m_angle == 270)
-                {
-                    std::swap(imgWidth, imgHeight);
-                }
-
-                // When fit-to-window is enabled for large images,
-                // pre-calculate the fit scale so the window matches the fitted size
-                if (m_config.fitImage && m_loader->isLoaded())
-                {
-                    auto maxW = screen.x * m_ratio.x;
-                    auto maxH = screen.y * m_ratio.y;
-                    if (imgWidth > maxW || imgHeight > maxH)
-                    {
-                        scale = std::min(maxW / imgWidth, maxH / imgHeight);
-                    }
-                }
-
-                auto imgw = imgWidth * scale + tickness;
-                auto imgh = imgHeight * scale + tickness;
-
-                width = std::max<int>(imgw / m_ratio.x, DefaultWindowSize.w);
-                height = std::max<int>(imgh / m_ratio.y, DefaultWindowSize.h);
-
-                // clamp to screen size
-                width = std::min<int>(width, screen.x);
-                height = std::min<int>(height, screen.y);
-
-                // Apply initial size to get the actual viewport
-                // (macOS may constrain due to menu bar, title bar, dock)
-                m_config.windowSize = { width, height };
-                m_window.setSize({ width, height });
-                calculateScale();
-
-                // Recompute window size using the actual fit scale
-                // (viewport may be smaller than pre-calculated estimate)
-                if (m_config.fitImage && m_loader->isLoaded())
-                {
-                    scale = m_scale.getScale();
-                    imgw = imgWidth * scale + tickness;
-                    imgh = imgHeight * scale + tickness;
-
-                    width = std::max<int>(imgw / m_ratio.x, DefaultWindowSize.w);
-                    height = std::max<int>(imgh / m_ratio.y, DefaultWindowSize.h);
-
-                    width = std::min<int>(width, screen.x);
-                    height = std::min<int>(height, screen.y);
-
-                    m_config.windowSize = { width, height };
-                }
-
-                // center and apply final size
-                auto x = (screen.x - width) / 2;
-                auto y = (screen.y - height) / 2;
-                m_config.windowPos = { x, y };
-                m_window.setPosition({ x, y });
-            }
-
-            m_window.setSize({ width, height });
+            scale = std::min(maxW / imgWidth, maxH / imgHeight);
         }
+    }
 
-        calculateScale();
+    auto imgw = imgWidth * scale + tickness;
+    auto imgh = imgHeight * scale + tickness;
+
+    auto width = std::max<int>(imgw / m_ratio.x + overheadX, DefaultWindowSize.w);
+    auto height = std::max<int>(imgh / m_ratio.y + overheadY, DefaultWindowSize.h);
+
+    width = std::min<int>(width, screen.x);
+    height = std::min<int>(height, screen.y);
+
+    m_config.windowSize = { width, height };
+    m_window.setSize({ width, height });
+
+    if (m_config.centerWindow)
+    {
+        auto x = (screen.x - width) / 2;
+        auto y = (screen.y - height) / 2;
+        m_config.windowPos = { x, y };
+        m_window.setPosition({ x, y });
+    }
+    else
+    {
+        // Keep current position but clamp so the window stays on screen.
+        auto x = m_config.windowPos.x;
+        auto y = m_config.windowPos.y;
+        x = std::max(0, std::min(x, screen.x - width));
+        y = std::max(0, std::min(y, screen.y - height));
+        if (x != m_config.windowPos.x || y != m_config.windowPos.y)
+        {
+            m_config.windowPos = { x, y };
+            m_window.setPosition({ x, y });
+        }
     }
 }
 
@@ -994,8 +1050,6 @@ void cViewer::loadSubImage(int subStep)
 
 void cViewer::updateInfobar()
 {
-    calculateScale();
-
     cInfoBar::sInfo s;
     s.path = m_filesList->getName();
     s.scale = m_scale.getScale();
@@ -1039,7 +1093,7 @@ Vectorf cViewer::screenToImage(const Vectorf& pos) const
     auto scale = m_scale.getScale();
     auto size = Vectorf{ viewport.x / scale - m_image->getWidth(),
                          viewport.y / scale - m_image->getHeight() };
-    return pos + m_camera - size * 0.5f;
+    return pos + getAdjustedCamera() - size * 0.5f;
 }
 
 void cViewer::updatePixelInfo(const Vectorf& pos)

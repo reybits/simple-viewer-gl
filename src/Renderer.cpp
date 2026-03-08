@@ -527,6 +527,11 @@ const Vectori& render::getViewportSize()
 
 void render::setViewportSize(const Vectori& size)
 {
+    if (ViewportSize.x == size.x && ViewportSize.y == size.y)
+    {
+        return;
+    }
+
     GL(glViewport(0, 0, static_cast<GLsizei>(size.x), static_cast<GLsizei>(size.y)));
     ViewportSize = size;
 }

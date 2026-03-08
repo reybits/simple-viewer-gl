@@ -22,11 +22,6 @@ public:
 
     void render() override;
 
-    float getHeight() const
-    {
-        return m_height;
-    }
-
     struct sInfo
     {
         const char* path = nullptr;
@@ -59,6 +54,4 @@ private:
 
     std::string m_bottominfo;
     std::string m_progressText;
-
-    float m_height = 0.0f;
 };

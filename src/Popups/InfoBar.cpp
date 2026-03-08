@@ -30,24 +30,23 @@ cInfoBar::cInfoBar(const sConfig& config)
 
 void cInfoBar::render()
 {
-    auto& io = ImGui::GetIO();
-    int width = static_cast<int>(io.DisplaySize.x);
-    int height = static_cast<int>(io.DisplaySize.y);
+    constexpr auto flags = ImGuiWindowFlags_NoTitleBar
+        | ImGuiWindowFlags_NoScrollbar
+        | ImGuiWindowFlags_NoSavedSettings
+        | ImGuiWindowFlags_NoMove
+        | ImGuiWindowFlags_NoResize
+        | ImGuiWindowFlags_NoDocking;
 
+    auto& io = ImGui::GetIO();
     auto& s = ImGui::GetStyle();
     auto font = ImGui::GetFont();
-    const float h = s.WindowPadding.y * 2.0f + font->LegacySize;
-
-    ImGui::SetNextWindowPos({ 0.0f, height - h }, ImGuiCond_Always);
-    ImGui::SetNextWindowSize({ static_cast<float>(width), h }, ImGuiCond_Always);
-    constexpr auto flags = ImGuiWindowFlags_NoTitleBar
-        | ImGuiWindowFlags_NoResize
-        | ImGuiWindowFlags_NoMove
-        | ImGuiWindowFlags_NoScrollbar
-        | ImGuiWindowFlags_NoSavedSettings;
+    const float barHeight = s.WindowPadding.y * 2.0f + font->LegacySize;
+    ImGui::SetNextWindowPos({ 0.0f, io.DisplaySize.y - barHeight });
+    ImGui::SetNextWindowSize({ io.DisplaySize.x, barHeight });
 
     const auto oldRounding = s.WindowRounding;
     s.WindowRounding = 0.0f;
+
     if (ImGui::Begin("infobar", nullptr, flags))
     {
         auto color = m_config.centerWindow
@@ -57,12 +56,15 @@ void cInfoBar::render()
 
         if (m_progressText.empty() == false)
         {
+            const float winWidth = ImGui::GetWindowWidth();
             const float textWidth = ImGui::CalcTextSize(m_progressText.c_str()).x;
-            ImGui::SameLine(static_cast<float>(width) - textWidth - s.WindowPadding.x);
+            ImGui::SameLine(winWidth - textWidth - s.WindowPadding.x);
             ImGui::TextColored(ColorYellow, "%s", m_progressText.c_str());
         }
     }
     ImGui::End();
+
+    s.WindowRounding = oldRounding;
 
     if (m_config.debug)
     {
@@ -80,15 +82,14 @@ void cInfoBar::render()
             frame = 0;
         }
 
+        constexpr auto debugFlags = flags | ImGuiWindowFlags_AlwaysAutoResize;
         ImGui::SetNextWindowPos({ 0.0f, 0.0f }, ImGuiCond_Always);
-        if (ImGui::Begin("debug", nullptr, flags | ImGuiWindowFlags_AlwaysAutoResize))
+        if (ImGui::Begin("debug", nullptr, debugFlags))
         {
             ImGui::TextColored(ColorYellow, "fps: %.1f", fps);
         }
         ImGui::End();
     }
-
-    s.WindowRounding = oldRounding;
 }
 
 void cInfoBar::setProgressText(const std::string& text)

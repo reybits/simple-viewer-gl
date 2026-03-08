@@ -228,6 +228,11 @@ float cQuadImage::getProgress() const
 
 void cQuadImage::useFilter(bool filter)
 {
+    if (m_filter == filter)
+    {
+        return;
+    }
+
     m_filter = filter;
     for (auto& chunk : m_chunks)
     {

@@ -526,18 +526,69 @@ void cGui::beginFrame()
 
     ImGui::NewFrame();
 
-    auto dockId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+    // The infobar is a fixed status bar at the bottom, rendered independently.
+    // The central area is the viewport above it.
+    const float barH = m_infobarVisible
+        ? getInfoBarHeight()
+        : 0.0f;
+    const float centralH = io.DisplaySize.y - barH;
 
+    m_centralPos = { 0.0f, 0.0f };
+    m_centralSize = { io.DisplaySize.x, centralH };
+
+    // DockSpace occupies the central area (above the infobar).
+    // User-dockable windows (EXIF, etc.) live here.
+    ImGuiID dockId = 0;
+    {
+        ImGui::SetNextWindowPos({ 0.0f, 0.0f });
+        ImGui::SetNextWindowSize({ io.DisplaySize.x, centralH });
+
+        constexpr ImGuiWindowFlags hostFlags = ImGuiWindowFlags_NoTitleBar
+            | ImGuiWindowFlags_NoCollapse
+            | ImGuiWindowFlags_NoResize
+            | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoDocking
+            | ImGuiWindowFlags_NoBringToFrontOnFocus
+            | ImGuiWindowFlags_NoNavFocus
+            | ImGuiWindowFlags_NoBackground;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::Begin("DockSpaceHost", nullptr, hostFlags);
+        ImGui::PopStyleVar(3);
+
+        dockId = ImGui::GetID("DockSpace");
+        ImGui::DockSpace(dockId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+        ImGui::End();
+    }
+
+    // Refine central area from dock's central node — accounts for user-docked windows.
     if (auto node = ImGui::DockBuilderGetCentralNode(dockId))
     {
-        m_centralPos = { node->Pos.x, node->Pos.y };
-        m_centralSize = { node->Size.x, node->Size.y };
+        if (node->Size.x > 0.0f && node->Size.y > 0.0f)
+        {
+            m_centralPos = { node->Pos.x, node->Pos.y };
+            m_centralSize = { node->Size.x, node->Size.y };
+        }
     }
-    else
+}
+
+void cGui::setInfoBarVisible(bool visible)
+{
+    m_infobarVisible = visible;
+}
+
+float cGui::getInfoBarHeight() const
+{
+    auto font = ImGui::GetFont();
+    if (font == nullptr)
     {
-        m_centralPos = { 0.0f, 0.0f };
-        m_centralSize = { io.DisplaySize.x, io.DisplaySize.y };
+        return 0.0f;
     }
+
+    auto& s = ImGui::GetStyle();
+    return s.WindowPadding.y * 2.0f + font->LegacySize;
 }
 
 void cGui::endFrame()

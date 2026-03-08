@@ -82,12 +82,15 @@ private:
     void loadImage(const char* path);
     void loadSubImage(int subStep);
     void calculateScale();
+    Vectorf getCentralAreaFbSize() const;
+    Vectorf getCentralAreaFbCenter() const;
+    Vectorf getAdjustedCamera() const;
     enum class ScaleDirection
     {
         Up,
         Down,
     };
-    void updateScale(ScaleDirection direction);
+    void updateScale(ScaleDirection direction, const Vectorf* cursorFb = nullptr);
     void updateFiltering();
     void updateInfobar();
     void updatePixelInfo(const Vectorf& pos);
@@ -99,6 +102,7 @@ private:
     void keyLeft(bool byPixel);
     void keyRight(bool byPixel);
     void shiftCamera(const Vectorf& delta);
+    void clampCamera();
     Vectorf screenToImage(const Vectorf& pos) const;
     Vectorf calculateMousePosition(const Vectorf& pos) const;
     void updateMousePosition();

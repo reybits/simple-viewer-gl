@@ -239,6 +239,21 @@ Vectori cWindow::getScreenSize() const
     auto monitor = glfwGetPrimaryMonitor();
     if (monitor != nullptr)
     {
+        int wx = 0, wy = 0, ww = 0, wh = 0;
+        glfwGetMonitorWorkarea(monitor, &wx, &wy, &ww, &wh);
+        if (ww > 0 && wh > 0)
+        {
+            // Subtract window frame (title bar, etc.) to get max content area.
+            if (m_window != nullptr)
+            {
+                int top = 0, left = 0, right = 0, bottom = 0;
+                glfwGetWindowFrameSize(m_window, &left, &top, &right, &bottom);
+                ww -= left + right;
+                wh -= top + bottom;
+            }
+            return { ww, wh };
+        }
+
         const auto* mode = glfwGetVideoMode(monitor);
         if (mode != nullptr)
         {
