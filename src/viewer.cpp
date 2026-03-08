@@ -215,6 +215,22 @@ void cViewer::onUpdate()
     {
         const auto& desc = m_loader->getDescription();
         m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
+
+        if (m_loader->getMode() == cImageLoader::Mode::Image)
+        {
+            if (m_config.keepScale == false)
+            {
+                m_scale.setScalePercent(100);
+                m_angle = 0;
+                m_camera = Vectorf();
+            }
+
+            m_selection->setImageDimension(desc.width, desc.height);
+            centerWindow();
+            enablePixelInfo(m_config.showPixelInfo);
+        }
+
+        updateInfobar();
     }
 
     // Final upload: decode complete (possibly with ICC correction applied)
@@ -236,17 +252,7 @@ void cViewer::onUpdate()
 
         if (m_loader->getMode() == cImageLoader::Mode::Image)
         {
-            if (m_config.keepScale == false)
-            {
-                m_scale.setScalePercent(100);
-                m_angle = 0;
-                m_camera = Vectorf();
-            }
-
-            m_selection->setImageDimension(desc.width, desc.height);
             m_exifPopup->setExifList(desc.exifList);
-            centerWindow();
-            enablePixelInfo(m_config.showPixelInfo);
         }
 
         updateInfobar();
