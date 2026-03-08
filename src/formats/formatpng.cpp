@@ -44,6 +44,9 @@ bool cFormatPng::LoadImpl(const char* filename, sBitmapDescription& desc)
     reader.setProgressCallback([this](float progress) {
         updateProgress(progress);
     });
+    reader.setBitmapAllocatedCallback([this]() {
+        signalBitmapAllocated();
+    });
 
     m_formatName = "png";
 

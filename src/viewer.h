@@ -15,6 +15,7 @@
 #include "types/types.h"
 #include "types/vector.h"
 
+#include <atomic>
 #include <memory>
 
 class cCheckerboard;
@@ -62,6 +63,7 @@ public:
 
 public:
     virtual void startLoading() override;
+    virtual void onBitmapAllocated(const sBitmapDescription& desc) override;
     virtual void doProgress(float progress) override;
     virtual void endLoading() override;
 
@@ -114,7 +116,9 @@ private:
     sConfig& m_config;
 
     Vectorf m_ratio;
-    bool m_imagePrepared = false;
+    std::atomic<bool> m_bitmapAllocated{ false };
+    std::atomic<bool> m_imagePrepared{ false };
+    bool m_uploadFinal = false;
     cScale m_scale;
     bool m_isWindowed;
     bool m_cursorInside = false;

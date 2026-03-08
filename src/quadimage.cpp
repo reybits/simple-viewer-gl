@@ -52,6 +52,10 @@ void cQuadImage::clear()
     m_chunks.clear();
 
     m_buffer.resize(0);
+
+    m_pixelCache.col = UINT32_MAX;
+    m_pixelCache.row = UINT32_MAX;
+    m_pixelCache.data.clear();
 }
 
 void cQuadImage::clearOld()
@@ -114,13 +118,23 @@ void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t f
     m_started = true;
 }
 
-bool cQuadImage::upload()
+bool cQuadImage::upload(uint32_t readyHeight)
 {
     const auto size = m_chunks.size();
     assert(size < m_rows * m_cols);
 
     const uint32_t col = size % m_cols;
     const uint32_t row = size / m_cols;
+
+    if (!m_compressed)
+    {
+        // Check if enough rows are decoded for this chunk
+        const uint32_t chunkBottom = (row + 1 == m_rows) ? m_height : (row + 1) * m_texHeight;
+        if (readyHeight < chunkBottom)
+        {
+            return false; // Not enough rows decoded yet
+        }
+    }
 
     if (m_compressed)
     {
@@ -306,6 +320,58 @@ void cQuadImage::render()
                  , rendered);
     }
 #endif
+}
+
+bool cQuadImage::getPixel(uint32_t x, uint32_t y, cColor& color) const
+{
+    if (m_chunks.empty() || x >= m_width || y >= m_height)
+    {
+        return false;
+    }
+
+    const uint32_t col = x / m_texWidth;
+    const uint32_t row = y / m_texHeight;
+
+    // Find the chunk
+    const cQuad* quad = nullptr;
+    for (const auto& chunk : m_chunks)
+    {
+        if (chunk.col == col && chunk.row == row)
+        {
+            quad = chunk.quad;
+            break;
+        }
+    }
+
+    if (quad == nullptr)
+    {
+        return false;
+    }
+
+    const uint32_t texW = quad->getTexWidth();
+    const uint32_t texH = quad->getTexHeight();
+
+    // Cache: read texture data only when chunk changes
+    if (m_pixelCache.col != col || m_pixelCache.row != row)
+    {
+        m_pixelCache.col = col;
+        m_pixelCache.row = row;
+        m_pixelCache.texW = texW;
+        m_pixelCache.texH = texH;
+        m_pixelCache.data.resize(texW * texH * 4);
+        render::getTexImage(quad->getQuad().tex, texW, texH, m_pixelCache.data.data());
+    }
+
+    const uint32_t lx = x - col * m_texWidth;
+    const uint32_t ly = y - row * m_texHeight;
+    const uint32_t idx = (ly * m_pixelCache.texW + lx) * 4;
+
+    color.r = m_pixelCache.data[idx + 0];
+    color.g = m_pixelCache.data[idx + 1];
+    color.b = m_pixelCache.data[idx + 2];
+    color.a = m_pixelCache.data[idx + 3];
+
+    return true;
 }
 
 void cQuadImage::moveToOld()

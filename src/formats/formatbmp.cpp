@@ -683,6 +683,7 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
         desc.bitmap.resize(desc.pitch * desc.height);
+        signalBitmapAllocated();
 
         const uint32_t fileOffset = file.getOffset();
         // ::printf("fileOffset: %u , offset: %u\n", fileOffset, bmpHeader.bitmapOffset);

@@ -13,6 +13,8 @@
 
 #include <glad/glad.h>
 
+#include <atomic>
+
 // Legacy format constants removed in GL 3.3 Core but still used by format readers.
 // render::setData() maps these to Core-compatible formats (GL_RED + swizzle).
 #ifndef GL_LUMINANCE
@@ -29,6 +31,7 @@ struct sBitmapDescription
     void reset()
     {
         bitmap.clear();
+        bitmapSize  = 0;
         format      = GL_RGB;
         bpp         = 0;
         pitch       = 0;
@@ -47,11 +50,15 @@ struct sBitmapDescription
         isAnimation = false;
         delay       = 0;
 
+        readyHeight.store(0, std::memory_order_relaxed);
+
         exifList.clear();
     }
 
     // buffer related
     Buffer bitmap;
+    size_t bitmapSize = 0; // preserved after bitmap is freed for display purposes
+    std::atomic<uint32_t> readyHeight{ 0 }; // rows decoded so far (for progressive upload)
     GLenum format     = GL_RGB;
     uint32_t bpp      = 0;
     uint32_t pitch    = 0;

@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "types/color.h"
 #include "types/types.h"
 #include "types/vector.h"
 
@@ -25,7 +26,7 @@ public:
     void clear();
     void setBuffer(uint32_t width, uint32_t height, uint32_t pitch, uint32_t format, uint32_t bpp, const uint8_t* image);
     void setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image);
-    bool upload();
+    bool upload(uint32_t readyHeight);
 
     void stop();
     bool isUploading() const;
@@ -33,6 +34,8 @@ public:
 
     void useFilter(bool filter);
     void render();
+
+    bool getPixel(uint32_t x, uint32_t y, cColor& color) const;
 
     uint32_t getWidth() const
     {
@@ -81,4 +84,14 @@ private:
     std::vector<sChunk> m_chunksOld;
 
     std::vector<uint8_t> m_buffer;
+
+    // Pixel readback cache: stores the last-read chunk texture data
+    mutable struct sPixelCache
+    {
+        uint32_t col = UINT32_MAX;
+        uint32_t row = UINT32_MAX;
+        uint32_t texW = 0;
+        uint32_t texH = 0;
+        std::vector<uint8_t> data; // RGBA, texW * texH * 4
+    } m_pixelCache;
 };

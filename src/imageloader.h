@@ -89,6 +89,11 @@ public:
         return m_desc;
     }
 
+    sBitmapDescription& getDescription()
+    {
+        return m_desc;
+    }
+
 private:
     cFormat* createLoader(eImageType type) const;
     cFormat* getLoader(eImageType type) const;

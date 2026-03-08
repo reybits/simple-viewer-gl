@@ -31,7 +31,8 @@ public:
     bool Load(const char* filename, sBitmapDescription& desc);
     bool LoadSubImage(uint32_t subImage, sBitmapDescription& desc);
 
-    void updateProgress(float percent) const;
+    void updateProgress(float percent);
+    void signalBitmapAllocated();
 
     const char* getFormatName() const
     {
@@ -48,11 +49,11 @@ public:
 protected:
     cFormat(iCallbacks* callbacks);
     bool readBuffer(cFile& file, Buffer& buffer, uint32_t minSize) const;
-    bool applyIccProfile(sBitmapDescription& desc, const void* iccProfile, uint32_t iccProfileSize) const;
-    bool applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb) const;
+    bool applyIccProfile(sBitmapDescription& desc, const void* iccProfile, uint32_t iccProfileSize);
+    bool applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb);
 
 private:
-    bool applyIccProfile(sBitmapDescription& desc) const;
+    bool applyIccProfile(sBitmapDescription& desc);
 
     virtual bool LoadImpl(const char* filename, sBitmapDescription& desc) = 0;
     virtual bool LoadSubImageImpl(uint32_t /*subImage*/, sBitmapDescription& /*desc*/)
@@ -62,6 +63,7 @@ private:
 
 private:
     iCallbacks* m_callbacks;
+    sBitmapDescription* m_desc = nullptr;
     std::unique_ptr<cCMS> m_cms;
 
 protected:

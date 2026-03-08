@@ -150,7 +150,8 @@ void render::init(GLFWwindow* window)
 
     int maxSize = 0;
     GL(glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize));
-    TextureSizeLimit = static_cast<uint32_t>(maxSize);
+    constexpr uint32_t MaxChunkSize = 1024;
+    TextureSizeLimit = std::min<uint32_t>(static_cast<uint32_t>(maxSize), MaxChunkSize);
 
     // Create shader programs
     TexturedProgram = createProgram(VertexShaderSource, TexturedFragSource);
@@ -306,6 +307,17 @@ void render::setTextureWrap(GLuint tex, GLenum wrap)
     bindTexture(tex);
     GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<GLint>(wrap)));
     GL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(wrap)));
+}
+
+void render::getTexImage(GLuint tex, uint32_t w, uint32_t h, void* pixels)
+{
+    if (tex != 0 && pixels != nullptr)
+    {
+        bindTexture(tex);
+        GL(glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels));
+        (void)w;
+        (void)h;
+    }
 }
 
 void render::setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum format)

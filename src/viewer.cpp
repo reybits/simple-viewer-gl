@@ -187,11 +187,20 @@ void cViewer::onRender()
 
 void cViewer::onUpdate()
 {
-    if (m_imagePrepared == true)
+    // Progressive upload: start uploading chunks as soon as bitmap is allocated
+    if (m_bitmapAllocated.exchange(false))
     {
-        m_imagePrepared = false;
+        auto& desc = m_loader->getDescription();
+        m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, desc.bitmap.data());
+    }
+
+    // Final upload: decode complete (possibly with ICC correction applied)
+    if (m_imagePrepared.exchange(false))
+    {
+        m_uploadFinal = true;
 
         auto& desc = m_loader->getDescription();
+        // Re-upload with final data (ICC profile may have been applied)
         m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, desc.bitmap.data());
 
         if (m_loader->getMode() == cImageLoader::Mode::Image)
@@ -214,15 +223,22 @@ void cViewer::onUpdate()
 
     if (isUploading())
     {
-        const bool isDone = m_image->upload();
+        auto& desc = m_loader->getDescription();
+        const uint32_t ready = desc.readyHeight.load(std::memory_order_acquire);
+        const bool isDone = m_image->upload(ready);
         m_progress->setProgress(0.5f + m_image->getProgress() * 0.5f);
 
         if (isDone)
         {
             m_progress->hide();
-
-            auto& desc = m_loader->getDescription();
             m_animation = desc.isAnimation;
+
+            // Free bitmap memory — pixel readback now uses GPU textures
+            if (m_uploadFinal && !desc.isAnimation && desc.images <= 1)
+            {
+                desc.bitmapSize = desc.bitmap.size();
+                Buffer().swap(desc.bitmap);
+            }
         }
     }
     else if (m_animation && m_subImageForced == false)
@@ -904,7 +920,7 @@ void cViewer::updateInfobar()
         s.images = desc.images;
         s.current = desc.current;
         s.file_size = desc.size;
-        s.mem_size = desc.bitmap.size();
+        s.mem_size = desc.bitmap.empty() ? desc.bitmapSize : desc.bitmap.size();
         s.type = m_loader->getImageType();
     }
     else
@@ -937,74 +953,14 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
         auto& desc = m_loader->getDescription();
         pixelInfo.bpp = desc.bpp;
 
-        const int x = (int)point.x;
-        const int y = (int)point.y;
+        const int x = static_cast<int>(point.x);
+        const int y = static_cast<int>(point.y);
 
-        if (x >= 0 && y >= 0 && (unsigned)x <= m_image->getWidth() && (unsigned)y <= m_image->getHeight())
+        if (x >= 0 && y >= 0
+            && static_cast<uint32_t>(x) < m_image->getWidth()
+            && static_cast<uint32_t>(y) < m_image->getHeight())
         {
-            const auto idx = (size_t)(x * desc.bpp / 8 + y * desc.pitch);
-            const auto color = desc.bitmap.data() + idx;
-
-            if (desc.bpp == 24 || desc.bpp == 32)
-            {
-                const bool bgrx = desc.format == GL_BGRA || desc.format == GL_BGR;
-                pixelInfo.color = {
-                    color[bgrx ? 2 : 0],
-                    color[1],
-                    color[bgrx ? 0 : 2],
-                    desc.bpp == 32 ? color[3] : (uint8_t)255
-                };
-            }
-            else if (desc.bpp == 16)
-            {
-                const uint16_t c = ((uint16_t)color[1] << 8) | (uint16_t)color[0];
-                if (desc.format == GL_UNSIGNED_SHORT_5_6_5)
-                {
-                    const float norm5 = 255.0f / 0x1f;
-                    const float norm6 = 255.0f / 0x3f;
-                    pixelInfo.color = {
-                        (uint8_t)(((c >> 11) & 0x1f) * norm5),
-                        (uint8_t)(((c >> 5) & 0x3f) * norm6),
-                        (uint8_t)(((c >> 0) & 0x1f) * norm5),
-                        255
-                    };
-                }
-                else if (desc.format == GL_UNSIGNED_SHORT_4_4_4_4)
-                {
-                    const float norm4 = 255.0f / 0x0f;
-                    pixelInfo.color = {
-                        (uint8_t)(((c >> 12) & 0x0f) * norm4),
-                        (uint8_t)(((c >> 8) & 0x0f) * norm4),
-                        (uint8_t)(((c >> 4) & 0x0f) * norm4),
-                        (uint8_t)(((c >> 0) & 0x0f) * norm4),
-                    };
-                }
-                else if (desc.format == GL_UNSIGNED_SHORT_5_5_5_1)
-                {
-                    const float norm5 = 255.0f / 0x1f;
-                    pixelInfo.color = {
-                        (uint8_t)(((c >> 11) & 0x1f) * norm5),
-                        (uint8_t)(((c >> 5) & 0x3f) * norm5),
-                        (uint8_t)(((c >> 0) & 0x1f) * norm5),
-                        (uint8_t)(((c >> 15) & 0x01) * 255)
-                    };
-                }
-                else if (desc.format == GL_LUMINANCE_ALPHA)
-                {
-                    const uint8_t c = color[0];
-                    const uint8_t a = color[1];
-                    pixelInfo.color = { c, c, c, a };
-                }
-                else
-                {
-                    cLog::Error("Not implemented 16 bpp format: 0x{:x}.", desc.format);
-                }
-            }
-            else if (desc.bpp == 8)
-            {
-                const uint8_t c = color[0];
-                pixelInfo.color = { c, c, c, 255 };
-            }
+            m_image->getPixel(static_cast<uint32_t>(x), static_cast<uint32_t>(y), pixelInfo.color);
         }
 
         pixelInfo.imgWidth = m_image->getWidth();
@@ -1036,7 +992,14 @@ void cViewer::startLoading()
     {
         m_progress->show();
     }
-    m_imagePrepared = false;
+    m_bitmapAllocated.store(false, std::memory_order_relaxed);
+    m_imagePrepared.store(false, std::memory_order_relaxed);
+    m_uploadFinal = false;
+}
+
+void cViewer::onBitmapAllocated(const sBitmapDescription& /*desc*/)
+{
+    m_bitmapAllocated.store(true, std::memory_order_release);
 }
 
 void cViewer::doProgress(float progress)
@@ -1046,7 +1009,7 @@ void cViewer::doProgress(float progress)
 
 void cViewer::endLoading()
 {
-    m_imagePrepared = true;
+    m_imagePrepared.store(true, std::memory_order_release);
 }
 
 void cViewer::updateMousePosition()

@@ -140,7 +140,7 @@ void cImageLoader::loadSubImage(unsigned subImage)
 
 bool cImageLoader::isLoaded() const
 {
-    if (m_desc.bitmap.empty())
+    if (m_desc.bitmap.empty() && m_desc.bitmapSize == 0)
     {
         return false;
     }

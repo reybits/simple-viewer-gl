@@ -24,7 +24,8 @@ public:
 private:
     bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
 
-    bool loadJp2k(void* image, sBitmapDescription& desc) const;
+    bool preAllocateBitmap(void* image, sBitmapDescription& desc);
+    bool convertPixels(void* image, sBitmapDescription& desc);
 };
 
 #endif

@@ -137,6 +137,7 @@ bool cFormatTiff::load(unsigned current, sBitmapDescription& desc)
                 desc.bpp = 32;
                 desc.bppImage = img.bitspersample * img.samplesperpixel;
                 desc.format = GL_RGBA;
+                signalBitmapAllocated();
 
                 // set desired orientation
                 img.req_orientation = ORIENTATION_TOPLEFT;

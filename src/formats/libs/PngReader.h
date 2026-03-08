@@ -23,10 +23,16 @@ public:
     virtual ~cPngReader();
 
     typedef std::function<void(float percent)> progressCallback;
+    typedef std::function<void()> allocatedCallback;
 
     void setProgressCallback(const progressCallback& callback)
     {
         m_progress = callback;
+    }
+
+    void setBitmapAllocatedCallback(const allocatedCallback& callback)
+    {
+        m_allocated = callback;
     }
 
     static bool isValid(const uint8_t* data, uint32_t size);
@@ -57,6 +63,7 @@ public:
 
 private:
     progressCallback m_progress = nullptr;
+    allocatedCallback m_allocated = nullptr;
 
     IccProfile m_iccProfile;
 };
