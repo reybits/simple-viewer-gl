@@ -53,11 +53,6 @@ public:
         return m_windowEvents;
     }
 
-    // Called by cWindow after fullscreen toggle to reinit GL resources
-    void onContextRecreated();
-
-    void centerWindow();
-
 private:
     // Window event handlers
     void onWindowResize(const Vectori& winSize);
@@ -77,10 +72,13 @@ private:
     void doProgress(float progress);
     void endLoading();
 
+    void onContextRecreated();
     void onResize(const Vectori& winSize, const Vectori& fbSize);
+    void centerWindow();
+    void resetViewAndUpdate(int scalePercent);
     void loadFirstImage();
     void loadLastImage();
-    void loadImage(int step);
+    void navigateImage(int step);
     void loadImage(const char* path);
     void loadSubImage(int subStep);
     void calculateScale();
@@ -104,7 +102,7 @@ private:
     Vectorf screenToImage(const Vectorf& pos) const;
     Vectorf calculateMousePosition(const Vectorf& pos) const;
     void updateMousePosition();
-    void showCursor(bool show);
+    void updateCursorState(bool visible);
     void enablePixelInfo(bool show);
 
 private:
@@ -120,7 +118,6 @@ private:
     bool m_uploadFinal = false;
     cScale m_scale;
     bool m_cursorInside = false;
-    bool m_mouseLB = false;
     bool m_mouseMB = false;
     bool m_mouseRB = false;
     Vectorf m_lastMouse;

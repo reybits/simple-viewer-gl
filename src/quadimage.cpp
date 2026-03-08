@@ -88,12 +88,8 @@ void cQuadImage::refreshData(const uint8_t* image)
 {
     m_image = image;
 
-    // Discard existing chunks — textures will be recreated during upload
-    for (auto& chunk : m_chunks)
-    {
-        chunk.quad.reset();
-    }
-    m_chunks.clear();
+    // Keep existing chunks visible as background while re-uploading
+    moveToOld();
 
     m_buffer.resize(m_texPitch * m_texHeight);
 
