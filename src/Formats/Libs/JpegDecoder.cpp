@@ -35,7 +35,7 @@ namespace
 
 cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescription& desc,
                                                 const ProgressCallback& onProgress, const AllocatedCallback& onAllocated,
-                                                const bool& stop)
+                                                const ImageInfoCallback& onImageInfo, const bool& stop)
 {
     Result result;
 
@@ -66,23 +66,31 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
         cinfo.out_color_space = JCS_RGB;
     }
 
-    // Step 5: Start decompressor
-    jpeg_start_decompress(&cinfo);
+    // Compute output dimensions early so we can signal image info before
+    // jpeg_start_decompress (which can be slow for progressive JPEGs).
+    jpeg_calc_output_dimensions(&cinfo);
 
     desc.size = size;
     desc.width = cinfo.output_width;
     desc.height = cinfo.output_height;
-    desc.format = ePixelFormat::RGB;
+    desc.bppImage = cinfo.num_components * static_cast<uint32_t>(cinfo.data_precision);
+    desc.formatName = "jpeg";
 
-    // Extract markers before reading scanlines
+    // Extract markers (available after jpeg_read_header)
     locateICCProfile(cinfo, result.iccProfile);
     locateExifData(cinfo, result.exifData);
+
+    if (onImageInfo)
+    {
+        onImageInfo();
+    }
+
+    // Step 5: Start decompressor (slow for progressive JPEGs)
+    jpeg_start_decompress(&cinfo);
 
     // Step 6: read scanlines
     if (isCMYK)
     {
-        desc.bppImage = 32;
-        desc.formatName = "jpeg";
         desc.allocate(desc.width, desc.height, 24, ePixelFormat::RGB);
         if (onAllocated)
         {
@@ -122,13 +130,10 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     }
     else
     {
-        auto precision = static_cast<uint32_t>(cinfo.data_precision);
-        desc.bppImage = cinfo.num_components * precision;
         auto fmt = (cinfo.output_components == 1)
             ? ePixelFormat::Luminance
             : ePixelFormat::RGB;
 
-        desc.formatName = "jpeg";
         desc.allocate(desc.width, desc.height, cinfo.output_components * 8, fmt);
         if (onAllocated)
         {

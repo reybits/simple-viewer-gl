@@ -80,6 +80,14 @@ void cFormat::updateProgress(float percent)
     m_callbacks->doProgress(percent);
 }
 
+void cFormat::signalImageInfo()
+{
+    if (m_callbacks != nullptr && m_callbacks->onImageInfo && m_desc != nullptr)
+    {
+        m_callbacks->onImageInfo(*m_desc);
+    }
+}
+
 void cFormat::signalBitmapAllocated()
 {
     if (m_callbacks != nullptr && m_desc != nullptr)
@@ -101,6 +109,9 @@ void cFormat::setupBitmap(sBitmapDescription& desc, uint32_t w, uint32_t h,
                           uint32_t bpp, ePixelFormat format, const char* formatName)
 {
     desc.formatName = formatName;
+    desc.width = w;
+    desc.height = h;
+    signalImageInfo();
     desc.allocate(w, h, bpp, format);
     signalBitmapAllocated();
 }

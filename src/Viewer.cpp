@@ -62,6 +62,7 @@ cViewer::cViewer(sConfig& config, cWindow& window)
     m_windowEvents.onFileDrop = [this](const StringsList& p) { onFileDrop(p); };
 
     m_callbacks.startLoading = [this]() { startLoading(); };
+    m_callbacks.onImageInfo = [this](const sBitmapDescription& d) { onImageInfo(d); };
     m_callbacks.onPreviewReady = [this](sPreviewData&& p) { onPreviewReady(std::move(p)); };
     m_callbacks.onBitmapAllocated = [this](const sBitmapDescription& d) { onBitmapAllocated(d); };
     m_callbacks.doProgress = [this](float p) { doProgress(p); };
@@ -226,6 +227,11 @@ void cViewer::onRender()
 
 void cViewer::onUpdate()
 {
+    if (m_imageInfoReady.exchange(false))
+    {
+        updateInfobar();
+    }
+
     bool previewJustShown = false;
     if (m_previewReady.exchange(false))
     {
@@ -1181,6 +1187,14 @@ void cViewer::updateInfobar()
         s.mem_size = desc.bitmap.empty() ? desc.bitmapSize : desc.bitmap.size();
         s.type = m_loader->getImageType();
     }
+    else if (m_imageInfo.formatName != nullptr)
+    {
+        s.width = m_imageInfo.width;
+        s.height = m_imageInfo.height;
+        s.bpp = m_imageInfo.bpp;
+        s.file_size = m_imageInfo.size;
+        s.type = m_imageInfo.formatName;
+    }
     else
     {
         s.type = "unknown";
@@ -1264,9 +1278,21 @@ void cViewer::startLoading()
     // startLoading() runs on the loader thread. GL resources (m_preview)
     // and data read by the render thread (m_previewData) must only be
     // freed on the main thread — see upload-complete in onUpdate().
+    m_imageInfoReady.store(false, std::memory_order_relaxed);
+    m_imageInfo = {};
     m_bitmapAllocated.store(false, std::memory_order_relaxed);
     m_imagePrepared.store(false, std::memory_order_relaxed);
     m_uploadFinal = false;
+}
+
+void cViewer::onImageInfo(const sBitmapDescription& desc)
+{
+    m_imageInfo.width = desc.width;
+    m_imageInfo.height = desc.height;
+    m_imageInfo.bpp = desc.bppImage;
+    m_imageInfo.size = desc.size;
+    m_imageInfo.formatName = desc.formatName;
+    m_imageInfoReady.store(true, std::memory_order_release);
 }
 
 void cViewer::onPreviewReady(sPreviewData&& preview)

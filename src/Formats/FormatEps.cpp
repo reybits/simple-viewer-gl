@@ -110,7 +110,8 @@ bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
         {
             auto progressCb = [this](float p) { updateProgress(p); };
             auto allocatedCb = [this]() { signalBitmapAllocated(); };
-            auto result = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), desc, progressCb, allocatedCb, m_stop);
+            auto imageInfoCb = [this]() { signalImageInfo(); };
+            auto result = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), desc, progressCb, allocatedCb, imageInfoCb, m_stop);
             if (result.success)
             {
                 desc.formatName = "eps";
