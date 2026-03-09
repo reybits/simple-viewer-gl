@@ -23,6 +23,7 @@ class cJpegDecoder final
 public:
     using ProgressCallback = std::function<void(float)>;
     using AllocatedCallback = std::function<void()>;
+    using ImageInfoCallback = std::function<void()>;
 
     struct Result
     {
@@ -43,7 +44,7 @@ public:
 
     Result decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescription& desc,
                        const ProgressCallback& onProgress, const AllocatedCallback& onAllocated,
-                       const bool& stop);
+                       const ImageInfoCallback& onImageInfo, const bool& stop);
 
     static Bitmap decodeThumbnail(const uint8_t* in, uint32_t size);
 

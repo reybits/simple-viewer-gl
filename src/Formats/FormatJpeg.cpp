@@ -90,7 +90,8 @@ bool cFormatJpeg::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     auto progressCb = [this](float p) { updateProgress(p); };
     auto allocatedCb = [this]() { signalBitmapAllocated(); };
-    auto result = m_decoder.decodeJpeg(in.data(), static_cast<uint32_t>(size), desc, progressCb, allocatedCb, m_stop);
+    auto imageInfoCb = [this]() { signalImageInfo(); };
+    auto result = m_decoder.decodeJpeg(in.data(), static_cast<uint32_t>(size), desc, progressCb, allocatedCb, imageInfoCb, m_stop);
     if (result.success == false)
     {
         return false;

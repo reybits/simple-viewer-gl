@@ -31,6 +31,7 @@ public:
     bool LoadSubImage(uint32_t subImage, sBitmapDescription& desc);
 
     void updateProgress(float percent);
+    void signalImageInfo();
     void signalBitmapAllocated();
     void signalPreviewReady(sPreviewData&& preview);
 

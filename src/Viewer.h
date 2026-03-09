@@ -68,6 +68,7 @@ private:
 
     // Loader callback handlers
     void startLoading();
+    void onImageInfo(const sBitmapDescription& desc);
     void onPreviewReady(sPreviewData&& preview);
     void onBitmapAllocated(const sBitmapDescription& desc);
     void doProgress(float progress);
@@ -126,6 +127,16 @@ private:
     Vectorf m_ratio;
     std::atomic<bool> m_previewReady{ false };
     sPreviewData m_previewData;
+    struct ImageInfo
+    {
+        uint32_t width = 0;
+        uint32_t height = 0;
+        uint32_t bpp = 0;
+        long size = -1;
+        const char* formatName = nullptr;
+    };
+    std::atomic<bool> m_imageInfoReady{ false };
+    ImageInfo m_imageInfo;
     std::atomic<bool> m_bitmapAllocated{ false };
     std::atomic<bool> m_imagePrepared{ false };
     std::atomic<float> m_loadProgress{ -1.0f };

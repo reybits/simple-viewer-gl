@@ -31,6 +31,7 @@ struct sPreviewData
 struct sCallbacks
 {
     std::function<void()> startLoading;
+    std::function<void(const sBitmapDescription& desc)> onImageInfo;
     std::function<void(const sBitmapDescription& desc)> onBitmapAllocated;
     std::function<void(float progress)> doProgress;
     std::function<void()> endLoading;
