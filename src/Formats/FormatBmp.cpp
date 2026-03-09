@@ -756,6 +756,24 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
             cLog::Error("Unsupported compression: {}.", compressionToName(compression));
             return false;
         }
+
+        // Extract ICC profile from V5 header
+        if (ver == Version::V5 && header.profileSize > 0 && header.profileData > 0)
+        {
+            auto profileOffset = sizeof(BmpHeader) + header.profileData;
+            if (profileOffset + header.profileSize <= static_cast<size_t>(file.getSize()))
+            {
+                Buffer iccBuffer(header.profileSize);
+                file.seek(static_cast<long>(profileOffset), SEEK_SET);
+                if (file.read(iccBuffer.data(), header.profileSize) == header.profileSize)
+                {
+                    if (applyIccProfile(desc, iccBuffer.data(), header.profileSize))
+                    {
+                        desc.formatName = "bmp/icc";
+                    }
+                }
+            }
+        }
     }
     else
     {

@@ -91,10 +91,90 @@ namespace
         {
             return false;
         }
-        size = helpers::read_uint32((uint8_t*)&size);
-        //::printf("%u bytes skipped\n", size);
+        size = helpers::read_uint32(reinterpret_cast<uint8_t*>(&size));
         file.seek(size, SEEK_CUR);
 
+        return true;
+    }
+
+    constexpr uint16_t PSD_ICC_PROFILE_RESOURCE = 0x040F;
+
+    // Read Image Resources Block and extract ICC profile if present.
+    // Returns false on read error.
+    bool readImageResources(cFile& file, Buffer& iccProfile)
+    {
+        uint32_t blockSize;
+        if (sizeof(uint32_t) != file.read(&blockSize, sizeof(uint32_t)))
+        {
+            return false;
+        }
+        blockSize = helpers::read_uint32(reinterpret_cast<uint8_t*>(&blockSize));
+
+        auto blockEnd = file.getOffset() + blockSize;
+
+        while (file.getOffset() < blockEnd)
+        {
+            // Resource entry: "8BIM" signature
+            uint8_t sig[4];
+            if (4 != file.read(sig, 4))
+            {
+                break;
+            }
+            if (sig[0] != '8' || sig[1] != 'B' || sig[2] != 'I' || sig[3] != 'M')
+            {
+                break;
+            }
+
+            // Resource ID (big-endian)
+            uint16_t resourceId;
+            if (sizeof(uint16_t) != file.read(&resourceId, sizeof(uint16_t)))
+            {
+                break;
+            }
+            resourceId = helpers::read_uint16(reinterpret_cast<uint8_t*>(&resourceId));
+
+            // Pascal string name (1 byte length + chars, padded to even total)
+            uint8_t nameLen;
+            if (1 != file.read(&nameLen, 1))
+            {
+                break;
+            }
+            // Total name field size is padded to even (including the length byte)
+            uint32_t nameFieldSize = (nameLen + 2) & ~1u;
+            file.seek(nameFieldSize - 1, SEEK_CUR);
+
+            // Resource data size (big-endian)
+            uint32_t dataSize;
+            if (sizeof(uint32_t) != file.read(&dataSize, sizeof(uint32_t)))
+            {
+                break;
+            }
+            dataSize = helpers::read_uint32(reinterpret_cast<uint8_t*>(&dataSize));
+
+            if (resourceId == PSD_ICC_PROFILE_RESOURCE && dataSize > 0)
+            {
+                iccProfile.resize(dataSize);
+                if (dataSize != file.read(iccProfile.data(), dataSize))
+                {
+                    iccProfile.clear();
+                }
+            }
+            else
+            {
+                // Skip resource data (padded to even size)
+                file.seek((dataSize + 1) & ~1u, SEEK_CUR);
+                continue;
+            }
+
+            // Data is padded to even size
+            if (dataSize & 1)
+            {
+                file.seek(1, SEEK_CUR);
+            }
+        }
+
+        // Ensure we're positioned at the end of the block
+        file.seek(blockEnd, SEEK_SET);
         return true;
     }
 
@@ -248,8 +328,9 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    // skip Image Resources Block
-    if (false == skipNextBlock(file))
+    // read Image Resources Block (extract ICC profile)
+    Buffer iccProfile;
+    if (false == readImageResources(file, iccProfile))
     {
         cLog::Error("Can't read image resources block.");
         return false;
@@ -501,6 +582,11 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
     for (size_t ch = 0, size = chBufs.size(); ch < size; ch++)
     {
         delete[] chBufs[ch];
+    }
+
+    if (applyIccProfile(desc, iccProfile.data(), static_cast<uint32_t>(iccProfile.size())))
+    {
+        desc.formatName = "psd/icc";
     }
 
     return true;
