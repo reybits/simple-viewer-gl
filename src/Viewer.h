@@ -76,6 +76,7 @@ private:
     void handleBitmapAllocated();
     void handleImageReady();
     void applyExifOrientation(uint16_t orientation);
+    void resetOrientation();
 
     void onContextRecreated();
     void onResize(const Vectori& winSize, const Vectori& fbSize);

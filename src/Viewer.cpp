@@ -292,9 +292,7 @@ void cViewer::handleBitmapAllocated()
         if (m_config.keepScale == false)
         {
             m_scale.setScalePercent(100);
-            m_angle = 0;
-            m_flipH = false;
-            m_flipV = false;
+            resetOrientation();
             m_camera = Vectorf();
         }
 
@@ -326,9 +324,7 @@ void cViewer::handleImageReady()
             if (m_config.keepScale == false)
             {
                 m_scale.setScalePercent(100);
-                m_angle = 0;
-                m_flipH = false;
-                m_flipV = false;
+                resetOrientation();
                 m_camera = Vectorf();
             }
             m_selection->setImageDimension(desc.width, desc.height);
@@ -339,10 +335,21 @@ void cViewer::handleImageReady()
     if (m_loader->getMode() == cImageLoader::Mode::Image)
     {
         m_exifPopup->setExifList(desc.exifList);
+
+        // Reset orientation before applying EXIF — orientation is intrinsic
+        // to the image, not a user preference that should persist across images.
+        resetOrientation();
         applyExifOrientation(desc.exifOrientation);
     }
 
     updateInfobar();
+}
+
+void cViewer::resetOrientation()
+{
+    m_angle = 0;
+    m_flipH = false;
+    m_flipV = false;
 }
 
 void cViewer::applyExifOrientation(uint16_t orientation)
