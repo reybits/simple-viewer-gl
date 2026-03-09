@@ -89,6 +89,14 @@ void cFormat::signalBitmapAllocated()
     }
 }
 
+void cFormat::signalPreviewReady(sPreviewData&& preview)
+{
+    if (m_callbacks != nullptr && m_callbacks->onPreviewReady)
+    {
+        m_callbacks->onPreviewReady(std::move(preview));
+    }
+}
+
 void cFormat::setupBitmap(sBitmapDescription& desc, uint32_t w, uint32_t h,
                           uint32_t bpp, ePixelFormat format, const char* formatName)
 {

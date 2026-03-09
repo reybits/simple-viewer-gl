@@ -16,6 +16,7 @@ class cFile;
 struct sCallbacks;
 struct sBitmapDescription;
 struct sConfig;
+struct sPreviewData;
 
 class cFormat
 {
@@ -31,6 +32,7 @@ public:
 
     void updateProgress(float percent);
     void signalBitmapAllocated();
+    void signalPreviewReady(sPreviewData&& preview);
 
     // Centralized bitmap setup for progressive formats:
     // sets desc.formatName, calls desc.allocate(), and signals the viewer.

@@ -12,8 +12,8 @@
 #if defined(JPEG2000_SUPPORT)
 
 #include "Common/BitmapDescription.h"
+#include "Common/Callbacks.h"
 #include "Common/File.h"
-#include "Common/Helpers.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -22,139 +22,77 @@
 
 namespace
 {
-    void j2k_info_callback(const char* msg, void* /*client_data*/)
+    void j2k_info_callback(const char* /*msg*/, void* /*client_data*/)
     {
-        // ::printf("(II) %s", msg);
-        (void)msg;
     }
 
-    void j2k_warning_callback(const char* msg, void* /*client_data*/)
+    void j2k_warning_callback(const char* /*msg*/, void* /*client_data*/)
     {
-        // ::printf("(WW) %s", msg);
-        (void)msg;
     }
 
-    void j2k_error_callback(const char* msg, void* /*client_data*/)
+    void j2k_error_callback(const char* msg, void* client_data)
     {
-        cLog::Error("{}", msg);
+        auto stop = static_cast<const bool*>(client_data);
+        if (stop == nullptr || *stop == false)
+        {
+            std::string_view sv(msg);
+            while (sv.empty() == false && (sv.back() == '\n' || sv.back() == '\r'))
+            {
+                sv.remove_suffix(1);
+            }
+            cLog::Error("{}", sv);
+        }
     }
-
-    // int int_ceildivpow2(int a, int b)
-    // {
-    // return (a + (1 << b) - 1) >> b;
-    // }
 
     uint8_t* getScanLine(sBitmapDescription& desc, uint32_t y)
     {
         return desc.bitmap.data() + desc.pitch * y;
     }
 
-    typedef uint8_t* (*FillPixelFunction)(opj_image_t* image, uint32_t pixel_pos, uint8_t* bits);
+    using FillPixelFunction = uint8_t* (*)(opj_image_t* image, uint32_t pixel_pos, uint8_t* bits);
 
-    const uint32_t RGBA_RED = 0;
-    const uint32_t RGBA_GREEN = 1;
-    const uint32_t RGBA_BLUE = 2;
-    const uint32_t RGBA_ALPHA = 3;
+    constexpr uint32_t RGBA_RED = 0;
+    constexpr uint32_t RGBA_GREEN = 1;
+    constexpr uint32_t RGBA_BLUE = 2;
+    constexpr uint32_t RGBA_ALPHA = 3;
+
+    uint32_t readComponent(const opj_image_comp_t& comp, uint32_t pixel_pos)
+    {
+        auto value = static_cast<uint32_t>(comp.data[pixel_pos]);
+        value += (comp.sgnd ? 1u << (comp.prec - 1) : 0u);
+        return value;
+    }
 
     uint8_t* RGBAtoRGBA(opj_image_t* image, uint32_t pixel_pos, uint8_t* bits)
     {
-        uint32_t r = image->comps[0].data[pixel_pos];
-        r += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-
-        uint32_t g = image->comps[1].data[pixel_pos];
-        g += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
-
-        uint32_t b = image->comps[2].data[pixel_pos];
-        b += (image->comps[2].sgnd ? 1 << (image->comps[2].prec - 1) : 0);
-
-        uint32_t a = image->comps[3].data[pixel_pos];
-        a += (image->comps[3].sgnd ? 1 << (image->comps[3].prec - 1) : 0);
-
-        bits[RGBA_RED] = (uint8_t)r;
-        bits[RGBA_GREEN] = (uint8_t)g;
-        bits[RGBA_BLUE] = (uint8_t)b;
-        bits[RGBA_ALPHA] = (uint8_t)a;
-        bits += 4;
-
-        return bits;
+        bits[RGBA_RED] = static_cast<uint8_t>(readComponent(image->comps[0], pixel_pos));
+        bits[RGBA_GREEN] = static_cast<uint8_t>(readComponent(image->comps[1], pixel_pos));
+        bits[RGBA_BLUE] = static_cast<uint8_t>(readComponent(image->comps[2], pixel_pos));
+        bits[RGBA_ALPHA] = static_cast<uint8_t>(readComponent(image->comps[3], pixel_pos));
+        return bits + 4;
     }
 
     uint8_t* CMYKtoRGB(opj_image_t* image, uint32_t pixel_pos, uint8_t* bits)
     {
-        uint32_t cc = image->comps[0].data[pixel_pos];
-        cc += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-        float C = cc / 255.0f;
-
-        uint32_t cm = image->comps[1].data[pixel_pos];
-        cm += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
-        float M = cm / 255.0f;
-
-        uint32_t cy = image->comps[2].data[pixel_pos];
-        cy += (image->comps[2].sgnd ? 1 << (image->comps[2].prec - 1) : 0);
-        float Y = cy / 255.0f;
-
-        uint32_t ck = image->comps[3].data[pixel_pos];
-        ck += (image->comps[3].sgnd ? 1 << (image->comps[3].prec - 1) : 0);
-        float K = ck / 255.0f;
-
+        float C = readComponent(image->comps[0], pixel_pos) / 255.0f;
+        float M = readComponent(image->comps[1], pixel_pos) / 255.0f;
+        float Y = readComponent(image->comps[2], pixel_pos) / 255.0f;
+        float K = readComponent(image->comps[3], pixel_pos) / 255.0f;
         float Kinv = 1.0f - K;
 
-        bits[RGBA_RED] = (uint8_t)(255 * (1.0f - C) * Kinv);
-        bits[RGBA_GREEN] = (uint8_t)(255 * (1.0f - M) * Kinv);
-        bits[RGBA_BLUE] = (uint8_t)(255 * (1.0f - Y) * Kinv);
-
-        bits += 3;
-
-        return bits;
+        bits[RGBA_RED] = static_cast<uint8_t>(255 * (1.0f - C) * Kinv);
+        bits[RGBA_GREEN] = static_cast<uint8_t>(255 * (1.0f - M) * Kinv);
+        bits[RGBA_BLUE] = static_cast<uint8_t>(255 * (1.0f - Y) * Kinv);
+        return bits + 3;
     }
 
     uint8_t* RGBtoRGB(opj_image_t* image, uint32_t pixel_pos, uint8_t* bits)
     {
-        uint32_t r = image->comps[0].data[pixel_pos];
-        r += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-
-        uint32_t g = image->comps[1].data[pixel_pos];
-        g += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
-
-        uint32_t b = image->comps[2].data[pixel_pos];
-        b += (image->comps[2].sgnd ? 1 << (image->comps[2].prec - 1) : 0);
-
-        bits[RGBA_RED] = (uint8_t)r;
-        bits[RGBA_GREEN] = (uint8_t)g;
-        bits[RGBA_BLUE] = (uint8_t)b;
-        bits += 3;
-
-        return bits;
+        bits[RGBA_RED] = static_cast<uint8_t>(readComponent(image->comps[0], pixel_pos));
+        bits[RGBA_GREEN] = static_cast<uint8_t>(readComponent(image->comps[1], pixel_pos));
+        bits[RGBA_BLUE] = static_cast<uint8_t>(readComponent(image->comps[2], pixel_pos));
+        return bits + 3;
     }
-
-#if 0
-    uint8_t* SYCCtoRGB(opj_image_t* image, uint32_t pixel_pos, uint8_t* bits)
-    {
-        uint32_t y = image->comps[0].data[pixel_pos];
-        y += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-        float Y = y / 255.0f;
-
-        uint32_t cb = image->comps[1].data[pixel_pos];
-        cb += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
-        float Cb = cb / 255.0f;
-
-        uint32_t cr = image->comps[2].data[pixel_pos];
-        cr += (image->comps[2].sgnd ? 1 << (image->comps[2].prec - 1) : 0);
-        float Cr = cr / 255.0f;
-
-        float r = std::max<float>(0.0f, std::min(1.0f, (float)(Y + 0.0000 * Cb + 1.4022 * Cr)));
-        float g = std::max<float>(0.0f, std::min(1.0f, (float)(Y - 0.3456 * Cb - 0.7145 * Cr)));
-        float b = std::max<float>(0.0f, std::min(1.0f, (float)(Y + 1.7710 * Cb + 0.0000 * Cr)));
-
-        bits[RGBA_RED] = (uint8_t)(r * 255);
-        bits[RGBA_GREEN] = (uint8_t)(g * 255);
-        bits[RGBA_BLUE] = (uint8_t)(b * 255);
-
-        bits += 3;
-
-        return bits;
-    }
-#endif
 
     const char* getColorSpaceName(COLOR_SPACE type)
     {
@@ -185,6 +123,188 @@ namespace
         return "Unknown";
     }
 
+    struct StreamContext
+    {
+        cFile* file;
+        const bool* stop;
+    };
+
+    size_t streamRead(void* buffer, size_t size, void* user)
+    {
+        auto ctx = static_cast<StreamContext*>(user);
+        if (*ctx->stop)
+        {
+            return static_cast<size_t>(-1);
+        }
+        auto bytesRead = ctx->file->read(buffer, size);
+        return bytesRead ? bytesRead : static_cast<size_t>(-1);
+    }
+
+    void streamClose(void* /*user*/)
+    {
+        // File is owned by LoadImpl's stack frame — let cFile destructor handle closing.
+    }
+
+    off_t streamSkip(off_t bytes, void* user)
+    {
+        auto ctx = static_cast<StreamContext*>(user);
+        if (*ctx->stop)
+        {
+            return -1;
+        }
+        if (ctx->file->seek(bytes, SEEK_CUR) != 0)
+        {
+            return -1;
+        }
+
+        return bytes;
+    }
+
+    int streamSeek(off_t bytes, void* user)
+    {
+        auto ctx = static_cast<StreamContext*>(user);
+        if (*ctx->stop)
+        {
+            return 0;
+        }
+        return ctx->file->seek(bytes, SEEK_SET) == 0;
+    }
+
+    bool determinePixelFormat(opj_image_t* image, uint32_t& outBpp, ePixelFormat& outFormat)
+    {
+        auto colorspace = image->color_space;
+        if (colorspace == OPJ_CLRSPC_SYCC || colorspace == OPJ_CLRSPC_EYCC)
+        {
+            return false;
+        }
+
+        uint32_t numcomps = image->numcomps;
+
+        for (uint32_t c = 0; c < numcomps - 1; c++)
+        {
+            if (image->comps[c].dx != image->comps[c + 1].dx
+                || image->comps[c].dy != image->comps[c + 1].dy
+                || image->comps[c].prec != image->comps[c + 1].prec)
+            {
+                return false;
+            }
+        }
+
+        if (image->comps[0].prec > 16)
+        {
+            return false;
+        }
+
+        if (numcomps == 1)
+        {
+            outBpp = 8;
+            outFormat = ePixelFormat::Luminance;
+        }
+        else if (numcomps == 2)
+        {
+            outBpp = 16;
+            outFormat = ePixelFormat::LuminanceAlpha;
+        }
+        else if (numcomps == 3)
+        {
+            outBpp = 24;
+            outFormat = ePixelFormat::RGB;
+        }
+        else if (colorspace == OPJ_CLRSPC_CMYK)
+        {
+            outBpp = 24;
+            outFormat = ePixelFormat::RGB;
+        }
+        else
+        {
+            outBpp = 32;
+            outFormat = ePixelFormat::RGBA;
+        }
+
+        return true;
+    }
+
+    struct CodecContext
+    {
+        opj_codec_t* codec = nullptr;
+        opj_image_t* image = nullptr;
+
+        CodecContext() = default;
+        ~CodecContext()
+        {
+            if (codec != nullptr)
+            {
+                opj_destroy_codec(codec);
+            }
+            if (image != nullptr)
+            {
+                opj_image_destroy(image);
+            }
+        }
+
+        CodecContext(const CodecContext&) = delete;
+        CodecContext& operator=(const CodecContext&) = delete;
+        CodecContext(CodecContext&& o) noexcept
+            : codec(o.codec)
+            , image(o.image)
+        {
+            o.codec = nullptr;
+            o.image = nullptr;
+        }
+        CodecContext& operator=(CodecContext&& o) noexcept
+        {
+            if (this != &o)
+            {
+                if (codec != nullptr) { opj_destroy_codec(codec); }
+                if (image != nullptr) { opj_image_destroy(image); }
+                codec = o.codec;
+                image = o.image;
+                o.codec = nullptr;
+                o.image = nullptr;
+            }
+            return *this;
+        }
+    };
+
+    opj_stream_t* createStream(StreamContext* ctx, long fileSize)
+    {
+        auto stream = opj_stream_default_create(true);
+        opj_stream_set_user_data(stream, ctx, streamClose);
+        opj_stream_set_user_data_length(stream, fileSize);
+        opj_stream_set_read_function(stream, streamRead);
+        opj_stream_set_skip_function(stream, streamSkip);
+        opj_stream_set_seek_function(stream, streamSeek);
+        return stream;
+    }
+
+    bool createCodec(CodecContext& ctx, opj_stream_t* stream, const bool* stopFlag, uint32_t reduceFactor)
+    {
+        ctx.codec = opj_create_decompress(OPJ_CODEC_JP2);
+
+        opj_set_info_handler(ctx.codec, j2k_info_callback, nullptr);
+        opj_set_warning_handler(ctx.codec, j2k_warning_callback, nullptr);
+        opj_set_error_handler(ctx.codec, j2k_error_callback, const_cast<bool*>(stopFlag));
+
+        opj_dparameters_t parameters;
+        opj_set_default_decoder_parameters(&parameters);
+        parameters.cp_reduce = reduceFactor;
+
+        if (opj_setup_decoder(ctx.codec, &parameters) == false)
+        {
+            return false;
+        }
+
+        const auto numThreads = std::max(1u, std::thread::hardware_concurrency());
+        opj_codec_set_threads(ctx.codec, static_cast<int>(numThreads));
+
+        if (opj_read_header(stream, ctx.codec, &ctx.image) == false)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
 } // namespace
 
 bool cFormatJp2k::isSupported(cFile& file, Buffer& buffer) const
@@ -199,40 +319,6 @@ bool cFormatJp2k::isSupported(cFile& file, Buffer& buffer) const
     return ::memcmp(jp2_signature, buffer.data(), sizeof(jp2_signature)) == 0;
 }
 
-size_t streamRead(void* buffer, size_t size, void* user)
-{
-    // ::printf("read bytes %zu\n", size);
-    auto file = static_cast<cFile*>(user);
-    auto readed = file->read(buffer, size);
-    return readed ? readed : (size_t)-1;
-}
-
-void streamClose(void* user)
-{
-    // ::printf("close jpeg2k file\n");
-    auto file = static_cast<cFile*>(user);
-    file->close();
-}
-
-off_t streamSkip(off_t bytes, void* user)
-{
-    // ::printf("skip bytes %lld\n", bytes);
-    auto file = static_cast<cFile*>(user);
-    if (file->seek(bytes, SEEK_CUR) != 0)
-    {
-        return -1;
-    }
-
-    return bytes;
-}
-
-int streamSeek(off_t bytes, void* user)
-{
-    // ::printf("seek bytes %lld\n", bytes);
-    auto file = static_cast<cFile*>(user);
-    return file->seek(bytes, SEEK_SET) == 0;
-}
-
 bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
 {
     cFile file;
@@ -241,124 +327,245 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    auto stream = opj_stream_default_create(true);
+    StreamContext sctx{ &file, &m_stop };
 
-    opj_stream_set_user_data(stream, &file, streamClose);
-    opj_stream_set_user_data_length(stream, desc.size);
-
-    opj_stream_set_read_function(stream, streamRead);
-    opj_stream_set_skip_function(stream, streamSkip);
-    opj_stream_set_seek_function(stream, streamSeek);
-
-    opj_dparameters_t parameters;
-    opj_set_default_decoder_parameters(&parameters);
-
-    // decode the JPEG-2000 codestream
-
-    // get a decoder handle
-    auto d_codec = opj_create_decompress(OPJ_CODEC_JP2);
-
-    // configure the event callbacks
-    // catch events using our callbacks (no local context needed here)
-    opj_set_info_handler(d_codec, j2k_info_callback, nullptr);
-    opj_set_warning_handler(d_codec, j2k_warning_callback, nullptr);
-    opj_set_error_handler(d_codec, j2k_error_callback, nullptr);
-
-    // setup the decoder decoding parameters using user parameters
-    if (!opj_setup_decoder(d_codec, &parameters))
-    {
-        cLog::Error("Can't set up JPEG2000 decoder.");
-        return false;
-    }
-
-    // enable multi-threaded tile decoding
-    const auto numThreads = std::max(1u, std::thread::hardware_concurrency());
-    opj_codec_set_threads(d_codec, static_cast<int>(numThreads));
-
-    opj_image_t* image = nullptr;
-
-    // read the main header of the codestream and if necessary the JP2 boxes
-    if (!opj_read_header(stream, d_codec, &image))
+    // Phase 1: Read header to determine image properties and tile/resolution info.
+    auto stream = createStream(&sctx, desc.size);
+    CodecContext headerCtx;
+    if (createCodec(headerCtx, stream, &m_stop, 0) == false)
     {
         cLog::Error("Can't read JPEG2000 header.");
+        opj_stream_destroy(stream);
         return false;
     }
 
-    // Pre-allocate bitmap before the expensive decode so the viewer can
-    // show the image frame and progress bar immediately.
-    if (!preAllocateBitmap(image, desc))
+    auto cstrInfo = opj_get_cstr_info(headerCtx.codec);
+    const uint32_t numTilesX = cstrInfo->tw;
+    const uint32_t numTilesY = cstrInfo->th;
+    const uint32_t tdx = cstrInfo->tdx;
+    const uint32_t tdy = cstrInfo->tdy;
+    const uint32_t numTiles = numTilesX * numTilesY;
+    const uint32_t numResolutions = cstrInfo->m_default_tile_info.tccp_info[0].numresolutions;
+    opj_destroy_cstr_info(&cstrInfo);
+
+    cLog::Debug("Tile grid: {}x{} ({}x{} per tile), {} total, {} resolutions.",
+                numTilesX, numTilesY, tdx, tdy, numTiles, numResolutions);
+
+    // Determine if a reduced-resolution preview is worthwhile.
+    const uint32_t fullWidth = headerCtx.image->comps[0].w;
+    const uint32_t fullHeight = headerCtx.image->comps[0].h;
+    const uint32_t maxDim = std::max(fullWidth, fullHeight);
+
+    constexpr uint32_t PreviewTarget = 2000;
+    uint32_t reduceFactor = 0;
+    if (numResolutions > 1)
+    {
+        while (reduceFactor + 1 < numResolutions
+               && (maxDim >> (reduceFactor + 1)) >= PreviewTarget)
+        {
+            reduceFactor++;
+        }
+    }
+
+    // Done with header-only codec — destroy before reopening the stream.
+    headerCtx = {};
+    opj_stream_destroy(stream);
+    stream = nullptr;
+
+    // Phase 2: Quick low-resolution preview (if image is large enough).
+    if (reduceFactor > 0 && m_stop == false)
+    {
+        decodePreview(file, desc.size, reduceFactor, fullWidth, fullHeight);
+    }
+
+    if (m_stop)
+    {
+        return false;
+    }
+
+    // Phase 3: Full-resolution decode.
+    file.seek(0, SEEK_SET);
+    stream = createStream(&sctx, desc.size);
+    CodecContext fullCtx;
+    if (createCodec(fullCtx, stream, &m_stop, 0) == false)
+    {
+        cLog::Error("Can't set up JPEG2000 full-res decoder.");
+        opj_stream_destroy(stream);
+        return false;
+    }
+
+    if (preAllocateBitmap(fullCtx.image, desc) == false)
     {
         cLog::Error("Unsupported JPEG2000 format.");
-        opj_destroy_codec(d_codec);
-        opj_image_destroy(image);
         opj_stream_destroy(stream);
         return false;
     }
 
-    // decode the stream and fill the image structure
-    // This is the expensive operation — the viewer remains responsive
-    // because loading runs in a background thread.
-    if (!(opj_decode(d_codec, stream, image) && opj_end_decompress(d_codec, stream)))
+    bool decodeOk = true;
+
+    if (numTiles == 1)
     {
-        cLog::Error("Can't decode JPEG2000 image.");
-        opj_destroy_codec(d_codec);
-        opj_image_destroy(image);
-        opj_stream_destroy(stream);
-        return false;
+        // Single-tile image: strip-based decoding via opj_set_decode_area().
+        constexpr uint32_t StripHeight = 4096;
+        const uint32_t numStrips = (desc.height + StripHeight - 1) / StripHeight;
+
+        for (uint32_t strip = 0; strip < numStrips && m_stop == false; strip++)
+        {
+            const uint32_t y0 = strip * StripHeight;
+            const uint32_t y1 = std::min(y0 + StripHeight, desc.height);
+
+            if (opj_set_decode_area(fullCtx.codec, fullCtx.image, 0, y0, desc.width, y1) == false)
+            {
+                if (m_stop == false)
+                {
+                    cLog::Error("Can't set JPEG2000 decode area for strip {}.", strip);
+                }
+                decodeOk = false;
+                break;
+            }
+
+            if (opj_decode(fullCtx.codec, stream, fullCtx.image) == false)
+            {
+                if (m_stop == false)
+                {
+                    cLog::Error("Can't decode JPEG2000 strip {}/{}.", strip + 1, numStrips);
+                }
+                decodeOk = false;
+                break;
+            }
+
+            if (convertPixels(fullCtx.image, desc, 0, y0) == false)
+            {
+                decodeOk = false;
+                break;
+            }
+
+            desc.readyHeight.store(y1, std::memory_order_release);
+            updateProgress(static_cast<float>(strip + 1) / numStrips);
+        }
     }
-
-    // free the codec context
-    opj_destroy_codec(d_codec);
-    d_codec = nullptr;
-
-    // convert decoded planar components to interleaved output bitmap
-    if (convertPixels(image, desc) == false)
+    else
     {
-        cLog::Error("Can't import JPEG2000 image.");
-        opj_image_destroy(image);
+        // Multi-tile image: decode tile-by-tile.
+        for (uint32_t tileIdx = 0; tileIdx < numTiles && m_stop == false; tileIdx++)
+        {
+            if (opj_get_decoded_tile(fullCtx.codec, stream, fullCtx.image, tileIdx) == false)
+            {
+                if (m_stop == false)
+                {
+                    cLog::Error("Can't decode JPEG2000 tile {}/{}.", tileIdx + 1, numTiles);
+                }
+                decodeOk = false;
+                break;
+            }
+
+            const uint32_t tileX = tileIdx % numTilesX;
+            const uint32_t tileY = tileIdx / numTilesX;
+            const uint32_t dstX = tileX * tdx;
+            const uint32_t dstY = tileY * tdy;
+
+            if (convertPixels(fullCtx.image, desc, dstX, dstY) == false)
+            {
+                decodeOk = false;
+                break;
+            }
+
+            if (tileX == numTilesX - 1)
+            {
+                const uint32_t ready = std::min((tileY + 1) * tdy, desc.height);
+                desc.readyHeight.store(ready, std::memory_order_release);
+            }
+
+            updateProgress(static_cast<float>(tileIdx + 1) / numTiles);
+        }
+    }
+
+    if (m_stop || decodeOk == false)
+    {
         opj_stream_destroy(stream);
         return false;
     }
 
-    if (applyIccProfile(desc, image->icc_profile_buf, image->icc_profile_len))
+    desc.readyHeight.store(desc.height, std::memory_order_release);
+
+    if (opj_end_decompress(fullCtx.codec, stream) == false)
+    {
+        cLog::Error("Can't finalize JPEG2000 decompression.");
+    }
+
+    if (applyIccProfile(desc, fullCtx.image->icc_profile_buf, fullCtx.image->icc_profile_len))
     {
         desc.formatName = "jpeg2000/icc";
     }
-
-    // free image data structure
-    opj_image_destroy(image);
 
     opj_stream_destroy(stream);
 
     return true;
 }
 
+void cFormatJp2k::decodePreview(cFile& file, long fileSize, uint32_t reduceFactor, uint32_t fullWidth, uint32_t fullHeight)
+{
+    file.seek(0, SEEK_SET);
+
+    StreamContext sctx{ &file, &m_stop };
+    auto stream = createStream(&sctx, fileSize);
+
+    CodecContext ctx;
+    if (createCodec(ctx, stream, &m_stop, reduceFactor) == false)
+    {
+        opj_stream_destroy(stream);
+        return;
+    }
+
+    if (opj_decode(ctx.codec, stream, ctx.image) == false || m_stop)
+    {
+        opj_stream_destroy(stream);
+        return;
+    }
+
+    opj_stream_destroy(stream);
+
+    uint32_t bpp;
+    ePixelFormat format;
+    if (determinePixelFormat(ctx.image, bpp, format) == false)
+    {
+        return;
+    }
+
+    // Use a temporary sBitmapDescription for convertPixels.
+    sBitmapDescription previewBitmap;
+    previewBitmap.allocate(ctx.image->comps[0].w, ctx.image->comps[0].h, bpp, format);
+
+    if (convertPixels(ctx.image, previewBitmap, 0, 0) == false)
+    {
+        return;
+    }
+
+    sPreviewData preview;
+    preview.width = previewBitmap.width;
+    preview.height = previewBitmap.height;
+    preview.pitch = previewBitmap.pitch;
+    preview.bpp = bpp;
+    preview.format = format;
+    preview.fullImageWidth = fullWidth;
+    preview.fullImageHeight = fullHeight;
+    preview.bitmap = std::move(previewBitmap.bitmap);
+
+    signalPreviewReady(std::move(preview));
+}
+
 bool cFormatJp2k::preAllocateBitmap(void* img, sBitmapDescription& desc)
 {
     auto image = static_cast<opj_image_t*>(img);
 
-    auto colorspace = image->color_space;
-    if (colorspace == OPJ_CLRSPC_SYCC || colorspace == OPJ_CLRSPC_EYCC)
+    uint32_t bpp;
+    ePixelFormat format;
+    if (determinePixelFormat(image, bpp, format) == false)
     {
         return false;
     }
 
     uint32_t numcomps = image->numcomps;
-
-    for (uint32_t c = 0; c < numcomps - 1; c++)
-    {
-        if (image->comps[c].dx != image->comps[c + 1].dx
-            || image->comps[c].dy != image->comps[c + 1].dy
-            || image->comps[c].prec != image->comps[c + 1].prec)
-        {
-            return false;
-        }
-    }
-
-    if (image->comps[0].prec > 16)
-    {
-        return false;
-    }
 
     desc.width = image->comps[0].w;
     desc.height = image->comps[0].h;
@@ -366,124 +573,79 @@ bool cFormatJp2k::preAllocateBitmap(void* img, sBitmapDescription& desc)
     desc.images = 1;
 
     cLog::Debug("Components: {}.", numcomps);
-    cLog::Debug("  Colorspace: {}.", getColorSpaceName(colorspace));
+    cLog::Debug("  Colorspace: {}.", getColorSpaceName(image->color_space));
     cLog::Debug("  Prec: {}.", image->comps[0].prec);
     cLog::Debug("  Signed: {}.", image->comps[0].sgnd);
     cLog::Debug("  Factor: {}.", image->comps[0].factor);
     cLog::Debug("  Decoded resolution: {}.", image->comps[0].resno_decoded);
 
     desc.formatName = "jpeg2000";
-
-    // Determine output format from component info
-    if (numcomps == 1)
-    {
-        desc.allocate(desc.width, desc.height, 8, ePixelFormat::Luminance);
-    }
-    else if (numcomps == 2)
-    {
-        desc.allocate(desc.width, desc.height, 16, ePixelFormat::LuminanceAlpha);
-    }
-    else if (numcomps == 3)
-    {
-        desc.allocate(desc.width, desc.height, 24, ePixelFormat::RGB);
-    }
-    else // numcomps >= 4
-    {
-        if (colorspace == OPJ_CLRSPC_CMYK)
-        {
-            desc.allocate(desc.width, desc.height, 24, ePixelFormat::RGB);
-        }
-        else
-        {
-            desc.allocate(desc.width, desc.height, 32, ePixelFormat::RGBA);
-        }
-    }
+    desc.allocate(desc.width, desc.height, bpp, format);
 
     signalBitmapAllocated();
 
     return true;
 }
 
-bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc)
+bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t dstX, uint32_t dstY)
 {
     auto image = static_cast<opj_image_t*>(img);
 
-    uint32_t wr = image->comps[0].w;
+    const uint32_t tileW = image->comps[0].w;
+    const uint32_t tileH = image->comps[0].h;
     auto colorspace = image->color_space;
     uint32_t numcomps = image->numcomps;
+    const uint32_t bytesPerPixel = desc.bpp / 8;
 
     if (image->comps[0].prec <= 8)
     {
         if (numcomps == 1)
         {
-            uint32_t pixel_count = 0;
-            for (uint32_t y = 0; y < desc.height; y++)
+            for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, y);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                for (uint32_t x = 0; x < tileW; x++)
                 {
-                    const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
-                    uint32_t value = image->comps[0].data[pixel_pos];
-                    value += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-                    bits[x] = static_cast<uint8_t>(value);
-                    pixel_count++;
+                    bits[x] = static_cast<uint8_t>(readComponent(image->comps[0], y * tileW + x));
                 }
-                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps == 2)
         {
-            // Gray + Alpha
-            uint32_t pixel_count = 0;
-            for (uint32_t y = 0; y < desc.height; y++)
+            for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, y);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                for (uint32_t x = 0; x < tileW; x++)
                 {
-                    const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
-
-                    uint32_t lum = image->comps[0].data[pixel_pos];
-                    lum += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-
-                    uint32_t alpha = image->comps[1].data[pixel_pos];
-                    alpha += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
-
-                    bits[x * 2 + 0] = static_cast<uint8_t>(lum);
-                    bits[x * 2 + 1] = static_cast<uint8_t>(alpha);
-                    pixel_count++;
+                    const uint32_t pos = y * tileW + x;
+                    bits[x * 2 + 0] = static_cast<uint8_t>(readComponent(image->comps[0], pos));
+                    bits[x * 2 + 1] = static_cast<uint8_t>(readComponent(image->comps[1], pos));
                 }
-                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps == 3)
         {
-            uint32_t pixel_count = 0;
-            for (uint32_t y = 0; y < desc.height; y++)
+            for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, y);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                for (uint32_t x = 0; x < tileW; x++)
                 {
-                    const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
-                    bits = RGBtoRGB(image, pixel_pos, bits);
-                    pixel_count++;
+                    bits = RGBtoRGB(image, y * tileW + x, bits);
                 }
-                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps >= 4)
         {
-            uint32_t pixel_count = 0;
-            FillPixelFunction fillPixel = (colorspace == OPJ_CLRSPC_CMYK) ? CMYKtoRGB : RGBAtoRGBA;
-            for (uint32_t y = 0; y < desc.height; y++)
+            FillPixelFunction fillPixel = (colorspace == OPJ_CLRSPC_CMYK)
+                ? CMYKtoRGB
+                : RGBAtoRGBA;
+            for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, y);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                for (uint32_t x = 0; x < tileW; x++)
                 {
-                    const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
-                    bits = fillPixel(image, pixel_pos, bits);
-                    pixel_count++;
+                    bits = fillPixel(image, y * tileW + x, bits);
                 }
-                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
     }
@@ -491,110 +653,62 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc)
     {
         if (numcomps == 1)
         {
-            uint32_t pixel_count = 0;
-            for (uint32_t y = 0; y < desc.height; y++)
+            for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, y);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                for (uint32_t x = 0; x < tileW; x++)
                 {
-                    const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
-                    uint32_t value = image->comps[0].data[pixel_pos];
-                    value += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-                    bits[x] = static_cast<uint8_t>(value >> 4);
-                    pixel_count++;
+                    bits[x] = static_cast<uint8_t>(readComponent(image->comps[0], y * tileW + x) >> 4);
                 }
-                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps == 2)
         {
-            // 16-bit Gray + Alpha
-            uint32_t pixel_count = 0;
-            for (uint32_t y = 0; y < desc.height; y++)
+            for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, y);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                for (uint32_t x = 0; x < tileW; x++)
                 {
-                    const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
-
-                    uint32_t lum = image->comps[0].data[pixel_pos];
-                    lum += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-
-                    uint32_t alpha = image->comps[1].data[pixel_pos];
-                    alpha += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
-
-                    bits[x * 2 + 0] = static_cast<uint8_t>(lum >> 8);
-                    bits[x * 2 + 1] = static_cast<uint8_t>(alpha >> 8);
-                    pixel_count++;
+                    const uint32_t pos = y * tileW + x;
+                    bits[x * 2 + 0] = static_cast<uint8_t>(readComponent(image->comps[0], pos) >> 8);
+                    bits[x * 2 + 1] = static_cast<uint8_t>(readComponent(image->comps[1], pos) >> 8);
                 }
-                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps == 3)
         {
-            uint32_t pixel_count = 0;
-            for (uint32_t y = 0; y < desc.height; y++)
+            for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, y);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                for (uint32_t x = 0; x < tileW; x++)
                 {
-                    const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
-
-                    uint32_t r = image->comps[0].data[pixel_pos];
-                    r += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-
-                    uint32_t g = image->comps[1].data[pixel_pos];
-                    g += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
-
-                    uint32_t b = image->comps[2].data[pixel_pos];
-                    b += (image->comps[2].sgnd ? 1 << (image->comps[2].prec - 1) : 0);
-
-                    bits[RGBA_RED] = static_cast<uint8_t>(r >> 8);
-                    bits[RGBA_GREEN] = static_cast<uint8_t>(g >> 8);
-                    bits[RGBA_BLUE] = static_cast<uint8_t>(b >> 8);
+                    const uint32_t pos = y * tileW + x;
+                    bits[RGBA_RED] = static_cast<uint8_t>(readComponent(image->comps[0], pos) >> 8);
+                    bits[RGBA_GREEN] = static_cast<uint8_t>(readComponent(image->comps[1], pos) >> 8);
+                    bits[RGBA_BLUE] = static_cast<uint8_t>(readComponent(image->comps[2], pos) >> 8);
                     bits += 3;
-
-                    pixel_count++;
                 }
-                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
         else if (numcomps == 4)
         {
-            uint32_t pixel_count = 0;
-            for (uint32_t y = 0; y < desc.height; y++)
+            for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, y);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                for (uint32_t x = 0; x < tileW; x++)
                 {
-                    const uint32_t pixel_pos = pixel_count / desc.width * wr + pixel_count % desc.width;
-
-                    uint32_t r = image->comps[0].data[pixel_pos];
-                    r += (image->comps[0].sgnd ? 1 << (image->comps[0].prec - 1) : 0);
-
-                    uint32_t g = image->comps[1].data[pixel_pos];
-                    g += (image->comps[1].sgnd ? 1 << (image->comps[1].prec - 1) : 0);
-
-                    uint32_t b = image->comps[2].data[pixel_pos];
-                    b += (image->comps[2].sgnd ? 1 << (image->comps[2].prec - 1) : 0);
-
-                    uint32_t a = image->comps[3].data[pixel_pos];
-                    a += (image->comps[3].sgnd ? 1 << (image->comps[3].prec - 1) : 0);
-
-                    bits[RGBA_RED] = static_cast<uint8_t>(r);
-                    bits[RGBA_GREEN] = static_cast<uint8_t>(g);
-                    bits[RGBA_BLUE] = static_cast<uint8_t>(b);
-                    bits[RGBA_ALPHA] = static_cast<uint8_t>(a);
+                    const uint32_t pos = y * tileW + x;
+                    bits[RGBA_RED] = static_cast<uint8_t>(readComponent(image->comps[0], pos));
+                    bits[RGBA_GREEN] = static_cast<uint8_t>(readComponent(image->comps[1], pos));
+                    bits[RGBA_BLUE] = static_cast<uint8_t>(readComponent(image->comps[2], pos));
+                    bits[RGBA_ALPHA] = static_cast<uint8_t>(readComponent(image->comps[3], pos));
                     bits += 4;
-
-                    pixel_count++;
                 }
-                updateProgress(static_cast<float>(y) / desc.height);
             }
         }
     }
 
-    return true;
+    return m_stop == false;
 }
 
 #endif

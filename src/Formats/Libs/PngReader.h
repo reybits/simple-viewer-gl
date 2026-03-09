@@ -36,6 +36,11 @@ public:
         m_allocated = callback;
     }
 
+    void setStopFlag(const bool* stop)
+    {
+        m_stop = stop;
+    }
+
     static bool isValid(const uint8_t* data, uint32_t size);
 
     bool loadPng(sBitmapDescription& desc, const uint8_t* data, uint32_t size);
@@ -65,6 +70,7 @@ public:
 private:
     progressCallback m_progress = nullptr;
     allocatedCallback m_allocated = nullptr;
+    const bool* m_stop = nullptr;
 
     IccProfile m_iccProfile;
 };

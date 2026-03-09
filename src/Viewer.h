@@ -68,11 +68,13 @@ private:
 
     // Loader callback handlers
     void startLoading();
+    void onPreviewReady(sPreviewData&& preview);
     void onBitmapAllocated(const sBitmapDescription& desc);
     void doProgress(float progress);
     void endLoading();
 
     // Main-thread handlers for async loader events (polled from onUpdate)
+    void handlePreviewReady();
     void handleBitmapAllocated();
     void handleImageReady();
     void applyExifOrientation(uint16_t orientation);
@@ -90,7 +92,7 @@ private:
     void calculateScale();
     Vectorf getCentralAreaFbSize() const;
     Vectorf getCentralAreaFbCenter() const;
-    Vectorf getAdjustedCamera() const;
+    Vectorf getAdjustedCamera(float scaleOverride = 0.0f) const;
     enum class ScaleDirection
     {
         Up,
@@ -122,6 +124,8 @@ private:
     sCallbacks m_callbacks;
 
     Vectorf m_ratio;
+    std::atomic<bool> m_previewReady{ false };
+    sPreviewData m_previewData;
     std::atomic<bool> m_bitmapAllocated{ false };
     std::atomic<bool> m_imagePrepared{ false };
     std::atomic<float> m_loadProgress{ -1.0f };
@@ -144,6 +148,7 @@ private:
     cGui m_imgui;
 
     std::unique_ptr<cQuadImage> m_image;
+    std::unique_ptr<cQuadImage> m_preview; // lazy: created on preview ready, destroyed when full-res upload completes
     std::unique_ptr<cFilesList> m_filesList;
     std::unique_ptr<cFileBrowser> m_fileSelector;
     std::unique_ptr<cProgress> m_progress;

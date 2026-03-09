@@ -403,10 +403,10 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
 
     // read all channels rgba and extra if available;
-    for (uint32_t ch = 0; ch < channels; ch++)
+    for (uint32_t ch = 0; ch < channels && m_stop == false; ch++)
     {
         uint32_t pos = 0;
-        for (uint32_t row = 0; row < desc.height; row++)
+        for (uint32_t row = 0; row < desc.height && m_stop == false; row++)
         {
             if (compression == CompressionMethod::RLE)
             {
@@ -440,6 +440,15 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
 
             pos += desc.width * bytes_per_component;
         }
+    }
+
+    if (m_stop)
+    {
+        for (size_t ch = 0, size = chBufs.size(); ch < size; ch++)
+        {
+            delete[] chBufs[ch];
+        }
+        return false;
     }
 
     if (colorMode == ColorMode::RGB)

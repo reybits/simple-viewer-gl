@@ -23,8 +23,9 @@ public:
 private:
     bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
 
+    void decodePreview(cFile& file, long fileSize, uint32_t reduceFactor, uint32_t fullWidth, uint32_t fullHeight);
     bool preAllocateBitmap(void* image, sBitmapDescription& desc);
-    bool convertPixels(void* image, sBitmapDescription& desc);
+    bool convertPixels(void* image, sBitmapDescription& desc, uint32_t dstX, uint32_t dstY);
 };
 
 #endif
