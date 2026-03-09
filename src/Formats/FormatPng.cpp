@@ -39,6 +39,7 @@ bool cFormatPng::LoadImpl(const char* filename, sBitmapDescription& desc)
     reader.setBitmapAllocatedCallback([this]() {
         signalBitmapAllocated();
     });
+    reader.setStopFlag(&m_stop);
 
     desc.formatName = "png";
 

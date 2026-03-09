@@ -62,6 +62,7 @@ cViewer::cViewer(sConfig& config, cWindow& window)
     m_windowEvents.onFileDrop = [this](const StringsList& p) { onFileDrop(p); };
 
     m_callbacks.startLoading = [this]() { startLoading(); };
+    m_callbacks.onPreviewReady = [this](sPreviewData&& p) { onPreviewReady(std::move(p)); };
     m_callbacks.onBitmapAllocated = [this](const sBitmapDescription& d) { onBitmapAllocated(d); };
     m_callbacks.doProgress = [this](float p) { doProgress(p); };
     m_callbacks.endLoading = [this]() { endLoading(); };
@@ -142,6 +143,16 @@ void cViewer::onRender()
 
     render::setGlobals(getAdjustedCamera(), m_angle, scale, m_flipH, m_flipV);
 
+    if (m_preview != nullptr)
+    {
+        const float previewScale = scale
+            * static_cast<float>(m_previewData.fullImageWidth)
+            / static_cast<float>(m_preview->getWidth());
+        render::setGlobals(getAdjustedCamera(previewScale), m_angle, previewScale, m_flipH, m_flipV);
+        m_preview->render();
+        render::setGlobals(getAdjustedCamera(), m_angle, scale, m_flipH, m_flipV);
+    }
+
     m_image->render();
 
     const auto half_w = static_cast<float>((m_image->getWidth() + 1) >> 1u);
@@ -215,9 +226,24 @@ void cViewer::onRender()
 
 void cViewer::onUpdate()
 {
+    bool previewJustShown = false;
+    if (m_previewReady.exchange(false))
+    {
+        handlePreviewReady();
+        previewJustShown = true;
+    }
+
     if (m_bitmapAllocated.exchange(false))
     {
-        handleBitmapAllocated();
+        if (previewJustShown)
+        {
+            // Defer by one frame so the preview texture has time to upload.
+            m_bitmapAllocated.store(true, std::memory_order_relaxed);
+        }
+        else
+        {
+            handleBitmapAllocated();
+        }
     }
 
     if (m_imagePrepared.exchange(false))
@@ -256,6 +282,13 @@ void cViewer::onUpdate()
             m_loadProgress.store(-1.0f, std::memory_order_relaxed);
             m_animation = desc.isAnimation;
 
+            // Full-res upload complete — discard preview.
+            if (m_preview != nullptr)
+            {
+                m_preview.reset();
+                m_previewData = {};
+            }
+
             // Free bitmap memory — pixel readback now uses GPU textures
             if (m_uploadFinal && !desc.isAnimation && desc.images <= 1)
             {
@@ -278,6 +311,14 @@ void cViewer::onUpdate()
 bool cViewer::isUploading() const
 {
     return m_image->isUploading();
+}
+
+void cViewer::handlePreviewReady()
+{
+    auto& p = m_previewData;
+    m_preview = std::make_unique<cQuadImage>();
+    m_preview->setBuffer(p.width, p.height, p.pitch, p.format, p.bpp, p.bitmap.data());
+    m_preview->upload(p.height);
 }
 
 void cViewer::handleBitmapAllocated()
@@ -908,13 +949,15 @@ Vectorf cViewer::getCentralAreaFbCenter() const
     return { pos.x + size.x * 0.5f, pos.y + size.y * 0.5f };
 }
 
-Vectorf cViewer::getAdjustedCamera() const
+Vectorf cViewer::getAdjustedCamera(float scaleOverride) const
 {
     const auto& viewport = render::getViewportSize();
     const auto centralCenter = getCentralAreaFbCenter();
-    const float scale = m_scale.getScale();
-    return { m_camera.x - (centralCenter.x - viewport.x * 0.5f) / scale,
-             m_camera.y - (centralCenter.y - viewport.y * 0.5f) / scale };
+    const float s = (scaleOverride > 0.0f)
+        ? scaleOverride
+        : m_scale.getScale();
+    return { m_camera.x - (centralCenter.x - viewport.x * 0.5f) / s,
+             m_camera.y - (centralCenter.y - viewport.y * 0.5f) / s };
 }
 
 void cViewer::updateScale(ScaleDirection direction, const Vectorf* cursorFb)
@@ -1211,9 +1254,20 @@ void cViewer::startLoading()
         m_progress->show();
     }
     m_loadProgress.store(-2.0f, std::memory_order_relaxed); // "loading..."
+    m_previewReady.store(false, std::memory_order_relaxed);
+    // Note: m_preview and m_previewData are NOT cleaned here because
+    // startLoading() runs on the loader thread. GL resources (m_preview)
+    // and data read by the render thread (m_previewData) must only be
+    // freed on the main thread — see upload-complete in onUpdate().
     m_bitmapAllocated.store(false, std::memory_order_relaxed);
     m_imagePrepared.store(false, std::memory_order_relaxed);
     m_uploadFinal = false;
+}
+
+void cViewer::onPreviewReady(sPreviewData&& preview)
+{
+    m_previewData = std::move(preview);
+    m_previewReady.store(true, std::memory_order_release);
 }
 
 void cViewer::onBitmapAllocated(const sBitmapDescription& /*desc*/)

@@ -306,6 +306,11 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
 
     for (uint32_t y = 0; y < desc.height; y++)
     {
+        if (m_stop != nullptr && *m_stop)
+        {
+            return false;
+        }
+
         auto row = desc.bitmap.data() + desc.pitch * y;
         png_read_row(png, row, nullptr);
         updateProgress(static_cast<float>(y + 1) / desc.height);
