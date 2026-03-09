@@ -392,6 +392,7 @@ void cViewer::onMouseMove(const Vectorf& pos)
 
     if (m_fileSelector->isVisible() || m_imgui.wantCaptureMouse())
     {
+        updateCursorState(true);
         return;
     }
 
