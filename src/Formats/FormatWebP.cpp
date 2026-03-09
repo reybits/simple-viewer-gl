@@ -16,6 +16,7 @@
 
 #include <cstring>
 #include <webp/decode.h>
+#include <webp/demux.h>
 
 bool cFormatWebP::isSupported(cFile& file, Buffer& buffer) const
 {
@@ -70,10 +71,6 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
     desc.width = features.width;
     desc.height = features.height;
 
-    // ::printf("alpha: %d, animations: %d, format: %d\n"
-    // , features.has_alpha, features.has_animation
-    // , features.format);
-
     if (features.has_alpha)
     {
         desc.bppImage = 32;
@@ -95,6 +92,23 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
             cLog::Error("Can't decode WebP data.");
             return false;
         }
+    }
+
+    // Extract ICC profile via demux API
+    WebPData webpData = { buffer.data(), buffer.size() };
+    auto demux = WebPDemux(&webpData);
+    if (demux != nullptr)
+    {
+        WebPChunkIterator chunkIter;
+        if (WebPDemuxGetChunk(demux, "ICCP", 1, &chunkIter))
+        {
+            if (applyIccProfile(desc, chunkIter.chunk.bytes, static_cast<uint32_t>(chunkIter.chunk.size)))
+            {
+                desc.formatName = "webp/icc";
+            }
+            WebPDemuxReleaseChunkIterator(&chunkIter);
+        }
+        WebPDemuxDelete(demux);
     }
 
     return true;

@@ -47,5 +47,14 @@ find_library(
 )
 mark_as_advanced(WEBP_LIBRARIES)
 
+# Look for the demux library (needed for ICC profile extraction).
+pkg_check_modules(PC_WEBPDEMUX QUIET libwebpdemux)
+find_library(
+    WEBPDEMUX_LIBRARIES
+    NAMES webpdemux
+    HINTS ${PC_WEBPDEMUX_LIBDIR} ${PC_WEBPDEMUX_LIBRARY_DIRS} ${PC_WEBP_LIBDIR} ${PC_WEBP_LIBRARY_DIRS}
+)
+mark_as_advanced(WEBPDEMUX_LIBRARIES)
+
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(WebP DEFAULT_MSG WEBP_INCLUDE_DIRS WEBP_LIBRARIES)

@@ -448,6 +448,9 @@ endif()
 
 if(WEBP_FOUND)
     target_link_libraries(${APPLICATION_NAME} ${WEBP_LIBRARIES})
+    if(WEBPDEMUX_LIBRARIES)
+        target_link_libraries(${APPLICATION_NAME} ${WEBPDEMUX_LIBRARIES})
+    endif()
 endif()
 
 if(OPENEXR_FOUND AND ILMBASE_FOUND)
