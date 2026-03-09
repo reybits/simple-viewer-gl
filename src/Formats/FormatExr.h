@@ -22,6 +22,8 @@ public:
 
 private:
     bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
+
+    void decodePreview(const char* filename);
 };
 
 #endif

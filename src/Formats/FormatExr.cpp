@@ -11,6 +11,7 @@
 
 #include "FormatExr.h"
 #include "Common/BitmapDescription.h"
+#include "Common/Callbacks.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
 #include "Log/Log.h"
@@ -154,50 +155,12 @@ namespace
         return result;
     }
 
-#if 0
-    bool loadPreview(Imf::RgbaInputFile& in, sBitmapDescription& desc)
+    void ReadDimensions(const Imf::Header& header, uint32_t& width, uint32_t& height)
     {
-        auto& header = in.header();
-        const bool hasPreview = header.hasPreviewImage();
-        if (hasPreview)
-        {
-            const auto& preview = header.previewImage();
-
-            const uint32_t width = preview.width();
-            const uint32_t height = preview.height();
-
-            desc.width = width;
-            desc.height = height;
-            desc.bppImage = 0;
-
-            desc.pitch = desc.width * 4;
-            desc.bitmap.resize(desc.pitch * desc.height);
-
-            desc.bpp = 32;
-            desc.format = ePixelFormat::RGBA;
-
-            auto bitmap = reinterpret_cast<sRgba8888*>(desc.bitmap.data());
-
-            for (uint32_t y = 0; y < height; ++y)
-            {
-                size_t idx = y * width;
-                for (uint32_t x = 0; x < width; ++x)
-                {
-                    const auto& p = preview.pixel(x, y);
-
-                    bitmap[idx].r = HalfToUint8(p.r);
-                    bitmap[idx].g = HalfToUint8(p.g);
-                    bitmap[idx].b = HalfToUint8(p.b);
-                    bitmap[idx].a = HalfToUint8(p.a);
-                    idx++;
-                }
-            }
-            return true;
-        }
-
-        return false;
+        auto& dw = header.dataWindow();
+        width = static_cast<uint32_t>(dw.max.x - dw.min.x + 1);
+        height = static_cast<uint32_t>(dw.max.y - dw.min.y + 1);
     }
-#endif
 } // namespace
 
 bool cFormatExr::isSupported(cFile& file, Buffer& buffer) const
@@ -211,6 +174,67 @@ bool cFormatExr::isSupported(cFile& file, Buffer& buffer) const
     return h[0] == 0x76 && h[1] == 0x2f && h[2] == 0x31 && h[3] == 0x01;
 }
 
+void cFormatExr::decodePreview(const char* filename)
+{
+    try
+    {
+        Imf::RgbaInputFile in(filename);
+        auto& header = in.header();
+
+        uint32_t fullWidth = 0;
+        uint32_t fullHeight = 0;
+        ReadDimensions(header, fullWidth, fullHeight);
+
+        if (header.hasPreviewImage() == false)
+        {
+            return;
+        }
+
+        const auto& preview = header.previewImage();
+        const auto width = preview.width();
+        const auto height = preview.height();
+
+        if (width == 0 || height == 0)
+        {
+            return;
+        }
+
+        constexpr uint32_t bpp = 32;
+        const uint32_t pitch = width * (bpp / 8);
+
+        sPreviewData data;
+        data.width = width;
+        data.height = height;
+        data.pitch = pitch;
+        data.bpp = bpp;
+        data.format = ePixelFormat::RGBA;
+        data.fullImageWidth = fullWidth;
+        data.fullImageHeight = fullHeight;
+        data.bitmap.resize(pitch * height);
+
+        auto dst = reinterpret_cast<sRgba8888*>(data.bitmap.data());
+        for (uint32_t y = 0; y < height; y++)
+        {
+            for (uint32_t x = 0; x < width; x++)
+            {
+                const auto& p = preview.pixel(x, y);
+                dst->r = p.r;
+                dst->g = p.g;
+                dst->b = p.b;
+                dst->a = p.a;
+                dst++;
+            }
+        }
+
+        cLog::Debug("EXR preview: {}x{}, full: {}x{}", width, height, fullWidth, fullHeight);
+        signalPreviewReady(std::move(data));
+    }
+    catch (...)
+    {
+        cLog::Error("Failed to read EXR preview image.");
+    }
+}
+
 bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
 {
     cFile file;
@@ -220,6 +244,8 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
 
     file.close();
+
+    decodePreview(filename);
 
     bool result = false;
 

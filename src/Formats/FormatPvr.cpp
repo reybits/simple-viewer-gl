@@ -162,9 +162,15 @@ namespace
         uint32_t metadataLength;
     };
 
-    bool isPvr3(const uint8_t* /*buffer*/, uint32_t size)
+    bool isPvr3(const uint8_t* buffer, uint32_t size)
     {
-        return size >= sizeof(PVRv3TexHeader);
+        if (size < sizeof(PVRv3TexHeader))
+        {
+            return false;
+        }
+
+        auto version = helpers::read_uint32(buffer);
+        return version == 0x50565203;
     }
 
     void decodeEncodedPvr(uint32_t* data, size_t len)

@@ -344,11 +344,11 @@ const std::vector<sFormatEntry>& FormatRegistry::getRegistry()
         { "age", nullptr, 0, 0, probeAge, makeFormat<cFormatAge>, 28 },
         { "svg", nullptr, 0, 0, probeSvg, makeFormat<cFormatSvg>, 256 },
         { "raw", nullptr, 0, 0, probeRaw, makeFormat<cFormatRaw>, 20 },
-        { "pvr", nullptr, 0, 0, probePvr, makeFormat<cFormatPvr>, 64 },
-        { "scr", nullptr, 0, 0, probeScr, makeFormat<cFormatScr>, 4 },
 #if defined(OPENEXR_SUPPORT)
         { "exr", MagicExr, sizeof(MagicExr), 0, nullptr, makeFormat<cFormatExr>, 4 },
 #endif
+        { "pvr", nullptr, 0, 0, probePvr, makeFormat<cFormatPvr>, 64 },
+        { "scr", nullptr, 0, 0, probeScr, makeFormat<cFormatScr>, 4 },
     };
 
     return registry;
