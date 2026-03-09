@@ -45,6 +45,7 @@ struct sBitmapDescription
         readyHeight.store(0, std::memory_order_relaxed);
 
         exifList.clear();
+        exifOrientation = 1;
     }
 
     // Allocate bitmap with standard pitch (width * bpp rounded up to bytes).
@@ -105,4 +106,6 @@ struct sBitmapDescription
     };
     using ExifList = std::vector<ExifEntry>;
     ExifList exifList;
+
+    uint16_t exifOrientation = 1; // EXIF orientation tag (1-8), 1 = normal
 };

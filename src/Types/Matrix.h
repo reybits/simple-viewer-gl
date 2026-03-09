@@ -38,6 +38,14 @@ struct Matrix4
         return o;
     }
 
+    static Matrix4 Scale(float sx, float sy)
+    {
+        Matrix4 r = Identity();
+        r.m[0] = sx;
+        r.m[5] = sy;
+        return r;
+    }
+
     static Matrix4 RotateZ(float degrees)
     {
         const float rad = degrees * (3.14159265358979323846f / 180.0f);

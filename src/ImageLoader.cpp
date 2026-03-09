@@ -46,48 +46,38 @@ cFormat* cImageLoader::getOrCreateReader(const sFormatEntry& entry)
     return ptr;
 }
 
+bool cImageLoader::loadFromFile(const char* path)
+{
+    cFile file;
+    if (file.open(path) == false)
+    {
+        return false;
+    }
+
+    Buffer buffer;
+    auto entry = FormatRegistry::detect(file, buffer);
+    if (entry == nullptr)
+    {
+        return false;
+    }
+
+    m_activeReader = getOrCreateReader(*entry);
+    return m_activeReader->Load(path, m_desc);
+}
+
 void cImageLoader::load(const char* path)
 {
     if (path != nullptr)
     {
-        bool result = false;
-
         cCurl curl;
         if (curl.isUrl(path))
         {
-            if (curl.loadFile(path))
+            if (curl.loadFile(path) && loadFromFile(curl.getPath()))
             {
-                path = curl.getPath();
-
-                cFile file;
-                if (file.open(path))
-                {
-                    Buffer buffer;
-                    auto entry = FormatRegistry::detect(file, buffer);
-                    if (entry != nullptr)
-                    {
-                        m_activeReader = getOrCreateReader(*entry);
-                        result = m_activeReader->Load(path, m_desc);
-                    }
-                }
+                return;
             }
         }
-        else
-        {
-            cFile file;
-            if (file.open(path))
-            {
-                Buffer buffer;
-                auto entry = FormatRegistry::detect(file, buffer);
-                if (entry != nullptr)
-                {
-                    m_activeReader = getOrCreateReader(*entry);
-                    result = m_activeReader->Load(path, m_desc);
-                }
-            }
-        }
-
-        if (result)
+        else if (loadFromFile(path))
         {
             return;
         }

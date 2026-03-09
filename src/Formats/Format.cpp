@@ -112,7 +112,7 @@ bool cFormat::openFile(cFile& file, const char* filename, sBitmapDescription& de
 
 bool cFormat::readBuffer(cFile& file, Buffer& buffer, uint32_t minSize) const
 {
-    const uint32_t size = (uint32_t)buffer.size();
+    const auto size = static_cast<uint32_t>(buffer.size());
     if (size < minSize)
     {
         buffer.resize(minSize);
@@ -153,7 +153,7 @@ bool cFormat::applyIccProfile(sBitmapDescription& desc)
             m_cms->doTransform(bitmap, bitmap, desc.width);
             bitmap += desc.pitch;
 
-            updateProgress((float)y / desc.height);
+            updateProgress(static_cast<float>(y) / desc.height);
         }
     }
 

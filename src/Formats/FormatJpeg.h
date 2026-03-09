@@ -9,15 +9,18 @@
 
 #pragma once
 
+#include "Format.h"
 #include "Libs/JpegDecoder.h"
 
-class cFormatJpeg final : public cJpegDecoder
+class cFormatJpeg final : public cFormat
 {
 public:
-    using cJpegDecoder::cJpegDecoder;
+    using cFormat::cFormat;
 
     bool isSupported(cFile& file, Buffer& buffer) const override;
 
 private:
     bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
+
+    cJpegDecoder m_decoder;
 };

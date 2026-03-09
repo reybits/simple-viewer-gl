@@ -22,7 +22,7 @@ namespace
         auto begin = helpers::memfind(data, size, name);
         if (begin != nullptr)
         {
-            begin += ::strlen(name) + 1;
+            begin += std::strlen(name) + 1;
             auto end = helpers::memfind(begin, size, name);
             if (end != nullptr)
             {
@@ -58,8 +58,8 @@ bool cFormatEps::isSupported(cFile& file, Buffer& buffer) const
             return false;
         }
 
-        auto data = (const char*)buffer.data();
-        auto size = (uint32_t)buffer.size();
+        auto data = reinterpret_cast<const char*>(buffer.data());
+        auto size = static_cast<uint32_t>(buffer.size());
 
         const auto eps = helpers::memfind(data, size, "!PS-Adobe");
         if (eps != nullptr)
@@ -108,10 +108,20 @@ bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
         Buffer decoded;
         if (helpers::base64decode(base64.data(), base64.size(), decoded))
         {
-            bool result = decodeJpeg(decoded.data(), decoded.size(), desc);
-            if (result)
+            auto progressCb = [this](float p) { updateProgress(p); };
+            auto result = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), desc, progressCb, m_stop);
+            if (result.success)
             {
                 desc.formatName = "eps";
+                signalBitmapAllocated();
+
+                if (result.iccProfile.empty() == false)
+                {
+                    if (applyIccProfile(desc, result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size())))
+                    {
+                        desc.formatName = "eps/icc";
+                    }
+                }
 
                 auto& exifList = desc.exifList;
                 AddExifTag(data, size, "xmp:CreatorTool", eCategory::Software, exifList);

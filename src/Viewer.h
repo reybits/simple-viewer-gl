@@ -72,6 +72,11 @@ private:
     void doProgress(float progress);
     void endLoading();
 
+    // Main-thread handlers for async loader events (polled from onUpdate)
+    void handleBitmapAllocated();
+    void handleImageReady();
+    void applyExifOrientation(uint16_t orientation);
+
     void onContextRecreated();
     void onResize(const Vectori& winSize, const Vectori& fbSize);
     void centerWindow();
@@ -128,6 +133,8 @@ private:
     Vectorf m_lastMouse;
     Vectorf m_camera;
     int m_angle = 0;
+    bool m_flipH = false;
+    bool m_flipV = false;
 
     bool m_subImageForced = false;
     bool m_animation = false;

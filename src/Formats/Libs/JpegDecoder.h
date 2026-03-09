@@ -9,26 +9,35 @@
 
 #pragma once
 
-#include "Formats/Format.h"
+#include "Common/BitmapDescription.h"
+#include "Common/Buffer.h"
+
+#include <cstdint>
+#include <functional>
+#include <vector>
 
 struct jpeg_decompress_struct;
 
-class cJpegDecoder : public cFormat
+class cJpegDecoder final
 {
 public:
-    explicit cJpegDecoder(sCallbacks* callbacks);
+    using ProgressCallback = std::function<void(float)>;
 
-protected:
-    bool decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescription& desc);
+    struct Result
+    {
+        bool success = false;
+        std::vector<uint8_t> iccProfile;
+        std::vector<uint8_t> exifData;
+    };
+
+    Result decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescription& desc,
+                       const ProgressCallback& onProgress, const bool& stop);
 
 private:
-    void setupMarkers(jpeg_decompress_struct* cinfo);
+    static void setupMarkers(jpeg_decompress_struct* cinfo);
+    static bool locateICCProfile(const jpeg_decompress_struct& cinfo, std::vector<uint8_t>& icc);
+    static bool locateExifData(const jpeg_decompress_struct& cinfo, std::vector<uint8_t>& exif);
 
-    using Icc = std::vector<uint8_t>;
-
-    bool locateICCProfile(const jpeg_decompress_struct& cinfo, Icc& icc) const;
-
-private:
-    const uint8_t JPEG_EXIF; // Exif/XMP
-    const uint8_t JPEG_ICCP; // ICC profile
+    static constexpr uint8_t JPEG_EXIF = 0xe1; // JPEG_APP0 + 1: Exif/XMP
+    static constexpr uint8_t JPEG_ICCP = 0xe2; // JPEG_APP0 + 2: ICC profile
 };
