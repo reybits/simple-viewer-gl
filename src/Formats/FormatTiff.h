@@ -28,6 +28,7 @@ private:
 
 private:
     bool load(unsigned current, sBitmapDescription& desc);
+    void decodePreview(void* tif, uint32_t fullWidth, uint32_t fullHeight, unsigned current);
 
 private:
     std::string m_filename;

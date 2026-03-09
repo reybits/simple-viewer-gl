@@ -11,6 +11,7 @@
 
 #include "FormatTiff.h"
 #include "Common/BitmapDescription.h"
+#include "Common/Callbacks.h"
 #include "Common/File.h"
 #include "Log/Log.h"
 
@@ -54,6 +55,77 @@ bool cFormatTiff::LoadImpl(const char* filename, sBitmapDescription& desc)
 bool cFormatTiff::LoadSubImageImpl(unsigned current, sBitmapDescription& desc)
 {
     return load(current, desc);
+}
+
+void cFormatTiff::decodePreview(void* handle, uint32_t fullWidth, uint32_t fullHeight, unsigned current)
+{
+    auto tif = static_cast<TIFF*>(handle);
+    const auto numDirs = TIFFNumberOfDirectories(tif);
+
+    // Scan directories for a reduced-resolution image
+    for (uint16_t dir = 0; dir < numDirs; dir++)
+    {
+        if (dir == current)
+        {
+            continue;
+        }
+
+        if (TIFFSetDirectory(tif, dir) == 0)
+        {
+            continue;
+        }
+
+        uint32_t subfileType = 0;
+        TIFFGetField(tif, TIFFTAG_SUBFILETYPE, &subfileType);
+        if ((subfileType & FILETYPE_REDUCEDIMAGE) == 0)
+        {
+            continue;
+        }
+
+        TIFFRGBAImage img;
+        char emsg[1024];
+        if (TIFFRGBAImageBegin(&img, tif, 0, emsg) == 0)
+        {
+            continue;
+        }
+
+        const uint32_t width = img.width;
+        const uint32_t height = img.height;
+
+        // Only use as preview if it's actually smaller
+        if (width >= fullWidth && height >= fullHeight)
+        {
+            TIFFRGBAImageEnd(&img);
+            continue;
+        }
+
+        constexpr uint32_t bpp = 32;
+        const uint32_t pitch = width * (bpp / 8);
+
+        sPreviewData data;
+        data.width = width;
+        data.height = height;
+        data.pitch = pitch;
+        data.bpp = bpp;
+        data.format = ePixelFormat::RGBA;
+        data.fullImageWidth = fullWidth;
+        data.fullImageHeight = fullHeight;
+        data.bitmap.resize(pitch * height);
+
+        img.req_orientation = ORIENTATION_TOPLEFT;
+        if (TIFFRGBAImageGet(&img, reinterpret_cast<uint32_t*>(data.bitmap.data()), width, height) != 0)
+        {
+            cLog::Debug("TIFF preview: {}x{} (dir {}), full: {}x{}", width, height, dir, fullWidth, fullHeight);
+            signalPreviewReady(std::move(data));
+            TIFFRGBAImageEnd(&img);
+            break;
+        }
+
+        TIFFRGBAImageEnd(&img);
+    }
+
+    // Restore the original directory
+    TIFFSetDirectory(tif, current);
 }
 
 bool cFormatTiff::load(unsigned current, sBitmapDescription& desc)
@@ -123,6 +195,18 @@ bool cFormatTiff::load(unsigned current, sBitmapDescription& desc)
                 desc.width = img.width;
                 desc.height = img.height;
                 desc.bppImage = img.bitspersample * img.samplesperpixel;
+
+                TIFFRGBAImageEnd(&img);
+                decodePreview(tif, desc.width, desc.height, desc.current);
+
+                // Re-open the image after preview scan may have changed directory
+                if (TIFFSetDirectory(tif, desc.current) == 0
+                    || TIFFRGBAImageBegin(&img, tif, 0, emsg) == 0)
+                {
+                    TIFFClose(tif);
+                    return false;
+                }
+
                 setupBitmap(desc, desc.width, desc.height, 32, ePixelFormat::RGBA, "tiff");
 
                 // set desired orientation
