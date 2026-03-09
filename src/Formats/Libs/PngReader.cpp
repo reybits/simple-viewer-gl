@@ -297,7 +297,7 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
         cLog::Error("Unexpected PNG color type.");
     }
 
-    desc.bitmap.resize(desc.pitch * desc.height);
+    desc.resizeBitmap(desc.pitch, desc.height);
 
     if (m_allocated != nullptr)
     {

@@ -608,7 +608,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
         desc.width = width;
         desc.height = height;
         desc.pitch = width * bytes;
-        desc.bitmap.resize(desc.pitch * desc.height);
+        desc.resizeBitmap(desc.pitch, desc.height);
         auto src = unpackedData + sizeof(PVRv2TexHeader);
 
         auto result = true;
@@ -726,7 +726,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
             desc.width = width;
             desc.height = height;
             desc.pitch = width * bytes;
-            desc.bitmap.resize(desc.pitch * desc.height);
+            desc.resizeBitmap(desc.pitch, desc.height);
             auto src = unpackedData + sizeof(PVRv3TexHeader) + header.metadataLength;
 
             auto result = true;

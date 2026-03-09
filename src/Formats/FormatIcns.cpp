@@ -162,7 +162,7 @@ bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
 
     desc.formatName = "icns";
 
-    desc.bitmap.resize(desc.pitch * desc.height);
+    desc.resizeBitmap(desc.pitch, desc.height);
     auto buffer = desc.bitmap.data();
 
     cLog::Debug(" Decoding: {}", CompressionToName(entry.compression));
