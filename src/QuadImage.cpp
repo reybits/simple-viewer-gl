@@ -174,12 +174,24 @@ void cQuadImage::createChunk(uint32_t col, uint32_t row, uint32_t readyHeight)
     {
         auto newQuad = std::make_unique<cQuad>(w, chunkH, out, m_format);
         newQuad->useFilter(m_filter);
+        if (available < chunkH)
+        {
+            newQuad->setTextureRect({ 0.0f, 0.0f }, { static_cast<float>(w), static_cast<float>(available) });
+        }
         m_chunks.push_back({ col, row, available, std::move(newQuad) });
     }
     else
     {
         quad->setData(out);
         quad->useFilter(m_filter);
+        if (available < chunkH)
+        {
+            quad->setTextureRect({ 0.0f, 0.0f }, { static_cast<float>(w), static_cast<float>(available) });
+        }
+        else
+        {
+            quad->setSpriteSize({ static_cast<float>(w), static_cast<float>(chunkH) });
+        }
         m_chunks.push_back({ col, row, available, std::unique_ptr<cQuad>(quad) });
     }
 }
@@ -207,6 +219,17 @@ void cQuadImage::updateChunkSubData(Chunk& chunk, uint32_t available)
 
     chunk.quad->updateSubData(out, chunk.uploadedHeight, newRows);
     chunk.uploadedHeight = available;
+
+    const uint32_t chunkH = getChunkHeight(chunk.row);
+    const auto fw = static_cast<float>(w);
+    if (available < chunkH)
+    {
+        chunk.quad->setTextureRect({ 0.0f, 0.0f }, { fw, static_cast<float>(available) });
+    }
+    else
+    {
+        chunk.quad->setSpriteSize({ fw, static_cast<float>(chunkH) });
+    }
 }
 
 bool cQuadImage::upload(uint32_t readyHeight)
