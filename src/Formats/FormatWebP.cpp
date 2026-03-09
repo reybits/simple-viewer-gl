@@ -16,7 +16,9 @@
 
 #include <cstring>
 #include <webp/decode.h>
+#if defined(WEBPDEMUX_SUPPORT)
 #include <webp/demux.h>
+#endif
 
 bool cFormatWebP::isSupported(cFile& file, Buffer& buffer) const
 {
@@ -94,6 +96,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
     }
 
+#if defined(WEBPDEMUX_SUPPORT)
     // Extract ICC profile via demux API
     WebPData webpData = { buffer.data(), buffer.size() };
     auto demux = WebPDemux(&webpData);
@@ -110,6 +113,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
         WebPDemuxDelete(demux);
     }
+#endif
 
     return true;
 }

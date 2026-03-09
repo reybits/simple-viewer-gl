@@ -757,8 +757,9 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
             return false;
         }
 
-        // Extract ICC profile from V5 header
-        if (ver == Version::V5 && header.profileSize > 0 && header.profileData > 0)
+        // Extract ICC profile from V5 header (only for 8-bit-per-channel formats)
+        if (ver == Version::V5 && header.profileSize > 0 && header.profileData > 0
+            && (desc.format == ePixelFormat::BGR || desc.format == ePixelFormat::BGRA))
         {
             auto profileOffset = sizeof(BmpHeader) + header.profileData;
             if (profileOffset + header.profileSize <= static_cast<size_t>(file.getSize()))
