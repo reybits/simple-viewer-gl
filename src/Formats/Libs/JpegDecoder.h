@@ -22,6 +22,7 @@ class cJpegDecoder final
 {
 public:
     using ProgressCallback = std::function<void(float)>;
+    using AllocatedCallback = std::function<void()>;
 
     struct Result
     {
@@ -31,7 +32,8 @@ public:
     };
 
     Result decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescription& desc,
-                       const ProgressCallback& onProgress, const bool& stop);
+                       const ProgressCallback& onProgress, const AllocatedCallback& onAllocated,
+                       const bool& stop);
 
 private:
     static void setupMarkers(jpeg_decompress_struct* cinfo);

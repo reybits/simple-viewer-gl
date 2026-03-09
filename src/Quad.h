@@ -19,6 +19,7 @@ public:
     virtual ~cQuad();
 
     virtual void setData(const uint8_t* data);
+    virtual void updateSubData(const uint8_t* data, uint32_t yOffset, uint32_t height);
     virtual void setColor(const cColor& color);
     virtual void setTextureRect(const Vectorf& pos, const Vectorf& size);
     virtual void setSpriteSize(const Vectorf& size);

@@ -109,11 +109,11 @@ bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
         if (helpers::base64decode(base64.data(), base64.size(), decoded))
         {
             auto progressCb = [this](float p) { updateProgress(p); };
-            auto result = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), desc, progressCb, m_stop);
+            auto allocatedCb = [this]() { signalBitmapAllocated(); };
+            auto result = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), desc, progressCb, allocatedCb, m_stop);
             if (result.success)
             {
                 desc.formatName = "eps";
-                signalBitmapAllocated();
 
                 if (applyIccProfile(desc, result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size())))
                 {
