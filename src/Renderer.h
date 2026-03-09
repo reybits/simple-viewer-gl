@@ -82,7 +82,7 @@ namespace render
     const Vectori& getViewportSize();
 
     void resetGlobals();
-    void setGlobals(const Vectorf& offset, int angle, float zoom);
+    void setGlobals(const Vectorf& offset, int angle, float zoom, bool flipH = false, bool flipV = false);
 
     const Rectf& getRect();
     float getZoom();

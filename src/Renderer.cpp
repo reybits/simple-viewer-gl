@@ -564,7 +564,7 @@ int render::getAngle()
     return ViewAngle;
 }
 
-void render::setGlobals(const Vectorf& offset, int angle, float zoom)
+void render::setGlobals(const Vectorf& offset, int angle, float zoom, bool flipH, bool flipV)
 {
     const float z = 1.0f / zoom;
     const float w = ViewportSize.x * z;
@@ -579,5 +579,6 @@ void render::setGlobals(const Vectorf& offset, int angle, float zoom)
 
     auto ortho = Matrix4::Ortho(x, x + w, y + h, y, -1.0f, 1.0f);
     auto rotate = Matrix4::RotateZ(static_cast<float>(-angle));
-    Projection = ortho * rotate;
+    auto flip = Matrix4::Scale(flipH ? -1.0f : 1.0f, flipV ? -1.0f : 1.0f);
+    Projection = ortho * rotate * flip;
 }

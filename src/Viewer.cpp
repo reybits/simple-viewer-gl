@@ -140,7 +140,7 @@ void cViewer::onRender()
 
     const float scale = m_scale.getScale();
 
-    render::setGlobals(getAdjustedCamera(), m_angle, scale);
+    render::setGlobals(getAdjustedCamera(), m_angle, scale, m_flipH, m_flipV);
 
     m_image->render();
 
@@ -215,68 +215,14 @@ void cViewer::onRender()
 
 void cViewer::onUpdate()
 {
-    // Progressive upload: start uploading chunks as soon as bitmap is allocated
     if (m_bitmapAllocated.exchange(false))
     {
-        m_uploadStartTime = timing::seconds();
-
-        const auto& desc = m_loader->getDescription();
-        m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
-
-        if (m_loader->getMode() == cImageLoader::Mode::Image)
-        {
-            if (m_config.keepScale == false)
-            {
-                m_scale.setScalePercent(100);
-                m_angle = 0;
-                m_camera = Vectorf();
-            }
-
-            m_selection->setImageDimension(desc.width, desc.height);
-            centerWindow();
-            enablePixelInfo(m_config.showPixelInfo);
-        }
-
-        updateInfobar();
+        handleBitmapAllocated();
     }
 
-    // Final upload: decode complete (possibly with ICC correction applied)
     if (m_imagePrepared.exchange(false))
     {
-        m_uploadFinal = true;
-
-        const auto& desc = m_loader->getDescription();
-        // Re-upload with final data (ICC profile may have been applied)
-        if (m_image->getWidth() == desc.width
-            && m_image->getHeight() == desc.height)
-        {
-            m_image->refreshData(m_loader->getBitmapData());
-        }
-        else
-        {
-            m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
-
-            // If dimensions changed (e.g. failed load producing 0x0),
-            // reset view and re-center the window
-            if (m_loader->getMode() == cImageLoader::Mode::Image)
-            {
-                if (m_config.keepScale == false)
-                {
-                    m_scale.setScalePercent(100);
-                    m_angle = 0;
-                    m_camera = Vectorf();
-                }
-                m_selection->setImageDimension(desc.width, desc.height);
-                centerWindow();
-            }
-        }
-
-        if (m_loader->getMode() == cImageLoader::Mode::Image)
-        {
-            m_exifPopup->setExifList(desc.exifList);
-        }
-
-        updateInfobar();
+        handleImageReady();
     }
 
     if (isUploading())
@@ -332,6 +278,104 @@ void cViewer::onUpdate()
 bool cViewer::isUploading() const
 {
     return m_image->isUploading();
+}
+
+void cViewer::handleBitmapAllocated()
+{
+    m_uploadStartTime = timing::seconds();
+
+    const auto& desc = m_loader->getDescription();
+    m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
+
+    if (m_loader->getMode() == cImageLoader::Mode::Image)
+    {
+        if (m_config.keepScale == false)
+        {
+            m_scale.setScalePercent(100);
+            m_angle = 0;
+            m_flipH = false;
+            m_flipV = false;
+            m_camera = Vectorf();
+        }
+
+        m_selection->setImageDimension(desc.width, desc.height);
+        centerWindow();
+        enablePixelInfo(m_config.showPixelInfo);
+    }
+
+    updateInfobar();
+}
+
+void cViewer::handleImageReady()
+{
+    m_uploadFinal = true;
+
+    const auto& desc = m_loader->getDescription();
+
+    if (m_image->getWidth() == desc.width
+        && m_image->getHeight() == desc.height)
+    {
+        m_image->refreshData(m_loader->getBitmapData());
+    }
+    else
+    {
+        m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
+
+        if (m_loader->getMode() == cImageLoader::Mode::Image)
+        {
+            if (m_config.keepScale == false)
+            {
+                m_scale.setScalePercent(100);
+                m_angle = 0;
+                m_flipH = false;
+                m_flipV = false;
+                m_camera = Vectorf();
+            }
+            m_selection->setImageDimension(desc.width, desc.height);
+            centerWindow();
+        }
+    }
+
+    if (m_loader->getMode() == cImageLoader::Mode::Image)
+    {
+        m_exifPopup->setExifList(desc.exifList);
+        applyExifOrientation(desc.exifOrientation);
+    }
+
+    updateInfobar();
+}
+
+void cViewer::applyExifOrientation(uint16_t orientation)
+{
+    // EXIF orientation values:
+    // 1=normal, 2=flipH, 3=rotate180, 4=flipV,
+    // 5=rotate90CW+flipH, 6=rotate90CW, 7=rotate90CCW+flipH, 8=rotate90CCW
+    switch (orientation)
+    {
+    case 2:
+        m_flipH = true;
+        break;
+    case 3:
+        m_angle = 180;
+        break;
+    case 4:
+        m_flipV = true;
+        break;
+    case 5:
+        m_angle = 270;
+        m_flipH = true;
+        break;
+    case 6:
+        m_angle = 270;
+        break;
+    case 7:
+        m_angle = 90;
+        m_flipH = true;
+        break;
+    case 8:
+        m_angle = 90;
+        break;
+    }
 }
 
 void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
@@ -677,6 +721,17 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
         updateCursorState(m_angle == 0
                               ? m_config.showPixelInfo == false
                               : true);
+        break;
+
+    case GLFW_KEY_F:
+        if (mods & GLFW_MOD_SHIFT)
+        {
+            m_flipV = !m_flipV;
+        }
+        else
+        {
+            m_flipH = !m_flipH;
+        }
         break;
 
     case GLFW_KEY_PAGE_UP:

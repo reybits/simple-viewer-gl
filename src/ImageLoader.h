@@ -74,6 +74,7 @@ private:
 
     void stop();
     void clear();
+    bool loadFromFile(const char* path);
     void load(const char* path);
 
 private:
