@@ -34,7 +34,8 @@ namespace
 } // namespace
 
 cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescription& desc,
-                                                const ProgressCallback& onProgress, const bool& stop)
+                                                const ProgressCallback& onProgress, const AllocatedCallback& onAllocated,
+                                                const bool& stop)
 {
     Result result;
 
@@ -83,6 +84,10 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
         desc.bppImage = 32;
         desc.formatName = "jpeg";
         desc.allocate(desc.width, desc.height, 24, ePixelFormat::RGB);
+        if (onAllocated)
+        {
+            onAllocated();
+        }
 
         auto out = desc.bitmap.data();
 
@@ -125,6 +130,10 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
 
         desc.formatName = "jpeg";
         desc.allocate(desc.width, desc.height, cinfo.output_components * 8, fmt);
+        if (onAllocated)
+        {
+            onAllocated();
+        }
 
         auto out = desc.bitmap.data();
 

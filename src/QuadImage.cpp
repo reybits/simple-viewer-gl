@@ -48,8 +48,8 @@ void cQuadImage::clear()
 
     m_buffer.resize(0);
 
-    m_pixelCache.x = UINT32_MAX;
-    m_pixelCache.y = UINT32_MAX;
+    m_pixelCache.x = std::numeric_limits<uint32_t>::max();
+    m_pixelCache.y = std::numeric_limits<uint32_t>::max();
 }
 
 void cQuadImage::clearOld()
@@ -67,7 +67,8 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePix
     m_cols = (width + m_texWidth - 1) / m_texWidth;
     m_rows = (height + m_texHeight - 1) / m_texHeight;
 
-    moveToOld();
+    clearOld();
+    m_chunks.clear();
 
     m_width = width;
     m_height = height;
@@ -78,8 +79,8 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePix
 
     m_buffer.resize(m_texPitch * m_texHeight);
 
-    m_pixelCache.x = UINT32_MAX;
-    m_pixelCache.y = UINT32_MAX;
+    m_pixelCache.x = std::numeric_limits<uint32_t>::max();
+    m_pixelCache.y = std::numeric_limits<uint32_t>::max();
 
     m_started = true;
 }
@@ -93,8 +94,8 @@ void cQuadImage::refreshData(const uint8_t* image)
 
     m_buffer.resize(m_texPitch * m_texHeight);
 
-    m_pixelCache.x = UINT32_MAX;
-    m_pixelCache.y = UINT32_MAX;
+    m_pixelCache.x = std::numeric_limits<uint32_t>::max();
+    m_pixelCache.y = std::numeric_limits<uint32_t>::max();
 
     m_started = true;
 }
@@ -103,8 +104,8 @@ void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t f
 {
     moveToOld();
 
-    m_pixelCache.x = UINT32_MAX;
-    m_pixelCache.y = UINT32_MAX;
+    m_pixelCache.x = std::numeric_limits<uint32_t>::max();
+    m_pixelCache.y = std::numeric_limits<uint32_t>::max();
 
     m_compressed = true;
     m_compressedFormat = format;
@@ -126,47 +127,75 @@ void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t f
     m_started = true;
 }
 
-bool cQuadImage::upload(uint32_t readyHeight)
+uint32_t cQuadImage::getChunkHeight(uint32_t row) const
 {
-    const auto size = m_chunks.size();
-    assert(size < m_rows * m_cols);
+    return (row < m_rows - 1)
+        ? m_texHeight
+        : (m_height - m_texHeight * (m_rows - 1));
+}
 
-    const uint32_t col = size % m_cols;
-    const uint32_t row = size / m_cols;
+uint32_t cQuadImage::getChunkWidth(uint32_t col) const
+{
+    return (col < m_cols - 1)
+        ? m_texWidth
+        : (m_width - m_texWidth * (m_cols - 1));
+}
 
-    if (!m_compressed)
+void cQuadImage::createChunk(uint32_t col, uint32_t row, uint32_t readyHeight)
+{
+    const uint32_t chunkTop = row * m_texHeight;
+    const uint32_t chunkH = getChunkHeight(row);
+    const uint32_t w = getChunkWidth(col);
+    const uint32_t available = std::min(readyHeight - chunkTop, chunkH);
+
+    const uint32_t sx = col * m_texPitch;
+    const uint32_t dstPitch = helpers::calculatePitch(w, m_bitsPerPixel);
+
+    // Zero-fill for the full chunk, then copy available rows
+    ::memset(m_buffer.data(), 0, dstPitch * chunkH);
+
+    auto out = m_buffer.data();
+    const auto in = m_image;
+
+    for (uint32_t y = 0; y < available; y++)
     {
-        // Check if enough rows are decoded for this chunk
-        const uint32_t chunkBottom = (row + 1 == m_rows) ? m_height : (row + 1) * m_texHeight;
-        if (readyHeight < chunkBottom)
+        const uint32_t src = sx + (chunkTop + y) * m_pitch;
+        if (src + dstPitch <= m_pitch * m_height)
         {
-            return false; // Not enough rows decoded yet
+            const uint32_t dst = y * dstPitch;
+            ::memcpy(out + dst, in + src, dstPitch);
         }
     }
 
-    if (m_compressed)
+    cQuad* quad = findAndRemoveOld(col, row);
+    if (quad == nullptr
+        || quad->getTexWidth() != w || quad->getTexHeight() != chunkH
+        || quad->getFormat() != m_format)
     {
-        clearOld();
-
-        auto quad = std::make_unique<cQuad>(m_width, m_height, m_image, static_cast<GLenum>(m_compressedFormat), m_compressedSize);
-        quad->useFilter(m_filter);
-        m_chunks.push_back({ 0, 0, std::move(quad) });
-
-        m_started = false;
-        return true;
+        auto newQuad = std::make_unique<cQuad>(w, chunkH, out, m_format);
+        newQuad->useFilter(m_filter);
+        m_chunks.push_back({ col, row, available, std::move(newQuad) });
     }
+    else
+    {
+        quad->setData(out);
+        quad->useFilter(m_filter);
+        m_chunks.push_back({ col, row, available, std::unique_ptr<cQuad>(quad) });
+    }
+}
 
-    const uint32_t w = (col < m_cols - 1) ? m_texWidth : (m_width - m_texWidth * (m_cols - 1));
-    const uint32_t h = (row < m_rows - 1) ? m_texHeight : (m_height - m_texHeight * (m_rows - 1));
-
-    const uint32_t sx = col * m_texPitch;
-    const uint32_t sy = row * m_texHeight;
+void cQuadImage::updateChunkSubData(Chunk& chunk, uint32_t available)
+{
+    const uint32_t w = getChunkWidth(chunk.col);
+    const uint32_t newRows = available - chunk.uploadedHeight;
+    const uint32_t sx = chunk.col * m_texPitch;
+    const uint32_t sy = chunk.row * m_texHeight + chunk.uploadedHeight;
     const uint32_t dstPitch = helpers::calculatePitch(w, m_bitsPerPixel);
 
     auto out = m_buffer.data();
     const auto in = m_image;
 
-    for (uint32_t y = 0; y < h; y++)
+    for (uint32_t y = 0; y < newRows; y++)
     {
         const uint32_t src = sx + (sy + y) * m_pitch;
         if (src + dstPitch <= m_pitch * m_height)
@@ -174,30 +203,63 @@ bool cQuadImage::upload(uint32_t readyHeight)
             const uint32_t dst = y * dstPitch;
             ::memcpy(out + dst, in + src, dstPitch);
         }
-        else
+    }
+
+    chunk.quad->updateSubData(out, chunk.uploadedHeight, newRows);
+    chunk.uploadedHeight = available;
+}
+
+bool cQuadImage::upload(uint32_t readyHeight)
+{
+    if (m_compressed)
+    {
+        clearOld();
+
+        auto quad = std::make_unique<cQuad>(m_width, m_height, m_image, static_cast<GLenum>(m_compressedFormat), m_compressedSize);
+        quad->useFilter(m_filter);
+        m_chunks.push_back({ 0, 0, 0, std::move(quad) });
+
+        m_started = false;
+        return true;
+    }
+
+    const auto totalChunks = m_rows * m_cols;
+
+    // Phase 1: Update partially uploaded existing chunks with new rows
+    for (auto& chunk : m_chunks)
+    {
+        const uint32_t chunkTop = chunk.row * m_texHeight;
+        const uint32_t chunkH = getChunkHeight(chunk.row);
+
+        if (chunk.uploadedHeight >= chunkH)
         {
-            cLog::Debug("Cols: {}, col: {}, w: {}.", m_cols, col, w);
-            cLog::Debug("Rows: {}, row: {}, h: {}.", m_rows, row, h);
-            cLog::Debug("Out at line {}, sx: {}, sy: {}, bpp: {}.", y, sx, sy, m_bitsPerPixel);
-            break;
+            continue;
+        }
+
+        const uint32_t available = (readyHeight > chunkTop)
+            ? std::min(readyHeight - chunkTop, chunkH)
+            : 0;
+
+        if (available > chunk.uploadedHeight)
+        {
+            updateChunkSubData(chunk, available);
         }
     }
 
-    cQuad* quad = findAndRemoveOld(col, row);
-    if (quad == nullptr
-        || quad->getTexWidth() != w || quad->getTexHeight() != h
-        || quad->getFormat() != m_format)
+    // Phase 2: Create new chunks when data becomes available
+    while (m_chunks.size() < totalChunks)
     {
-        auto newQuad = std::make_unique<cQuad>(w, h, out, m_format);
-        newQuad->useFilter(m_filter);
-        m_chunks.push_back({ col, row, std::move(newQuad) });
-    }
-    else
-    {
-        quad->setData(out);
-        quad->useFilter(m_filter);
-        // quad is now owned by no one after findAndRemoveOld, wrap it
-        m_chunks.push_back({ col, row, std::unique_ptr<cQuad>(quad) });
+        const auto idx = m_chunks.size();
+        const uint32_t col = idx % m_cols;
+        const uint32_t row = idx / m_cols;
+        const uint32_t chunkTop = row * m_texHeight;
+
+        if (readyHeight <= chunkTop)
+        {
+            break;
+        }
+
+        createChunk(col, row, readyHeight);
     }
 
     const bool isDone = isUploading() == false;
@@ -218,12 +280,49 @@ void cQuadImage::stop()
 
 bool cQuadImage::isUploading() const
 {
-    return m_started && m_chunks.size() < m_rows * m_cols;
+    if (m_started == false)
+    {
+        return false;
+    }
+
+    if (m_chunks.size() < m_rows * m_cols)
+    {
+        return true;
+    }
+
+    for (const auto& chunk : m_chunks)
+    {
+        if (chunk.uploadedHeight < getChunkHeight(chunk.row))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 float cQuadImage::getProgress() const
 {
-    return m_chunks.size() / static_cast<float>(m_rows * m_cols);
+    if (m_height == 0)
+    {
+        return 0.0f;
+    }
+
+    uint32_t totalUploaded = 0;
+    for (const auto& chunk : m_chunks)
+    {
+        totalUploaded += chunk.uploadedHeight;
+    }
+
+    uint32_t totalNeeded = 0;
+    for (uint32_t row = 0; row < m_rows; row++)
+    {
+        totalNeeded += getChunkHeight(row) * m_cols;
+    }
+
+    return (totalNeeded > 0)
+        ? static_cast<float>(totalUploaded) / totalNeeded
+        : 0.0f;
 }
 
 void cQuadImage::useFilter(bool filter)
@@ -240,7 +339,7 @@ void cQuadImage::useFilter(bool filter)
     }
 }
 
-bool cQuadImage::isInsideViewport(const sChunk& chunk, const Vectorf& pos) const
+bool cQuadImage::isInsideViewport(const Chunk& chunk, const Vectorf& pos) const
 {
     auto& rc = render::getRect();
     const auto& size = chunk.quad->getSize();

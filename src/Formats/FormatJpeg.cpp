@@ -89,13 +89,12 @@ bool cFormatJpeg::LoadImpl(const char* filename, sBitmapDescription& desc)
     file.read(in.data(), size);
 
     auto progressCb = [this](float p) { updateProgress(p); };
-    auto result = m_decoder.decodeJpeg(in.data(), static_cast<uint32_t>(size), desc, progressCb, m_stop);
+    auto allocatedCb = [this]() { signalBitmapAllocated(); };
+    auto result = m_decoder.decodeJpeg(in.data(), static_cast<uint32_t>(size), desc, progressCb, allocatedCb, m_stop);
     if (result.success == false)
     {
         return false;
     }
-
-    signalBitmapAllocated();
 
     if (applyIccProfile(desc, result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size())))
     {

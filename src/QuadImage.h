@@ -13,6 +13,7 @@
 #include "Types/Color.h"
 #include "Types/Vector.h"
 
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -70,18 +71,23 @@ public:
     }
 
 private:
-    void moveToOld();
-    void clearOld();
-    cQuad* findAndRemoveOld(uint32_t col, uint32_t row);
-
-    struct sChunk
+    struct Chunk
     {
         uint32_t col;
         uint32_t row;
+        uint32_t uploadedHeight = 0;
         std::unique_ptr<cQuad> quad;
     };
 
-    bool isInsideViewport(const sChunk& chunk, const Vectorf& pos) const;
+    bool isInsideViewport(const Chunk& chunk, const Vectorf& pos) const;
+
+    void moveToOld();
+    void clearOld();
+    cQuad* findAndRemoveOld(uint32_t col, uint32_t row);
+    void createChunk(uint32_t col, uint32_t row, uint32_t readyHeight);
+    void updateChunkSubData(Chunk& chunk, uint32_t available);
+    uint32_t getChunkHeight(uint32_t row) const;
+    uint32_t getChunkWidth(uint32_t col) const;
 
 private:
     bool m_started = false;
@@ -103,16 +109,16 @@ private:
     uint32_t m_bitsPerPixel = 0;
     const uint8_t* m_image = nullptr;
 
-    std::vector<sChunk> m_chunks;
-    std::vector<sChunk> m_chunksOld;
+    std::vector<Chunk> m_chunks;
+    std::vector<Chunk> m_chunksOld;
 
     std::vector<uint8_t> m_buffer;
 
     // Pixel readback cache: stores the last-read pixel
-    mutable struct sPixelCache
+    mutable struct PixelCache
     {
-        uint32_t x = UINT32_MAX;
-        uint32_t y = UINT32_MAX;
+        uint32_t x = std::numeric_limits<uint32_t>::max();
+        uint32_t y = std::numeric_limits<uint32_t>::max();
         uint8_t rgba[4] = {};
     } m_pixelCache;
 };

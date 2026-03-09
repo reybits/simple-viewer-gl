@@ -54,6 +54,7 @@ namespace render
 
     GLuint createTexture();
     void setData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, ePixelFormat format);
+    void updateSubData(GLuint tex, const uint8_t* data, uint32_t y, uint32_t w, uint32_t h, ePixelFormat format);
     void setCompressedData(GLuint tex, const uint8_t* data, uint32_t w, uint32_t h, GLenum internalFormat, uint32_t dataSize);
     void deleteTexture(GLuint tex);
     GLuint getCurrentTexture();

@@ -67,6 +67,14 @@ void cQuad::setData(const uint8_t* data)
     render::setData(m_quad.tex, data, m_tw, m_th, m_format);
 }
 
+void cQuad::updateSubData(const uint8_t* data, uint32_t yOffset, uint32_t height)
+{
+    if (m_quad.tex != 0 && data != nullptr)
+    {
+        render::updateSubData(m_quad.tex, data, yOffset, m_tw, height, m_format);
+    }
+}
+
 void cQuad::setColor(const cColor& color)
 {
     render::setColor(&m_quad, color);

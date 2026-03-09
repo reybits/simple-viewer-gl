@@ -308,6 +308,7 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
     {
         auto row = desc.bitmap.data() + desc.pitch * y;
         png_read_row(png, row, nullptr);
+        updateProgress(static_cast<float>(y + 1) / desc.height);
     }
 
     uint32_t iccProfileSize = 0;
