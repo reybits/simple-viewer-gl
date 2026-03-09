@@ -159,8 +159,8 @@ void cQuadImage::createChunk(uint32_t col, uint32_t row, uint32_t readyHeight)
 
     for (uint32_t y = 0; y < available; y++)
     {
-        const uint32_t src = sx + (chunkTop + y) * m_pitch;
-        if (src + dstPitch <= m_pitch * m_height)
+        const auto src = static_cast<size_t>(sx) + static_cast<size_t>(chunkTop + y) * m_pitch;
+        if (src + dstPitch <= static_cast<size_t>(m_pitch) * m_height)
         {
             const uint32_t dst = y * dstPitch;
             ::memcpy(out + dst, in + src, dstPitch);
@@ -209,8 +209,8 @@ void cQuadImage::updateChunkSubData(Chunk& chunk, uint32_t available)
 
     for (uint32_t y = 0; y < newRows; y++)
     {
-        const uint32_t src = sx + (sy + y) * m_pitch;
-        if (src + dstPitch <= m_pitch * m_height)
+        const auto src = static_cast<size_t>(sx) + static_cast<size_t>(sy + y) * m_pitch;
+        if (src + dstPitch <= static_cast<size_t>(m_pitch) * m_height)
         {
             const uint32_t dst = y * dstPitch;
             ::memcpy(out + dst, in + src, dstPitch);

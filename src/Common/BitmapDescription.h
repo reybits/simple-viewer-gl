@@ -48,6 +48,12 @@ struct sBitmapDescription
         exifOrientation = 1;
     }
 
+    // Safe bitmap resize — prevents uint32 overflow for large images.
+    void resizeBitmap(uint32_t p, uint32_t h)
+    {
+        bitmap.resize(static_cast<size_t>(p) * h);
+    }
+
     // Allocate bitmap with standard pitch (width * bpp rounded up to bytes).
     // Sets width, height, bpp, format, pitch and resizes the bitmap buffer.
     void allocate(uint32_t w, uint32_t h, uint32_t bitsPerPixel, ePixelFormat fmt)
@@ -57,7 +63,7 @@ struct sBitmapDescription
         bpp = bitsPerPixel;
         format = fmt;
         pitch = helpers::calculatePitch(w, bitsPerPixel);
-        bitmap.resize(pitch * h);
+        resizeBitmap(pitch, h);
     }
 
     // buffer related

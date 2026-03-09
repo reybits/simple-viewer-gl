@@ -117,7 +117,7 @@ namespace
         desc.bppImage = 8;
         desc.bpp = 24;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-        desc.bitmap.resize(desc.pitch * desc.height);
+        desc.resizeBitmap(desc.pitch, desc.height);
         auto out = desc.bitmap.data();
 
         auto cmdData = tga + header.idLength;
@@ -230,7 +230,7 @@ namespace
             desc.bppImage = 16;
             desc.bpp = 24;
             desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.bitmap.resize(desc.pitch * desc.height);
+            desc.resizeBitmap(desc.pitch, desc.height);
             auto out = desc.bitmap.data();
 
             for (uint32_t y = 0; y < header.height; y++)
@@ -252,7 +252,7 @@ namespace
             desc.bppImage = 24;
             desc.bpp = 24;
             desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.bitmap.resize(desc.pitch * desc.height);
+            desc.resizeBitmap(desc.pitch, desc.height);
             auto out = desc.bitmap.data();
 
             for (uint32_t y = 0; y < header.height; y++)
@@ -273,7 +273,7 @@ namespace
             desc.bpp = 32;
             desc.bppImage = 32;
             desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.bitmap.resize(desc.pitch * desc.height);
+            desc.resizeBitmap(desc.pitch, desc.height);
             auto out = desc.bitmap.data();
 
             for (uint32_t y = 0; y < header.height; y++)
@@ -317,7 +317,7 @@ namespace
             desc.bppImage = 16;
             desc.bpp = 24;
             desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.bitmap.resize(desc.pitch * desc.height);
+            desc.resizeBitmap(desc.pitch, desc.height);
             auto out = desc.bitmap.data();
 
             while (y < header.height)
@@ -381,7 +381,7 @@ namespace
             desc.bppImage = 24;
             desc.bpp = 24;
             desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.bitmap.resize(desc.pitch * desc.height);
+            desc.resizeBitmap(desc.pitch, desc.height);
             auto out = desc.bitmap.data();
 
             while (y < header.height)
@@ -442,7 +442,7 @@ namespace
             desc.bppImage = 32;
             desc.bpp = 32;
             desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.bitmap.resize(desc.pitch * desc.height);
+            desc.resizeBitmap(desc.pitch, desc.height);
             auto out = desc.bitmap.data();
 
             while (y < header.height)

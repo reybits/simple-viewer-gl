@@ -209,7 +209,7 @@ namespace
     {
         desc.bpp = desc.bppImage = 24;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-        desc.bitmap.resize(desc.pitch * desc.height);
+        desc.resizeBitmap(desc.pitch, desc.height);
 
         Line line;
 
@@ -243,7 +243,7 @@ namespace
     {
         desc.bpp = desc.bppImage = 24;
         desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-        desc.bitmap.resize(desc.pitch * desc.height);
+        desc.resizeBitmap(desc.pitch, desc.height);
 
         auto out = desc.bitmap.data();
         const float norm = 255.0f / maxValue;
