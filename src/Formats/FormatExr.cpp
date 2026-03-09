@@ -22,6 +22,7 @@
 #include <OpenEXR/ImfTiledRgbaFile.h>
 #include <algorithm>
 #include <cstring>
+#include <iterator>
 
 namespace
 {
@@ -146,7 +147,7 @@ namespace
             const auto dy = dw.min.y;
 
             pixels.resizeErase(height, width);
-            in.setFrameBuffer(&pixels[-dx][-dy], 1, width);
+            in.setFrameBuffer(&pixels[-dy][-dx], 1, width);
             in.readPixels(dw.min.y, dw.max.y);
         }
 
