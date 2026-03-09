@@ -46,12 +46,9 @@ bool cFormatPng::LoadImpl(const char* filename, sBitmapDescription& desc)
     if (result)
     {
         auto& iccProfile = reader.getIccProfile();
-        if (iccProfile.size() != 0)
+        if (applyIccProfile(desc, iccProfile.data(), static_cast<uint32_t>(iccProfile.size())))
         {
-            if (applyIccProfile(desc, iccProfile.data(), iccProfile.size()))
-            {
-                desc.formatName = "png/icc";
-            }
+            desc.formatName = "png/icc";
         }
     }
 

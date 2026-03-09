@@ -8,18 +8,15 @@
 \**********************************************/
 
 #include "Format.h"
-#include "Cms/Cms.h"
 #include "Common/BitmapDescription.h"
 #include "Common/Callbacks.h"
+#include "Common/Cms.h"
 #include "Common/File.h"
 #include "Log/Log.h"
-
-#include <cassert>
 
 cFormat::cFormat(sCallbacks* callbacks)
     : m_callbacks(callbacks)
 {
-    m_cms = std::make_unique<cCMS>();
 }
 
 cFormat::~cFormat()
@@ -128,36 +125,15 @@ bool cFormat::readBuffer(cFile& file, Buffer& buffer, uint32_t minSize) const
 
 bool cFormat::applyIccProfile(sBitmapDescription& desc, const void* iccProfile, uint32_t iccProfileSize)
 {
-    auto type = desc.bpp == 32 ? cCMS::Pixel::Rgba : cCMS::Pixel::Rgb;
-    m_cms->createTransform(iccProfile, iccProfileSize, type);
-    return applyIccProfile(desc);
+    return cms::transformBitmap(iccProfile, iccProfileSize,
+                                desc.bitmap.data(), desc.width, desc.height,
+                                desc.pitch, desc.format);
 }
 
-bool cFormat::applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb)
+bool cFormat::applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp,
+                              const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb)
 {
-    auto type = desc.bpp == 32 ? cCMS::Pixel::Rgba : cCMS::Pixel::Rgb;
-    m_cms->createTransform(chr, wp, gmr, gmg, gmb, type);
-    return applyIccProfile(desc);
-}
-
-bool cFormat::applyIccProfile(sBitmapDescription& desc)
-{
-    bool hasIccProfile = m_cms->hasTransform();
-
-    if (hasIccProfile)
-    {
-        auto bitmap = desc.bitmap.data();
-
-        for (uint32_t y = 0; y < desc.height; y++)
-        {
-            m_cms->doTransform(bitmap, bitmap, desc.width);
-            bitmap += desc.pitch;
-
-            updateProgress(static_cast<float>(y) / desc.height);
-        }
-    }
-
-    m_cms->destroyTransform();
-
-    return hasIccProfile;
+    return cms::transformBitmap(chr, wp, gmr, gmg, gmb,
+                                desc.bitmap.data(), desc.width, desc.height,
+                                desc.pitch, desc.format);
 }
