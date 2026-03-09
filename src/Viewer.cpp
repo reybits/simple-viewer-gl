@@ -1139,6 +1139,8 @@ void cViewer::loadImage(const char* path)
     m_subImageForced = false;
     m_animation = false;
     m_image->stop();
+    m_preview.reset();
+    m_previewData = {};
 
     m_loader->loadImage(path);
     updateInfobar();
