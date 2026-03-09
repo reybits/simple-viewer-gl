@@ -32,6 +32,11 @@ public:
     const Vectorf& getCentralPos() const { return m_centralPos; }
     const Vectorf& getCentralSize() const { return m_centralSize; }
 
+    // Returns true when ImGui wants to capture input (e.g., typing in a text field,
+    // interacting with a focused window). Viewer should skip its own input handling.
+    bool wantCaptureKeyboard() const;
+    bool wantCaptureMouse() const;
+
 public:
     void onMousePosition(const Vectorf& pos);
     void onMouseButton(int button, int action);

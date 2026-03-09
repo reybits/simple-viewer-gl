@@ -390,7 +390,7 @@ void cViewer::onMouseMove(const Vectorf& pos)
 {
     m_imgui.onMousePosition(pos);
 
-    if (m_fileSelector->isVisible())
+    if (m_fileSelector->isVisible() || m_imgui.wantCaptureMouse())
     {
         return;
     }
@@ -426,7 +426,7 @@ void cViewer::onMouseScroll(const Vectorf& offset)
 {
     m_imgui.onScroll(offset);
 
-    if (m_fileSelector->isVisible())
+    if (m_fileSelector->isVisible() || m_imgui.wantCaptureMouse())
     {
         return;
     }
@@ -451,7 +451,7 @@ void cViewer::onMouseButton(int button, int action, int /*mods*/)
 {
     m_imgui.onMouseButton(button, action);
 
-    if (m_fileSelector->isVisible())
+    if (m_fileSelector->isVisible() || m_imgui.wantCaptureMouse())
     {
         return;
     }
@@ -488,7 +488,7 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
 {
     m_imgui.onKey(key, scancode, action);
 
-    if (m_fileSelector->isVisible())
+    if (m_fileSelector->isVisible() || m_imgui.wantCaptureKeyboard())
     {
         return;
     }
@@ -704,6 +704,8 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
 void cViewer::onCharEvent(uint32_t c)
 {
     m_imgui.onChar(c);
+
+    // Char events are only relevant for ImGui text input — no viewer handling needed.
 }
 
 void cViewer::onFileDrop(const StringsList& paths)

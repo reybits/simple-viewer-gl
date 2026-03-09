@@ -40,12 +40,12 @@ namespace
         uint8_t b;
     };
 
-    inline uint8_t halfToUint8(const half& h)
+    inline uint8_t HalfToUint8(const half& h)
     {
         return static_cast<uint8_t>(std::clamp(static_cast<uint32_t>(h * 255.0f), 0u, 255u));
     }
 
-    const char* getFormat(uint32_t format)
+    const char* GetFormat(uint32_t format)
     {
         const char* Formats[] = {
             "exr",       // no compression
@@ -67,34 +67,36 @@ namespace
         return format < std::size(Formats) ? Formats[format] : "unknown";
     }
 
-    void readStringField(const Imf::Header& header, const char* field, const char* title, sBitmapDescription::ExifList& exifList)
+    using eCategory = sBitmapDescription::ExifCategory;
+
+    void ReadStringField(const Imf::Header& header, const char* field, const char* title, eCategory category, sBitmapDescription::ExifList& exifList)
     {
         auto value = header.findTypedAttribute<Imf::StringAttribute>(field);
         if (value != nullptr)
         {
-            exifList.push_back({ title, value->value() });
+            exifList.push_back({ category, title, value->value() });
         }
     }
 
-    void readHeader(const Imf::Header& header, sBitmapDescription& desc)
+    void ReadHeader(const Imf::Header& header, sBitmapDescription& desc)
     {
         auto& exifList = desc.exifList;
 
-        readStringField(header, "owner", "Owner:", exifList);
-        readStringField(header, "capDate", "Date:", exifList);
-        readStringField(header, "comments", "Comments:", exifList);
-        readStringField(header, "type", "Type:", exifList);
+        ReadStringField(header, "owner", "Owner", eCategory::Info, exifList);
+        ReadStringField(header, "capDate", "Date", eCategory::Date, exifList);
+        ReadStringField(header, "comments", "Comments", eCategory::Info, exifList);
+        ReadStringField(header, "type", "Type", eCategory::Info, exifList);
 
 #if 0
         for (auto it = header.begin(), itEnd = header.end(); it != itEnd; ++it)
         {
             auto& attr = it.attribute();
-            exifList.push_back({ it.name(), attr.typeName() });
+            exifList.push_back({ eCategory::Other, it.name(), attr.typeName() });
         }
 #endif
     }
 
-    bool readTiledRgba(const char* filename, Imf::Array2D<Imf::Rgba>& pixels, sBitmapDescription& desc, Imf::RgbaChannels& channels, uint32_t& compression)
+    bool ReadTiledRgba(const char* filename, Imf::Array2D<Imf::Rgba>& pixels, sBitmapDescription& desc, Imf::RgbaChannels& channels, uint32_t& compression)
     {
         Imf::TiledRgbaInputFile in(filename);
         bool result = in.isComplete();
@@ -103,7 +105,7 @@ namespace
             channels = in.channels();
             compression = in.compression();
             auto& header = in.header();
-            readHeader(header, desc);
+            ReadHeader(header, desc);
 
             auto& dw = in.dataWindow();
             const auto width = dw.max.x - dw.min.x + 1;
@@ -122,7 +124,7 @@ namespace
         return result;
     }
 
-    bool readScanlineRgba(const char* filename, Imf::Array2D<Imf::Rgba>& pixels, sBitmapDescription& desc, Imf::RgbaChannels& channels, uint32_t& compression)
+    bool ReadScanlineRgba(const char* filename, Imf::Array2D<Imf::Rgba>& pixels, sBitmapDescription& desc, Imf::RgbaChannels& channels, uint32_t& compression)
     {
         Imf::RgbaInputFile in(filename);
         bool result = in.isComplete();
@@ -132,7 +134,7 @@ namespace
             channels = in.channels();
             compression = in.compression();
             auto& header = in.header();
-            readHeader(header, desc);
+            ReadHeader(header, desc);
 
             auto& dw = in.dataWindow();
             const auto width = dw.max.x - dw.min.x + 1;
@@ -182,10 +184,10 @@ namespace
                 {
                     const auto& p = preview.pixel(x, y);
 
-                    bitmap[idx].r = halfToUint8(p.r);
-                    bitmap[idx].g = halfToUint8(p.g);
-                    bitmap[idx].b = halfToUint8(p.b);
-                    bitmap[idx].a = halfToUint8(p.a);
+                    bitmap[idx].r = HalfToUint8(p.r);
+                    bitmap[idx].g = HalfToUint8(p.g);
+                    bitmap[idx].b = HalfToUint8(p.b);
+                    bitmap[idx].a = HalfToUint8(p.a);
                     idx++;
                 }
             }
@@ -226,7 +228,7 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     try
     {
-        result = readScanlineRgba(filename, pixels, desc, channels, compression);
+        result = ReadScanlineRgba(filename, pixels, desc, channels, compression);
     }
     catch (...)
     {
@@ -234,7 +236,7 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         try
         {
-            result = readTiledRgba(filename, pixels, desc, channels, compression);
+            result = ReadTiledRgba(filename, pixels, desc, channels, compression);
         }
         catch (...)
         {
@@ -288,10 +290,10 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
                 for (uint32_t x = 0; x < desc.width; x++)
                 {
                     const auto& i = *src++;
-                    dst[x].r = halfToUint8(i.r);
-                    dst[x].g = halfToUint8(i.g);
-                    dst[x].b = halfToUint8(i.b);
-                    dst[x].a = halfToUint8(i.a);
+                    dst[x].r = HalfToUint8(i.r);
+                    dst[x].g = HalfToUint8(i.g);
+                    dst[x].b = HalfToUint8(i.b);
+                    dst[x].a = HalfToUint8(i.a);
                 }
             }
         }
@@ -304,14 +306,14 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
                 for (uint32_t x = 0; x < desc.width; x++)
                 {
                     const auto& i = *src++;
-                    dst[x].r = halfToUint8(i.r);
-                    dst[x].g = halfToUint8(i.g);
-                    dst[x].b = halfToUint8(i.b);
+                    dst[x].r = HalfToUint8(i.r);
+                    dst[x].g = HalfToUint8(i.g);
+                    dst[x].b = HalfToUint8(i.b);
                 }
             }
         }
 
-        desc.formatName = getFormat(compression);
+        desc.formatName = GetFormat(compression);
     }
 
     return result;

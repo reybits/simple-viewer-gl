@@ -26,7 +26,9 @@
 namespace
 {
 #if defined(EXIF_SUPPORT)
-    void addExifTag(ExifData* d, ExifIfd ifd, ExifTag tag, sBitmapDescription::ExifList& exifList)
+    using eCategory = sBitmapDescription::ExifCategory;
+
+    void AddExifTag(ExifData* d, ExifIfd ifd, ExifTag tag, eCategory category, sBitmapDescription::ExifList& exifList)
     {
         ExifEntry* entry = exif_content_get_entry(d->ifd[ifd], tag);
         if (entry != nullptr)
@@ -38,13 +40,13 @@ namespace
             helpers::trimRightSpaces(buf);
             if (*buf)
             {
-                exifList.push_back({ exif_tag_get_title_in_ifd(tag, ifd), buf });
+                exifList.push_back({ category, exif_tag_get_title_in_ifd(tag, ifd), buf });
             }
         }
     }
 
 #if defined(DEBUG)
-    void printExifTag(const ExifData* d, ExifIfd ifd, ExifTag tag)
+    void PrintExifTag(const ExifData* d, ExifIfd ifd, ExifTag tag)
     {
         ExifEntry* entry = exif_content_get_entry(d->ifd[ifd], tag);
         if (entry != nullptr)
@@ -187,29 +189,28 @@ namespace
         {
             for (auto tag : Tags)
             {
-                printExifTag(ed, (ExifIfd)i, tag);
+                PrintExifTag(ed, (ExifIfd)i, tag);
             }
         }
     }
 #endif
 #endif
+
 } // namespace
 
 bool cFormatJpeg::isSupported(cFile& file, Buffer& buffer) const
 {
-    if (!readBuffer(file, buffer, 4))
+    if (readBuffer(file, buffer, 4) == false)
     {
         return false;
     }
 
     const auto h = reinterpret_cast<const uint8_t*>(buffer.data());
 
-    struct Head
+    constexpr struct
     {
         uint8_t four[4];
-    };
-
-    const Head Heads[] = {
+    } Heads[] = {
         { { 0xff, 0xd8, 0xff, 0xdb } },
         { { 0xff, 0xd8, 0xff, 0xe0 } },
         { { 0xff, 0xd8, 0xff, 0xed } },
@@ -233,12 +234,12 @@ bool cFormatJpeg::isSupported(cFile& file, Buffer& buffer) const
 bool cFormatJpeg::LoadImpl(const char* filename, sBitmapDescription& desc)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (openFile(file, filename, desc) == false)
     {
         return false;
     }
 
-    uint32_t size = file.getSize();
+    const auto size = file.getSize();
     Buffer in(size);
     file.read(in.data(), size);
 
@@ -255,31 +256,37 @@ bool cFormatJpeg::LoadImpl(const char* filename, sBitmapDescription& desc)
 
             auto& exifList = desc.exifList;
 
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_ORIGINAL, exifList);
-            addExifTag(ed, EXIF_IFD_0, EXIF_TAG_MAKE, exifList);
-            addExifTag(ed, EXIF_IFD_0, EXIF_TAG_MODEL, exifList);
-            addExifTag(ed, EXIF_IFD_0, EXIF_TAG_SOFTWARE, exifList);
-            addExifTag(ed, EXIF_IFD_0, EXIF_TAG_ORIENTATION, exifList);
-            addExifTag(ed, EXIF_IFD_0, EXIF_TAG_X_RESOLUTION, exifList);
-            addExifTag(ed, EXIF_IFD_0, EXIF_TAG_Y_RESOLUTION, exifList);
+            // Camera
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_MAKE, eCategory::Camera, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_MODEL, eCategory::Camera, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_SOFTWARE, eCategory::Camera, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_ORIENTATION, eCategory::Camera, exifList);
 
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_MAX_APERTURE_VALUE, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FNUMBER, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FOCAL_LENGTH, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_TIME, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_MODE, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_PROGRAM, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_X_DIMENSION, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_Y_DIMENSION, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_COLOR_SPACE, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_DIGITAL_ZOOM_RATIO, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FLASH, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SCENE_CAPTURE_TYPE, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_CONTRAST, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SATURATION, exifList);
-            addExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SHARPNESS, exifList);
+            // Exposure
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_TIME, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FNUMBER, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_MAX_APERTURE_VALUE, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FOCAL_LENGTH, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_MODE, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_PROGRAM, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FLASH, eCategory::Exposure, exifList);
+
+            // Image
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_X_DIMENSION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_Y_DIMENSION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_X_RESOLUTION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_Y_RESOLUTION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_COLOR_SPACE, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_CONTRAST, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SATURATION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SHARPNESS, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SCENE_CAPTURE_TYPE, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_DIGITAL_ZOOM_RATIO, eCategory::Image, exifList);
+
+            // Date
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_ORIGINAL, eCategory::Date, exifList);
 
             exif_data_unref(ed);
         }

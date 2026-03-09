@@ -560,6 +560,21 @@ void cGui::beginFrame()
         ImGui::PopStyleVar(3);
 
         dockId = ImGui::GetID("DockSpace");
+
+        // On first run, set up the default dock layout with a right panel.
+        if (ImGui::DockBuilderGetNode(dockId) == nullptr)
+        {
+            ImGui::DockBuilderRemoveNode(dockId);
+            ImGui::DockBuilderAddNode(dockId, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockId, { io.DisplaySize.x, centralH });
+
+            ImGuiID centerId = 0;
+            ImGuiID rightId = ImGui::DockBuilderSplitNode(dockId, ImGuiDir_Right, 0.25f, nullptr, &centerId);
+
+            ImGui::DockBuilderDockWindow("Metadata", rightId);
+            ImGui::DockBuilderFinish(dockId);
+        }
+
         ImGui::DockSpace(dockId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
         ImGui::End();
     }
@@ -590,6 +605,16 @@ float cGui::getInfoBarHeight() const
 
     auto& s = ImGui::GetStyle();
     return s.WindowPadding.y * 2.0f + font->LegacySize;
+}
+
+bool cGui::wantCaptureKeyboard() const
+{
+    return ImGui::GetIO().WantCaptureKeyboard;
+}
+
+bool cGui::wantCaptureMouse() const
+{
+    return ImGui::GetIO().WantCaptureMouse;
 }
 
 void cGui::endFrame()
