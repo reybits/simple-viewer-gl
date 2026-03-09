@@ -97,12 +97,9 @@ bool cFormatJpeg::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     signalBitmapAllocated();
 
-    if (result.iccProfile.empty() == false)
+    if (applyIccProfile(desc, result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size())))
     {
-        if (applyIccProfile(desc, result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size())))
-        {
-            desc.formatName = "jpeg/icc";
-        }
+        desc.formatName = "jpeg/icc";
     }
 
 #if defined(EXIF_SUPPORT)

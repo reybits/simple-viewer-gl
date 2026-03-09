@@ -181,12 +181,9 @@ bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
         if (reader.loadPng(desc, data, entry.size))
         {
             auto& iccProfile = reader.getIccProfile();
-            if (iccProfile.size() != 0)
+            if (applyIccProfile(desc, iccProfile.data(), static_cast<uint32_t>(iccProfile.size())))
             {
-                if (applyIccProfile(desc, iccProfile.data(), iccProfile.size()))
-                {
-                    desc.formatName = "icns/png/icc";
-                }
+                desc.formatName = "icns/png/icc";
             }
         }
         else

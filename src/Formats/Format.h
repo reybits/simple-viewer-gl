@@ -12,9 +12,6 @@
 #include "Common/Buffer.h"
 #include "Common/PixelFormat.h"
 
-#include <memory>
-
-class cCMS;
 class cFile;
 struct sCallbacks;
 struct sBitmapDescription;
@@ -55,9 +52,6 @@ protected:
     bool applyIccProfile(sBitmapDescription& desc, const void* iccProfile, uint32_t iccProfileSize);
     bool applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb);
 
-private:
-    bool applyIccProfile(sBitmapDescription& desc);
-
     virtual bool LoadImpl(const char* filename, sBitmapDescription& desc) = 0;
     virtual bool LoadSubImageImpl(uint32_t /*subImage*/, sBitmapDescription& /*desc*/)
     {
@@ -67,7 +61,6 @@ private:
 private:
     sCallbacks* m_callbacks;
     sBitmapDescription* m_desc = nullptr;
-    std::unique_ptr<cCMS> m_cms;
 
 protected:
     const sConfig* m_config = nullptr;

@@ -320,14 +320,9 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    auto iccProfile = image->icc_profile_buf;
-    auto iccProfileSize = image->icc_profile_len;
-    if (iccProfile != nullptr && iccProfileSize != 0)
+    if (applyIccProfile(desc, image->icc_profile_buf, image->icc_profile_len))
     {
-        if (applyIccProfile(desc, iccProfile, iccProfileSize))
-        {
-            desc.formatName = "jpeg2000/icc";
-        }
+        desc.formatName = "jpeg2000/icc";
     }
 
     // free image data structure

@@ -10,7 +10,6 @@
 #if defined(TIFF_SUPPORT)
 
 #include "FormatTiff.h"
-#include "Cms/Cms.h"
 #include "Common/BitmapDescription.h"
 #include "Common/File.h"
 #include "Log/Log.h"
@@ -134,15 +133,18 @@ bool cFormatTiff::load(unsigned current, sBitmapDescription& desc)
 
                 if (result)
                 {
-                    desc.formatName = "tiff/icc";
-
+                    bool iccApplied = false;
                     if (icc.hasEmbeded())
                     {
-                        applyIccProfile(desc, icc.profile, icc.profileSize);
+                        iccApplied = applyIccProfile(desc, icc.profile, icc.profileSize);
                     }
                     else if (icc.hasTables())
                     {
-                        applyIccProfile(desc, icc.chr, icc.wp, icc.gmr, icc.gmg, icc.gmb);
+                        iccApplied = applyIccProfile(desc, icc.chr, icc.wp, icc.gmr, icc.gmg, icc.gmb);
+                    }
+                    if (iccApplied)
+                    {
+                        desc.formatName = "tiff/icc";
                     }
                 }
 

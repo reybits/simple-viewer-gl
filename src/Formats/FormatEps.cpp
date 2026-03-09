@@ -115,12 +115,9 @@ bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
                 desc.formatName = "eps";
                 signalBitmapAllocated();
 
-                if (result.iccProfile.empty() == false)
+                if (applyIccProfile(desc, result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size())))
                 {
-                    if (applyIccProfile(desc, result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size())))
-                    {
-                        desc.formatName = "eps/icc";
-                    }
+                    desc.formatName = "eps/icc";
                 }
 
                 auto& exifList = desc.exifList;
