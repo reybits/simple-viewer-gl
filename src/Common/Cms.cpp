@@ -82,6 +82,30 @@ namespace
             cmsCloseProfile(inProfile);
             return false;
         }
+
+        // Skip transform if profile color space doesn't match bitmap format.
+        // E.g. CMYK ICC profile with already-converted RGB bitmap.
+        auto profileSpace = cmsGetColorSpace(static_cast<cmsHPROFILE>(inProfile));
+        bool compatible = false;
+        switch (profileSpace)
+        {
+        case cmsSigRgbData:
+            compatible = (format == ePixelFormat::RGB || format == ePixelFormat::RGBA
+                          || format == ePixelFormat::BGR || format == ePixelFormat::BGRA);
+            break;
+        case cmsSigGrayData:
+            compatible = (format == ePixelFormat::Luminance || format == ePixelFormat::LuminanceAlpha);
+            break;
+        default:
+            break;
+        }
+
+        if (compatible == false)
+        {
+            cmsCloseProfile(inProfile);
+            return false;
+        }
+
         auto transform = cmsCreateTransform(inProfile, pixelType, getSrgbProfile(), pixelType, INTENT_PERCEPTUAL, 0);
         cmsCloseProfile(inProfile);
 

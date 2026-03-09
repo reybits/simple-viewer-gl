@@ -9,8 +9,10 @@
 
 #include "FormatPsd.h"
 #include "Common/BitmapDescription.h"
+#include "Common/Callbacks.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Libs/JpegDecoder.h"
 #include "Log/Log.h"
 
 #include <iterator>
@@ -97,11 +99,25 @@ namespace
         return true;
     }
 
+    constexpr uint16_t PSD_THUMBNAIL_RESOURCE = 0x040C;
     constexpr uint16_t PSD_ICC_PROFILE_RESOURCE = 0x040F;
 
-    // Read Image Resources Block and extract ICC profile if present.
+    // PSD thumbnail resource header (28 bytes before JPEG data)
+    struct ThumbnailHeader
+    {
+        uint32_t format;         // 1 = kJpegRGB
+        uint32_t width;
+        uint32_t height;
+        uint32_t widthBytes;
+        uint32_t totalSize;
+        uint32_t compressedSize;
+        uint16_t bitsPerPixel;
+        uint16_t numPlanes;
+    };
+
+    // Read Image Resources Block and extract ICC profile and thumbnail if present.
     // Returns false on read error.
-    bool readImageResources(cFile& file, Buffer& iccProfile)
+    bool readImageResources(cFile& file, Buffer& iccProfile, Buffer& thumbnailJpeg)
     {
         uint32_t blockSize;
         if (sizeof(uint32_t) != file.read(&blockSize, sizeof(uint32_t)))
@@ -162,6 +178,37 @@ namespace
                 if (dataSize != file.read(iccProfile.data(), dataSize))
                 {
                     iccProfile.clear();
+                }
+            }
+            else if (resourceId == PSD_THUMBNAIL_RESOURCE && dataSize > sizeof(ThumbnailHeader))
+            {
+                ThumbnailHeader th;
+                if (sizeof(ThumbnailHeader) != file.read(&th, sizeof(ThumbnailHeader)))
+                {
+                    file.seek(dataSize - sizeof(ThumbnailHeader), SEEK_CUR);
+                }
+                else
+                {
+                    auto format = helpers::read_uint32(reinterpret_cast<uint8_t*>(&th.format));
+                    auto jpegSize = helpers::read_uint32(reinterpret_cast<uint8_t*>(&th.compressedSize));
+                    if (format == 1 && jpegSize > 0 && jpegSize <= dataSize - sizeof(ThumbnailHeader))
+                    {
+                        thumbnailJpeg.resize(jpegSize);
+                        if (jpegSize != file.read(thumbnailJpeg.data(), jpegSize))
+                        {
+                            thumbnailJpeg.clear();
+                        }
+                        // Skip remaining bytes if any
+                        auto remaining = dataSize - sizeof(ThumbnailHeader) - jpegSize;
+                        if (remaining > 0)
+                        {
+                            file.seek(remaining, SEEK_CUR);
+                        }
+                    }
+                    else
+                    {
+                        file.seek(dataSize - sizeof(ThumbnailHeader), SEEK_CUR);
+                    }
                 }
             }
             else
@@ -288,6 +335,33 @@ bool cFormatPsd::isSupported(cFile& file, Buffer& buffer) const
     return isValidFormat(*h);
 }
 
+void cFormatPsd::decodePreview(const Buffer& jpegData, uint32_t fullWidth, uint32_t fullHeight)
+{
+    if (jpegData.empty())
+    {
+        return;
+    }
+
+    auto bitmap = cJpegDecoder::decodeThumbnail(jpegData.data(), static_cast<uint32_t>(jpegData.size()));
+    if (bitmap.width == 0 || bitmap.height == 0)
+    {
+        return;
+    }
+
+    sPreviewData data;
+    data.bitmap = std::move(bitmap.data);
+    data.width = bitmap.width;
+    data.height = bitmap.height;
+    data.pitch = bitmap.pitch;
+    data.bpp = bitmap.bpp;
+    data.format = bitmap.format;
+    data.fullImageWidth = fullWidth;
+    data.fullImageHeight = fullHeight;
+
+    cLog::Debug("PSD preview: {}x{}, full: {}x{}", bitmap.width, bitmap.height, fullWidth, fullHeight);
+    signalPreviewReady(std::move(data));
+}
+
 bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
 {
     cFile file;
@@ -333,13 +407,18 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    // read Image Resources Block (extract ICC profile)
+    // read Image Resources Block (extract ICC profile and thumbnail)
     Buffer iccProfile;
-    if (false == readImageResources(file, iccProfile))
+    Buffer thumbnailJpeg;
+    if (false == readImageResources(file, iccProfile, thumbnailJpeg))
     {
         cLog::Error("Can't read image resources block.");
         return false;
     }
+
+    const uint32_t fullWidth = helpers::read_uint32(reinterpret_cast<uint8_t*>(&header.columns));
+    const uint32_t fullHeight = helpers::read_uint32(reinterpret_cast<uint8_t*>(&header.rows));
+    decodePreview(thumbnailJpeg, fullWidth, fullHeight);
 
     // skip Layer and Mask Information Block
     if (false == skipNextBlock(file))
@@ -362,8 +441,8 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    desc.width = helpers::read_uint32((uint8_t*)&header.columns);
-    desc.height = helpers::read_uint32((uint8_t*)&header.rows);
+    desc.width = fullWidth;
+    desc.height = fullHeight;
 
     // this will be needed for RLE decompression
     std::vector<uint16_t> linesLengths;

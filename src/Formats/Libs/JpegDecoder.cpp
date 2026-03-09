@@ -206,6 +206,47 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     return result;
 }
 
+cJpegDecoder::Bitmap cJpegDecoder::decodeThumbnail(const uint8_t* in, uint32_t size)
+{
+    Bitmap bitmap;
+
+    jpeg_decompress_struct cinfo;
+    sErrorMgr jerr;
+
+    cinfo.err = jpeg_std_error(&jerr.pub);
+    jerr.pub.error_exit = ErrorExit;
+    if (setjmp(jerr.setjmp_buffer))
+    {
+        jpeg_destroy_decompress(&cinfo);
+        return bitmap;
+    }
+    jpeg_create_decompress(&cinfo);
+
+    jpeg_mem_src(&cinfo, const_cast<uint8_t*>(in), size);
+    jpeg_read_header(&cinfo, TRUE);
+    cinfo.out_color_space = JCS_RGB;
+    jpeg_start_decompress(&cinfo);
+
+    bitmap.width = cinfo.output_width;
+    bitmap.height = cinfo.output_height;
+    bitmap.bpp = static_cast<uint32_t>(cinfo.output_components) * 8;
+    bitmap.pitch = bitmap.width * cinfo.output_components;
+    bitmap.format = ePixelFormat::RGB;
+    bitmap.data.resize(bitmap.pitch * bitmap.height);
+
+    auto out = bitmap.data.data();
+    while (cinfo.output_scanline < cinfo.output_height)
+    {
+        jpeg_read_scanlines(&cinfo, &out, 1);
+        out += bitmap.pitch;
+    }
+
+    jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+
+    return bitmap;
+}
+
 void cJpegDecoder::setupMarkers(jpeg_decompress_struct* cinfo)
 {
     jpeg_save_markers(cinfo, JPEG_EXIF, MaxMarkerLength);

@@ -246,7 +246,10 @@ void cViewer::onUpdate()
         }
     }
 
-    if (m_imagePrepared.exchange(false))
+    // Only handle imagePrepared after bitmapAllocated has been processed,
+    // otherwise handleImageReady() runs before the image buffer is set up.
+    if (m_bitmapAllocated.load(std::memory_order_relaxed) == false
+        && m_imagePrepared.exchange(false))
     {
         handleImageReady();
     }

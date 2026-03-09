@@ -31,9 +31,21 @@ public:
         std::vector<uint8_t> exifData;
     };
 
+    struct Bitmap
+    {
+        Buffer data;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        uint32_t pitch = 0;
+        uint32_t bpp = 0;
+        ePixelFormat format = ePixelFormat::RGB;
+    };
+
     Result decodeJpeg(const uint8_t* in, uint32_t size, sBitmapDescription& desc,
                        const ProgressCallback& onProgress, const AllocatedCallback& onAllocated,
                        const bool& stop);
+
+    static Bitmap decodeThumbnail(const uint8_t* in, uint32_t size);
 
 private:
     static void setupMarkers(jpeg_decompress_struct* cinfo);
