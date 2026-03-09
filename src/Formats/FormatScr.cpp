@@ -172,7 +172,7 @@ namespace
         }
     }
 
-    sColor GetColorIntesity(uint8_t attr)
+    sColor GetColorIntensity(uint8_t attr)
     {
         // uint8_t i = attr & 8 ? 1 : 0;
 
@@ -185,8 +185,8 @@ namespace
 
     sColor MergeColors(uint8_t attr0, uint8_t attr1)
     {
-        const auto c0 = GetColorIntesity(attr0);
-        const auto c1 = GetColorIntesity(attr1);
+        const auto c0 = GetColorIntensity(attr0);
+        const auto c1 = GetColorIntensity(attr1);
 
         const bool b0 = (attr0 & 0x40) != 0;
         const bool b1 = (attr1 & 0x40) != 0;
