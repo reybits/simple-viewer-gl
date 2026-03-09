@@ -26,7 +26,7 @@ namespace
     };
 
     // palette PULSAR (0xcd)
-    static const sColor Palette[] = {
+    static constexpr sColor Palette[] = {
         // normal
         { 0x00, 0x00, 0x00 },
         { 0x00, 0x00, 0xcd },
@@ -102,7 +102,7 @@ namespace
         const char* formatName;
     };
 
-    ZXProperty getType(uint32_t fileSize, const uint8_t* buffer)
+    ZXProperty GetType(uint32_t fileSize, const uint8_t* buffer)
     {
         struct ZXPropertyInternal
         {
@@ -155,7 +155,7 @@ namespace
         return { 0, 0, 0, 0, 0, 0, ZXProperty::Type::Unknown, "" };
     }
 
-    void putSixteenPixels(sPixelRGB* out, uint8_t color)
+    void PutSixteenPixels(sPixelRGB* out, uint8_t color)
     {
         const uint8_t left = color & 0x07;
         for (uint32_t i = 0; i < 8; i++)
@@ -172,7 +172,7 @@ namespace
         }
     }
 
-    sColor getColorIntesity(uint8_t attr)
+    sColor GetColorIntesity(uint8_t attr)
     {
         // uint8_t i = attr & 8 ? 1 : 0;
 
@@ -183,10 +183,10 @@ namespace
         return { r, g, b };
     }
 
-    sColor mergeColors(uint8_t attr0, uint8_t attr1)
+    sColor MergeColors(uint8_t attr0, uint8_t attr1)
     {
-        const auto c0 = getColorIntesity(attr0);
-        const auto c1 = getColorIntesity(attr1);
+        const auto c0 = GetColorIntesity(attr0);
+        const auto c1 = GetColorIntesity(attr1);
 
         const bool b0 = (attr0 & 0x40) != 0;
         const bool b1 = (attr1 & 0x40) != 0;
@@ -224,7 +224,7 @@ namespace
         }
 
         // pulsar
-        const uint8_t intensity[] = { 0x00, 0x76, 0xcd, 0xe9, 0xff, 0x9f };
+        constexpr uint8_t intensity[] = { 0x00, 0x76, 0xcd, 0xe9, 0xff, 0x9f };
         // 0x00 - ZZ - zero + zero
         // 0x76 - NN - normal + normal
         // 0xcd - BB - bright + bright
@@ -243,7 +243,7 @@ namespace
         };
     }
 
-    sColor mergeColors(const sColor& c0, const sColor& c1)
+    sColor MergeColors(const sColor& c0, const sColor& c1)
     {
         const float a = 0.5f;
         const float b = 1.0f - a;
@@ -254,7 +254,7 @@ namespace
         };
     }
 
-    void makeBorder(sBitmapDescription& desc, const sColor& color)
+    void MakeBorder(sBitmapDescription& desc, const sColor& color)
     {
         auto pixel = (sPixelRGB*)desc.bitmap.data();
 
@@ -264,7 +264,7 @@ namespace
         }
     }
 
-    void makeBorder(sBitmapDescription& desc, const uint8_t* zxBorder)
+    void MakeBorder(sBitmapDescription& desc, const uint8_t* zxBorder)
     {
         // top
         for (uint32_t y = 0; y < 64; y++)
@@ -273,7 +273,7 @@ namespace
             for (uint32_t x = 0; x < 24; x++)
             {
                 const uint8_t color = *zxBorder++;
-                putSixteenPixels(out, color);
+                PutSixteenPixels(out, color);
                 out += 16;
             }
         }
@@ -285,7 +285,7 @@ namespace
             for (uint32_t x = 0; x < 4; x++)
             {
                 const uint8_t color = *zxBorder++;
-                putSixteenPixels(out, color);
+                PutSixteenPixels(out, color);
                 out += 16;
             }
 
@@ -293,7 +293,7 @@ namespace
             for (uint32_t x = 0; x < 4; x++)
             {
                 const uint8_t color = *zxBorder++;
-                putSixteenPixels(out, color);
+                PutSixteenPixels(out, color);
                 out += 16;
             }
         }
@@ -305,13 +305,13 @@ namespace
             for (uint32_t x = 0; x < 24; x++)
             {
                 const uint8_t color = *zxBorder++;
-                putSixteenPixels(out, color);
+                PutSixteenPixels(out, color);
                 out += 16;
             }
         }
     }
 
-    void putEightPixels(sPixelRGB* out, const uint8_t pixels, const uint8_t attribute)
+    void PutEightPixels(sPixelRGB* out, const uint8_t pixels, const uint8_t attribute)
     {
         for (uint32_t i = 0; i < 8; i++)
         {
@@ -322,7 +322,7 @@ namespace
         }
     }
 
-    void putEightPixels(sPixelRGB* out, const uint8_t pixels[2], const uint8_t attributes[2])
+    void PutEightPixels(sPixelRGB* out, const uint8_t pixels[2], const uint8_t attributes[2])
     {
         for (uint32_t i = 0; i < 8; i++)
         {
@@ -334,12 +334,12 @@ namespace
             sPixelRGB pixel1;
             pixel1.set(pixels[1] & bit, attributes[1]);
 
-            *out = mergeColors(pixel0.color, pixel1.color);
+            *out = MergeColors(pixel0.color, pixel1.color);
             out++;
         }
     }
 
-    void fillThird(uint32_t layer, const uint8_t* zxPixels, const uint8_t* zxColors,
+    void FillThird(uint32_t layer, const uint8_t* zxPixels, const uint8_t* zxColors,
                    sBitmapDescription& desc, uint32_t blockHeight, sPixelRGB* out)
     {
         zxPixels += 2048 * layer;
@@ -353,12 +353,12 @@ namespace
             {
                 const uint8_t pixels = *zxPixels++;
                 const uint8_t attribute = zxColors[(line / blockHeight) * 32 + x];
-                putEightPixels(&startLine[x * 8], pixels, attribute);
+                PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
         }
     }
 
-    void fillThird(uint32_t layer, const uint8_t* zxPixels0, const uint8_t* zxPixels1,
+    void FillThird(uint32_t layer, const uint8_t* zxPixels0, const uint8_t* zxPixels1,
                    const uint8_t* zxColors0, const uint8_t* zxColors1,
                    sBitmapDescription& desc, uint32_t blockHeight, sPixelRGB* out)
     {
@@ -378,12 +378,12 @@ namespace
 
                 const uint32_t idx = (line / blockHeight) * 32 + x;
                 const uint8_t attributes[2] = { zxColors0[idx], zxColors1[idx] };
-                putEightPixels(&startLine[x * 8], pixels, attributes);
+                PutEightPixels(&startLine[x * 8], pixels, attributes);
             }
         }
     }
 
-    void fillLinear(const uint8_t* zxPixels, const uint8_t* zxColors, uint32_t blockHeight, uint32_t outWidth, sPixelRGB* out)
+    void FillLinear(const uint8_t* zxPixels, const uint8_t* zxColors, uint32_t blockHeight, uint32_t outWidth, sPixelRGB* out)
     {
         for (uint32_t y = 0; y < 192; y++)
         {
@@ -392,16 +392,16 @@ namespace
             {
                 const uint8_t pixels = *zxPixels++;
                 const uint8_t attribute = zxColors[(y / blockHeight) * 32 + x];
-                putEightPixels(&startLine[x * 8], pixels, attribute);
+                PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
         }
     }
 
-    void loadScr(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadScr(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
     {
         if (prop.type == ZXProperty::Type::ScS)
         {
-            desc.exifList.push_back({ "Comment", (const char*)buffer });
+            desc.exifList.push_back({ sBitmapDescription::ExifCategory::Info, "Comment", (const char*)buffer });
             buffer += 17;
         }
         const uint8_t* zxPixels = buffer;
@@ -410,11 +410,11 @@ namespace
         for (uint32_t i = 0; i < 3; i++)
         {
             auto out = (sPixelRGB*)(desc.bitmap.data() + ((prop.dy + 64 * i) * desc.pitch)) + prop.dx;
-            fillThird(i, zxPixels, zxColors, desc, 8, out);
+            FillThird(i, zxPixels, zxColors, desc, 8, out);
         }
     }
 
-    void loadBsc(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadBsc(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
     {
         const uint8_t* zxPixels = buffer;
         const uint8_t* zxColors = buffer + 6144;
@@ -422,14 +422,14 @@ namespace
         for (uint32_t i = 0; i < 3; i++)
         {
             auto out = (sPixelRGB*)(desc.bitmap.data() + ((prop.dy + 64 * i) * desc.pitch)) + prop.dx;
-            fillThird(i, zxPixels, zxColors, desc, 8, out);
+            FillThird(i, zxPixels, zxColors, desc, 8, out);
         }
 
         const uint8_t* zxBorder = buffer + 6144 + 768;
-        makeBorder(desc, zxBorder);
+        MakeBorder(desc, zxBorder);
     }
 
-    void loadAtr(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadAtr(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
     {
         const uint8_t px[2] = { 0x55, 0xaa }; // { 0b01010101, 0b10101010 };
 
@@ -443,12 +443,12 @@ namespace
             {
                 const uint8_t pixels = px[y % 2];
                 const uint8_t attribute = zxColors[(y / 8) * 32 + x];
-                putEightPixels(&startLine[x * 8], pixels, attribute);
+                PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
         }
     }
 
-    void loadMcX(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadMcX(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
     {
         const uint8_t* zxPixels = buffer;
         const uint8_t* zxColors = buffer + 6144;
@@ -458,7 +458,7 @@ namespace
             const uint32_t blockHeight = 1;
 
             auto out = (sPixelRGB*)desc.bitmap.data();
-            fillLinear(zxPixels, zxColors, blockHeight, desc.width, out);
+            FillLinear(zxPixels, zxColors, blockHeight, desc.width, out);
         }
         else
         {
@@ -467,12 +467,12 @@ namespace
             for (uint32_t i = 0; i < 3; i++)
             {
                 auto out = (sPixelRGB*)(desc.bitmap.data() + desc.pitch * 64 * i);
-                fillThird(i, zxPixels, zxColors, desc, blockHeight, out);
+                FillThird(i, zxPixels, zxColors, desc, blockHeight, out);
             }
         }
     }
 
-    void loadBMc4(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadBMc4(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
     {
         for (uint32_t i = 0; i < 3; i++)
         {
@@ -491,16 +491,16 @@ namespace
                 {
                     const uint8_t pixels = *zxPixels++;
                     const uint8_t attribute = *zxColors++;
-                    putEightPixels(&startLine[x * 8], pixels, attribute);
+                    PutEightPixels(&startLine[x * 8], pixels, attribute);
                 }
             }
         }
 
         const uint8_t* zxBorder = buffer + 6144 + 768 * 2;
-        makeBorder(desc, zxBorder);
+        MakeBorder(desc, zxBorder);
     }
 
-    void loadImg(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadImg(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
     {
         const uint32_t blockHeight = 8;
         const uint8_t* zxPixels = buffer;
@@ -509,16 +509,16 @@ namespace
         for (uint32_t i = 0; i < 3; i++)
         {
             auto out = (sPixelRGB*)(desc.bitmap.data() + ((prop.dy + 64 * i) * desc.pitch)) + prop.dx;
-            fillThird(i, zxPixels, zxColors, desc, blockHeight, out);
+            FillThird(i, zxPixels, zxColors, desc, blockHeight, out);
         }
     }
 
-    void loadMgh(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadMgh(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
     {
         const uint32_t blockHeight = buffer[4];
 
-        const auto border = mergeColors(buffer[5], buffer[6]);
-        makeBorder(desc, border);
+        const auto border = MergeColors(buffer[5], buffer[6]);
+        MakeBorder(desc, border);
 
         buffer += 256; // skip header
 
@@ -528,16 +528,16 @@ namespace
         for (uint32_t i = 0; i < 3; i++)
         {
             auto out = (sPixelRGB*)(desc.bitmap.data() + ((prop.dy + 64 * i) * desc.pitch)) + prop.dx;
-            fillThird(i, zxPixels[0], zxPixels[1], zxColors[0], zxColors[1], desc, blockHeight, out);
+            FillThird(i, zxPixels[0], zxPixels[1], zxColors[0], zxColors[1], desc, blockHeight, out);
         }
     }
 
-    void loadMgs(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadMgs(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
     {
         const uint32_t blockHeight = buffer[4];
 
-        const auto border = mergeColors(buffer[5], buffer[6]);
-        makeBorder(desc, border);
+        const auto border = MergeColors(buffer[5], buffer[6]);
+        MakeBorder(desc, border);
 
         buffer += 7; // skip header
 
@@ -556,32 +556,33 @@ namespace
                 const uint8_t ink = colors[x * 2 + 0];
                 const uint8_t paper = colors[x * 2 + 1];
                 const uint8_t attribute = ink | (paper << 3); // zxColors[(y / blockHeight) * 32 + x];
-                putEightPixels(&startLine[x * 8], pixels, attribute);
+                PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
         }
     }
+
 } // namespace
 
 bool cFormatScr::isSupported(cFile& file, Buffer& buffer) const
 {
-    if (!readBuffer(file, buffer, 4))
+    if (readBuffer(file, buffer, 4) == false)
     {
         return false;
     }
 
-    const auto prop = getType(file.getSize(), buffer.data());
+    const auto prop = GetType(file.getSize(), buffer.data());
     return prop.type != ZXProperty::Type::Unknown;
 }
 
 bool cFormatScr::LoadImpl(const char* filename, sBitmapDescription& desc)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (openFile(file, filename, desc) == false)
     {
         return false;
     }
 
-    const uint32_t size = file.getSize();
+    const auto size = file.getSize();
 
     std::vector<uint8_t> buffer(size);
     if (file.read(buffer.data(), size) != size)
@@ -590,7 +591,7 @@ bool cFormatScr::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    const auto prop = getType(size, buffer.data());
+    const auto prop = GetType(size, buffer.data());
     if (prop.type == ZXProperty::Type::Unknown)
     {
         cLog::Error("Not a ZX-Spectrum screen.");
@@ -611,37 +612,37 @@ bool cFormatScr::LoadImpl(const char* filename, sBitmapDescription& desc)
     {
     case ZXProperty::Type::Scr:
     case ZXProperty::Type::ScS:
-        loadScr(buffer.data(), desc, prop);
+        LoadScr(buffer.data(), desc, prop);
         break;
 
     case ZXProperty::Type::Bsc:
-        loadBsc(buffer.data(), desc, prop);
+        LoadBsc(buffer.data(), desc, prop);
         break;
 
     case ZXProperty::Type::Atr:
-        loadAtr(buffer.data(), desc, prop);
+        LoadAtr(buffer.data(), desc, prop);
         break;
 
     case ZXProperty::Type::Mc1:
     case ZXProperty::Type::Mc2:
     case ZXProperty::Type::Mc4:
-        loadMcX(buffer.data(), desc, prop);
+        LoadMcX(buffer.data(), desc, prop);
         break;
 
     case ZXProperty::Type::BMc4:
-        loadBMc4(buffer.data(), desc, prop);
+        LoadBMc4(buffer.data(), desc, prop);
         break;
 
     case ZXProperty::Type::Img:
-        loadImg(buffer.data(), desc, prop);
+        LoadImg(buffer.data(), desc, prop);
         break;
 
     case ZXProperty::Type::Mgh:
-        loadMgh(buffer.data(), desc, prop);
+        LoadMgh(buffer.data(), desc, prop);
         break;
 
     case ZXProperty::Type::Mgs:
-        loadMgs(buffer.data(), desc, prop);
+        LoadMgs(buffer.data(), desc, prop);
         break;
 
     case ZXProperty::Type::Unknown: // prevent compiler warning

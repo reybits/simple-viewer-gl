@@ -17,7 +17,7 @@
 
 namespace
 {
-    bool getContent(const char* data, size_t size, const char* name, std::string& out)
+    bool GetContent(const char* data, size_t size, const char* name, std::string& out)
     {
         auto begin = helpers::memfind(data, size, name);
         if (begin != nullptr)
@@ -36,14 +36,17 @@ namespace
         return false;
     }
 
-    void addExifTag(const char* data, size_t size, const char* name, sBitmapDescription::ExifList& exifList)
+    using eCategory = sBitmapDescription::ExifCategory;
+
+    void AddExifTag(const char* data, size_t size, const char* name, eCategory category, sBitmapDescription::ExifList& exifList)
     {
         std::string out;
-        if (getContent(data, size, name, out))
+        if (GetContent(data, size, name, out))
         {
-            exifList.push_back({ name, out });
+            exifList.push_back({ category, name, out });
         }
     }
+
 } // namespace
 
 bool cFormatEps::isSupported(cFile& file, Buffer& buffer) const
@@ -82,25 +85,25 @@ bool cFormatEps::isSupported(cFile& file, Buffer& buffer) const
 bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (openFile(file, filename, desc) == false)
     {
         return false;
     }
 
-    const uint32_t size = file.getSize();
+    const auto size = file.getSize();
 
     Buffer buffer;
     buffer.resize(size);
-    auto data = buffer.data();
-
-    if (file.read(data, size) != file.getSize())
+    if (file.read(buffer.data(), size) != file.getSize())
     {
         cLog::Error("Can't load EPS/AI file.");
         return false;
     }
 
+    auto data = reinterpret_cast<const char*>(buffer.data());
+
     std::string base64;
-    if (getContent((const char*)data, size, "xmpGImg:image", base64))
+    if (GetContent(data, size, "xmpGImg:image", base64))
     {
         Buffer decoded;
         if (helpers::base64decode(base64.data(), base64.size(), decoded))
@@ -111,10 +114,10 @@ bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
                 desc.formatName = "eps";
 
                 auto& exifList = desc.exifList;
-                addExifTag((const char*)data, size, "xmp:CreatorTool", exifList);
-                addExifTag((const char*)data, size, "xmp:CreateDate", exifList);
-                addExifTag((const char*)data, size, "xmp:ModifyDate", exifList);
-                addExifTag((const char*)data, size, "xmp:MetadataDate", exifList);
+                AddExifTag(data, size, "xmp:CreatorTool", eCategory::Software, exifList);
+                AddExifTag(data, size, "xmp:CreateDate", eCategory::Date, exifList);
+                AddExifTag(data, size, "xmp:ModifyDate", eCategory::Date, exifList);
+                AddExifTag(data, size, "xmp:MetadataDate", eCategory::Date, exifList);
 
                 return true;
             }

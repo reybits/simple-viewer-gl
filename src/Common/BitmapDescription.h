@@ -84,11 +84,25 @@ struct sBitmapDescription
     bool isAnimation = false;
     uint32_t delay = 0; // frame animation delay
 
+    enum class ExifCategory : uint8_t
+    {
+        Camera,
+        Exposure,
+        Image,
+        Date,
+        Software,
+        Info,
+        Other,
+
+        Count,
+    };
+
     struct ExifEntry
     {
+        ExifCategory category = ExifCategory::Other;
         std::string tag;
         std::string value;
     };
-    typedef std::vector<ExifEntry> ExifList;
+    using ExifList = std::vector<ExifEntry>;
     ExifList exifList;
 };
