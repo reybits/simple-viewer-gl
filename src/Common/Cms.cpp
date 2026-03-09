@@ -46,7 +46,7 @@ namespace
         case ePixelFormat::LuminanceAlpha:
             return TYPE_GRAYA_8;
         default:
-            return TYPE_RGB_8;
+            return 0;
         }
     }
 
@@ -77,6 +77,11 @@ namespace
         }
 
         auto pixelType = toLcmsPixelType(format);
+        if (pixelType == 0)
+        {
+            cmsCloseProfile(inProfile);
+            return false;
+        }
         auto transform = cmsCreateTransform(inProfile, pixelType, getSrgbProfile(), pixelType, INTENT_PERCEPTUAL, 0);
         cmsCloseProfile(inProfile);
 

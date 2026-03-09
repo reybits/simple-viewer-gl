@@ -112,6 +112,11 @@ namespace
 
         auto blockEnd = file.getOffset() + blockSize;
 
+        if (blockEnd > file.getSize())
+        {
+            return false;
+        }
+
         while (file.getOffset() < blockEnd)
         {
             // Resource entry: "8BIM" signature
