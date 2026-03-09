@@ -24,7 +24,9 @@ Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photo
 ## Features
 
 - Lightweight and fast: utilize hardware-accelerated video card;
-- Support embedded ICC profiles;
+- Support embedded ICC color profiles (PNG, JPEG, JPEG 2000, TIFF, WebP, BMP, PSD, EPS, ICO, ICNS);
+- Automatic EXIF orientation correction;
+- Image rotation and flip support;
 - GIF animation support;
 - GIMP XCF support;
 - Adobe PSD format support;
@@ -63,24 +65,24 @@ Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photo
 | `<+>` / `<->`             | scale image                       |
 | `<1>`...`<0>`             | set scale from 100% to 1000%      |
 | `<enter>`                 | switch fullscreen / windowed mode |
-| `<h>` / `<l>`             | pan left / right in pixels        |
-| `<j>` / `<k>`             | pan down / up in pixels           |
-| `<shift>` + `<h>` / `<l>` | pan left / right in percents      |
-| `<shift>` + `<j>` / `<k>` | pan down / up in percents         |
+| `<arrows>` / `<h/j/k/l>`  | pan image by pixel                |
+| `<shift>` + `<arrows/hjkl>` | pan image by step               |
 | `<del>`                   | toggle deletion mark              |
 | `<ctrl>` + `<del>`        | delete marked images from disk    |
 | `<r>`                     | rotate clockwise                  |
 | `<shift>` + `<r>`         | rotate counterclockwise           |
-| `<pgup>` / `<bgdn>`       | previous /next subimage           |
+| `<f>`                     | flip horizontal                   |
+| `<shift>` + `<f>`         | flip vertical                     |
+| `<pgup>` / `<pgdn>`       | previous / next subimage          |
 | `<s>`                     | fit image to window               |
 | `<shift>` + `<s>`         | toggle 'keep scale' on image load |
 | `<shift>` + `<c>`         | toggle 'center image' mode        |
-| `<c>`                     | hide / show chequerboard          |
+| `<c>`                     | cycle background                  |
 | `<i>`                     | hide / show on-screen info        |
 | `<e>`                     | hide / show exif                  |
 | `<p>`                     | hide / show pixel info            |
 | `<b>`                     | hide / show border around image   |
-| `<g>`                     | hide / show image grid            |
+| `<g>`                     | hide / show pixel grid            |
 | `<?>`                     | hide / show keybindings popup     |
 
 ---

@@ -64,8 +64,8 @@ namespace
     };
 
     constexpr KeyBinding PanBindings[] = {
-        { "<arrows> / <h/j/k/l>", "pan image" },
-        { "<shift>+<arrows/hjkl>", "pan image by pixel" },
+        { "<arrows> / <h/j/k/l>", "pan image by pixel" },
+        { "<shift>+<arrows/hjkl>", "pan image by step" },
     };
 
     constexpr KeyBinding DisplayBindings[] = {
