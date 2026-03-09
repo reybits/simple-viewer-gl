@@ -11,6 +11,7 @@
 
 #include <cctype>
 #include <imgui/imgui.h>
+#include <iterator>
 
 namespace
 {
@@ -153,6 +154,7 @@ void cExifPopup::render()
 
             if (ImGui::CollapsingHeader(name, ImGuiTreeNodeFlags_DefaultOpen))
             {
+                ImGui::PushID(name);
                 if (ImGui::BeginTable("##tbl", 2, ImGuiTableFlags_SizingStretchProp))
                 {
                     ImGui::TableSetupColumn("Tag", ImGuiTableColumnFlags_WidthFixed);
@@ -185,6 +187,7 @@ void cExifPopup::render()
 
                     ImGui::EndTable();
                 }
+                ImGui::PopID();
             }
         }
     }
