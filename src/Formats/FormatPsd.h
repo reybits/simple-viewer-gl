@@ -20,4 +20,6 @@ public:
 
 private:
     bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
+
+    void decodePreview(const Buffer& jpegData, uint32_t fullWidth, uint32_t fullHeight);
 };
