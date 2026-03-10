@@ -9,14 +9,13 @@
 
 #pragma once
 
-#include "Buffer.h"
+#include "Bitmap.h"
 #include "Helpers.h"
-#include "PixelFormat.h"
 
 #include <atomic>
 #include <vector>
 
-struct sChunkData
+struct sChunkData : sBitmap
 {
     void reset()
     {
@@ -69,15 +68,9 @@ struct sChunkData
         return bitmap.data() + static_cast<size_t>(row % bandHeight) * pitch;
     }
 
-    // Bitmap buffer
-    Buffer bitmap;
+    // Streaming progress
     std::atomic<uint32_t> readyHeight{ 0 };    // rows decoded so far (decoder → viewer)
     std::atomic<uint32_t> consumedHeight{ 0 };  // rows uploaded to GPU (viewer → decoder)
-    ePixelFormat format = ePixelFormat::RGB;
-    uint32_t bpp = 0;
-    uint32_t pitch = 0;
-    uint32_t width = 0;
-    uint32_t height = 0;
     uint32_t bandHeight = 0; // band buffer height (== height when no banding)
 
     // GPU-compressed texture (ASTC, ETC2, BC)

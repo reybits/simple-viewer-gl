@@ -9,22 +9,15 @@
 
 #pragma once
 
-#include "Buffer.h"
-#include "PixelFormat.h"
+#include "Bitmap.h"
 
 #include <functional>
 
 struct sChunkData;
 struct sImageInfo;
 
-struct sPreviewData
+struct sPreviewData : sBitmap
 {
-    Buffer bitmap;
-    uint32_t width = 0;
-    uint32_t height = 0;
-    uint32_t pitch = 0;
-    uint32_t bpp = 0;
-    ePixelFormat format = ePixelFormat::RGB;
     uint32_t fullImageWidth = 0;  // full-resolution dimensions
     uint32_t fullImageHeight = 0;
 };
