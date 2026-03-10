@@ -181,6 +181,18 @@ if(JPEG_FOUND)
     # add_definitions(-DJPEG_SUPPORT=1)
     link_directories(${JPEG_LIBRARY_DIRS})
     include_directories(${JPEG_INCLUDE_DIR})
+
+    include(CheckCSourceCompiles)
+    set(CMAKE_REQUIRED_INCLUDES ${JPEG_INCLUDE_DIR})
+    check_c_source_compiles("
+        #include <stddef.h>
+        #include <stdio.h>
+        #include <jpeglib.h>
+        int main() { J12SAMPARRAY p = 0; (void)p; return 0; }
+    " HAVE_JPEG12)
+    if(HAVE_JPEG12)
+        add_definitions(-DHAVE_JPEG12=1)
+    endif()
 else()
     pretty_print("* " "[ ] JPEG not found" " *" " " "<")
     # message(FATAL_ERROR "[ ] JPEG not found")
