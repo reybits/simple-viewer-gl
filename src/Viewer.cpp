@@ -102,7 +102,6 @@ void cViewer::onContextRecreated()
     m_checkerBoard->init();
     m_deletionMark->init();
     m_pixelPopup->init();
-    m_progress->init();
     m_selection->init();
 
     auto fbSize = m_window.getFramebufferSize();
@@ -211,23 +210,6 @@ void cViewer::onRender()
 
     if (m_config.hideInfobar == false)
     {
-        const float progress = m_loadProgress.load(std::memory_order_relaxed);
-        if (progress >= 0.0f)
-        {
-            m_infoBar->setProgressPercent(progress);
-        }
-        else if (progress > -1.5f)
-        {
-            m_infoBar->clearProgress();
-        }
-        else if (progress < -3.5f)
-        {
-            m_infoBar->setProgressText("[post-processing...]");
-        }
-        else
-        {
-            m_infoBar->setProgressText(progress < -2.5f ? "[decoding...]" : "[loading...]");
-        }
         m_infoBar->render();
     }
 
@@ -235,7 +217,29 @@ void cViewer::onRender()
 
     m_helpPopup->render();
 
-    m_progress->render();
+    {
+        const float progress = m_loadProgress.load(std::memory_order_relaxed);
+        if (progress >= 0.0f)
+        {
+            m_progress->setPercent(progress);
+        }
+        else if (progress > -1.5f)
+        {
+            m_progress->clearStatus();
+        }
+        else if (progress < -3.5f)
+        {
+            m_progress->setStatus("post-processing...");
+        }
+        else
+        {
+            m_progress->setStatus(progress < -2.5f ? "decoding..." : "loading...");
+        }
+
+        const auto& centralPos = m_imgui.getCentralPos();
+        const auto& centralSize = m_imgui.getCentralSize();
+        m_progress->render(centralPos.x + centralSize.x, centralPos.y + centralSize.y);
+    }
 
     m_imgui.endFrame();
     render::endFrame();

@@ -53,14 +53,6 @@ void cInfoBar::render()
             ? ColorCenter
             : ColorYellow;
         ImGui::TextColored(color, "%s", m_bottominfo.c_str());
-
-        if (m_progressText.empty() == false)
-        {
-            const float winWidth = ImGui::GetWindowWidth();
-            const float textWidth = ImGui::CalcTextSize(m_progressText.c_str()).x;
-            ImGui::SameLine(winWidth - textWidth - s.WindowPadding.x);
-            ImGui::TextColored(ColorYellow, "%s", m_progressText.c_str());
-        }
     }
     ImGui::End();
 
@@ -90,21 +82,6 @@ void cInfoBar::render()
         }
         ImGui::End();
     }
-}
-
-void cInfoBar::setProgressText(const std::string& text)
-{
-    m_progressText = text;
-}
-
-void cInfoBar::setProgressPercent(float progress)
-{
-    m_progressText = fmt::format("[{}%]", static_cast<int>(progress * 100.0f));
-}
-
-void cInfoBar::clearProgress()
-{
-    m_progressText.clear();
 }
 
 void cInfoBar::setInfo(const sInfo& p)

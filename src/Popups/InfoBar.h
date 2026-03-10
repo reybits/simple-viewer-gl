@@ -40,10 +40,6 @@ public:
 
     void setInfo(const sInfo& p);
 
-    void setProgressText(const std::string& text);
-    void setProgressPercent(float progress);
-    void clearProgress();
-
 private:
     const char* getHumanSize(float& size);
     const std::string getFilename(const char* path) const;
@@ -53,5 +49,4 @@ private:
     const sConfig& m_config;
 
     std::string m_bottominfo;
-    std::string m_progressText;
 };
