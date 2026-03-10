@@ -1,42 +1,43 @@
-# Copyright 1999-2017 Gentoo Foundation
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
-# $Header: $
 
-EAPI=6
+EAPI=8
 
-inherit cmake-utils git-r3
+inherit cmake
 
-DESCRIPTION="Small and simple image viewer for Linux."
-HOMEPAGE="https://www.ugolnik.info/?p=1302"
+DESCRIPTION="Lightweight hardware-accelerated image viewer using OpenGL"
+HOMEPAGE="https://github.com/reybits/simple-viewer-gl"
 EGIT_REPO_URI="https://github.com/reybits/simple-viewer-gl.git"
 if [[ ${PV} == 9999 ]]; then
-	EGIT_BRANCH="development"
+	inherit git-r3
+	EGIT_BRANCH="master"
 else
-	TAG="v${PV}"
+	SRC_URI="https://github.com/reybits/simple-viewer-gl/archive/v${PV}.tar.gz -> ${P}.tar.gz"
+	S="${WORKDIR}/simple-viewer-gl-${PV}"
+	KEYWORDS="~amd64 ~arm64 ~x86"
 fi
 LICENSE="GPL-2"
 SLOT="0"
-KEYWORDS="~x86 ~amd64"
 IUSE="+lcms +exif +jpeg2k +gif +tiff +webp +exr +curl"
 
 DEPEND="
 	media-libs/glfw
-	media-libs/freetype:2
 	virtual/opengl
 	virtual/jpeg
 	media-libs/libpng
-	lcms? ( media-libs/lcms )
+	sys-libs/zlib
+	lcms? ( media-libs/lcms:2 )
 	exif? ( media-libs/libexif )
-	jpeg2k? ( media-libs/openjpeg )
+	jpeg2k? ( media-libs/openjpeg:2 )
 	gif? ( media-libs/giflib )
 	tiff? ( media-libs/tiff )
 	webp? ( media-libs/libwebp )
-	exr? ( media-libs/openexr
-	       media-libs/ilmbase )
+	exr? ( media-libs/openexr:= )
 	curl? ( net-misc/curl )
 "
 
 RDEPEND="${DEPEND}"
+BDEPEND="virtual/pkgconfig"
 
 src_configure() {
 	VER=($(awk -F= '/^VER_/{ print $2 }' <Makefile))
@@ -54,10 +55,5 @@ src_configure() {
 		-DDISABLE_OPENEXR_SUPPORT=$(usex exr 0 1)
 		-DDISABLE_CURL_SUPPORT=$(usex curl 0 1)
 	)
-	cmake-utils_src_configure
-}
-
-src_install() {
-	dobin "${BUILD_DIR}"/sviewgl
-	dodoc config.example
+	cmake_src_configure
 }

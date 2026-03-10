@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Simple Viewer GL
-Comment=View images and their metadata
+Comment=Lightweight hardware-accelerated image viewer
 TryExec=sviewgl
 Exec=sviewgl %F
 Icon=sviewgl
@@ -8,5 +8,5 @@ StartupNotify=true
 Terminal=false
 Type=Application
 Categories=Graphics;2DGraphics;RasterGraphics;Viewer;
-MimeType=image/bmp;image/dds;image/gif;image/ico;image/jpeg;image/jpg;image/png;image/pnm;image/psd;image/tga;image/tiff;image/webp;image/xpm;image/xwd;image/ai;image/eps;image/exr;
+MimeType=image/bmp;image/gif;image/jpeg;image/png;image/svg+xml;image/tiff;image/webp;image/x-adobe-dng;image/x-dds;image/x-eps;image/x-exr;image/x-icon;image/x-jp2;image/x-pcx;image/x-pnm;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/x-psd;image/x-tga;image/x-xcf;image/x-xpixmap;image/x-xwindowdump;
 Keywords=Picture;Slideshow;Graphics;

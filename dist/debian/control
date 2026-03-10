@@ -1,14 +1,36 @@
 Source: sviewgl
-Section: LOR
+Section: graphics
 Priority: optional
-Maintainer: Andrey Ugolnik <andrey@ugolnik.info>
-Build-Depends: debhelper (>=9)
-Standards-Version: 3.9.10
-Homepage: https://www.ugolnik.info
+Maintainer: Andrey Ugolnik <and@reybits.dev>
+Build-Depends: debhelper-compat (= 13),
+               cmake (>= 3.22),
+               pkg-config,
+               libgl-dev,
+               libglfw3-dev,
+               zlib1g-dev,
+               libpng-dev,
+               libjpeg-dev,
+               libexif-dev,
+               liblcms2-dev,
+               libopenjp2-7-dev,
+               libgif-dev,
+               libtiff-dev,
+               libwebp-dev,
+               libopenexr-dev,
+               libcurl4-openssl-dev
+Standards-Version: 4.6.2
+Homepage: https://github.com/reybits/simple-viewer-gl
 Vcs-Git: https://github.com/reybits/simple-viewer-gl.git
 Vcs-Browser: https://github.com/reybits/simple-viewer-gl
 
 Package: sviewgl
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Simple Viewer GL - simple and tiny image viewer based on OpenGL
+Description: Lightweight hardware-accelerated image viewer
+ Simple Viewer GL is a fast, minimalist image viewer using OpenGL for
+ hardware-accelerated rendering. It features vi-like keybindings and supports
+ 25+ image formats including PNG, JPEG, WebP, TIFF, PSD, XCF, SVG, OpenEXR,
+ JPEG 2000, GIF (animated), ICO, BMP, TGA, DDS, PVR, and more.
+ .
+ Features include ICC color management via GPU 3D LUT, EXIF metadata display,
+ pixel-level inspection, configurable keybindings, and a built-in file browser.

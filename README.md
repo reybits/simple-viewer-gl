@@ -1,6 +1,6 @@
 # Simple Viewer GL
 
-**Simple Viewer GL** is a simple and tiny image viewer based on OpenGL.
+**Simple Viewer GL** is a lightweight, hardware-accelerated image viewer using OpenGL.
 
 ![Simple Viewer GL](https://raw.githubusercontent.com/reybits/simple-viewer-gl/master/res/Featured-1024x500.png)
 
@@ -10,7 +10,7 @@
 
 The primary goal of **Simple Viewer GL** is to provide a fast, efficient image viewer with only the essential features required for quick image browsing. It includes *vi*-like key bindings and integrates seamlessly with tiling window managers such as *ion3*/*notion*, *i3wm*, *dwm*, *xmonad*, *hyprland*, *sway*, and others.
 
-Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photoshop), **AI** (Adobe Illustrator), **EPS**, **XCF** (GIMP), **GIF**, **SVG**, **TIFF**, **DNG**, **TARGA**, **ICO**, **ICNS** (Apple Icon Image), **BMP**, **PNM**, **DDS**, **XWD**, **SCR** (ZX-Spectrum screen), **XPM**, **WebP**, **OpenEXR**, and many more.
+Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photoshop), **AI** (Adobe Illustrator), **EPS**, **XCF** (GIMP), **GIF**, **SVG**, **TIFF**, **DNG**, **TARGA**, **ICO**, **ICNS** (Apple Icon Image), **BMP**, **PNM**, **DDS**, **XWD**, **SCR** (ZX-Spectrum screen), **XPM**, **WebP**, **OpenEXR**, **AGE**, and many more.
 
 ---
 
@@ -23,21 +23,23 @@ Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photo
 
 ## Features
 
-- Lightweight and fast: utilize hardware-accelerated video card;
-- Support embedded ICC color profiles (PNG, JPEG, JPEG 2000, TIFF, WebP, BMP, PSD, EPS, ICO, ICNS);
-- Automatic EXIF orientation correction;
-- Image rotation and flip support;
-- GIF animation support;
-- GIMP XCF support;
-- Adobe PSD format support;
-- Adobe AI, EPS formats preview support;
-- SVG format support;
-- Exif support;
-- Very simple interface;
-- Suitable for default image viewer for the desktops and laptops;
-- Minimal lib dependency: look library requirements below;
-- Desktop independent: doesn't require any specific desktop environment;
-- Open source, licensed under GNU GPL;
+- Lightweight and fast: hardware-accelerated rendering via OpenGL
+- ICC color management via GPU 3D LUT (PNG, JPEG, JPEG 2000, TIFF, WebP, BMP, PSD, EPS, ICO, ICNS)
+- Automatic EXIF orientation correction
+- Image rotation and flip (rendered via projection matrix, no bitmap transform)
+- GIF animation support
+- GIMP XCF support
+- Adobe PSD format support
+- Adobe AI, EPS formats preview support
+- SVG format support
+- EXIF metadata display
+- Pixel-level inspection with color readout
+- Built-in file browser
+- Very simple interface with vi-like keybindings
+- Suitable as a default image viewer for desktops and laptops
+- Desktop independent: no specific desktop environment required
+- Supports macOS and Linux (Windows planned)
+- Open source, licensed under GNU GPL v2
 
 ---
 
@@ -87,79 +89,112 @@ Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photo
 
 ---
 
-## Download and build from sources
+## Build from source
 
-You can browse the source code repository on GitHub or get a copy using git with the following command:
+### Requirements
+
+| Library  | Debian package       | Fedora package       | Required | Notes                           |
+| :------- | :------------------- | :------------------- | :------: | :------------------------------ |
+| CMake    | cmake                | cmake                | yes      | Build system (>= 3.22)         |
+| OpenGL   | libgl1-mesa-dev      | mesa-libGL-devel     | yes      | Hardware-accelerated rendering  |
+| GLFW3    | libglfw3-dev         | glfw-devel           | yes      | Window and input management     |
+| zlib     | zlib1g-dev           | zlib-devel           | yes      | Compression                     |
+| libpng   | libpng-dev           | libpng-devel         | yes      | PNG format                      |
+| libjpeg  | libjpeg-dev          | libjpeg-turbo-devel  | yes      | JPEG format                     |
+| libexif  | libexif-dev          | libexif-devel        |          | EXIF metadata                   |
+| lcms2    | liblcms2-dev         | lcms2-devel          |          | ICC color management            |
+| OpenJPEG | libopenjp2-7-dev     | openjpeg2-devel      |          | JPEG 2000 format                |
+| giflib   | libgif-dev           | giflib-devel         |          | GIF format (animated)           |
+| libtiff  | libtiff-dev          | libtiff-devel        |          | TIFF format                     |
+| libwebp  | libwebp-dev          | libwebp-devel        |          | WebP format                     |
+| OpenEXR  | libopenexr-dev       | openexr-devel        |          | OpenEXR format                  |
+| curl     | libcurl4-openssl-dev | libcurl-devel        |          | HTTP/HTTPS/FTP loading          |
+
+### Build
 
 ```sh
 git clone https://github.com/reybits/simple-viewer-gl.git
 cd simple-viewer-gl
 make release
 ```
-> On success **sviewgl** binary produced in current directory. Just symlink it `ln -s /path/to/sviewgl /usr/bin/sviewgl` or copy it `cp /path/to/sviewgl /usr/bin/`.
 
-[Slackbuild by](https://github.com/saahriktu/saahriktu-slackbuilds/tree/master/simple-viewer-gl) [saahriktu](https://www.linux.org.ru/people/saahriktu/profile).
-[Gentoo ebuild by](https://gogs.lumi.pw/mike/portage/src/master/media-gfx/simpleviewer-gl) [imul](https://www.linux.org.ru/people/imul/profile)
+On success, the `sviewgl` binary (or `Simple Viewer GL.app` on macOS) is produced in the current directory.
+
+### Install
+
+```sh
+sudo make install              # installs to /usr/local by default
+sudo make install PREFIX=/usr  # or specify a custom prefix
+```
+
+This installs the binary, desktop entry, and icons.
 
 ---
 
-## Make DEB package
+## Packaging
 
-Update and install required dependencies:
-```sh
-sudo apt-get update
-sudo apt-get install g++ make build-essential debhelper cmake pkg-config libgl1-mesa-dev
-sudo apt-get install libxrandr-dev libxcursor-dev libfreetype6-dev libjpeg-dev
-sudo apt-get install libtiff-dev libgif-dev liblcms2-dev libwebp-dev
-sudo apt-get install libglfw3-dev libexif-dev libilmbase-dev libopenexr-dev
-```
+### Debian / Ubuntu
 
-Clone and make DEB:
+Install build dependencies and build the .deb package:
+
 ```sh
+sudo apt-get install build-essential debhelper cmake pkg-config \
+    libgl1-mesa-dev libglfw3-dev zlib1g-dev libpng-dev libjpeg-dev \
+    libexif-dev liblcms2-dev libopenjp2-7-dev libgif-dev libtiff-dev \
+    libwebp-dev libopenexr-dev libcurl4-openssl-dev
+
 git clone https://github.com/reybits/simple-viewer-gl.git
 cd simple-viewer-gl
 make deb
 ```
 
-> You can purge installed packages with `apt-get purge PACKAGE_NAME && apt-get autoremove`
+### Fedora / RHEL
 
----
+Install build dependencies and build the RPM package:
 
-## Make RPM package
-
-Update and install required dependencies:
 ```sh
-sudo dnf install gcc-c++ make cmake mesa-libGL-devel glfw-devel freetype-devel
-sudo dnf install libpng-devel libjpeg-turbo-devel libtiff-devel giflib-devel lcms2-devel
-sudo dnf install libwebp-devel libexif-devel zlib-devel ilmbase-devel OpenEXR-devel
-```
+sudo dnf install gcc-c++ make cmake pkgconfig mesa-libGL-devel glfw-devel \
+    libpng-devel libjpeg-turbo-devel zlib-devel libexif-devel lcms2-devel \
+    openjpeg2-devel giflib-devel libtiff-devel libwebp-devel openexr-devel \
+    libcurl-devel
 
-Clone and make source for RPM:
-```sh
 git clone https://github.com/reybits/simple-viewer-gl.git
 cd simple-viewer-gl
-sudo make rpm
+make rpm
 ```
+
+### Gentoo
+
+An ebuild is provided in `dist/gentoo/`. USE flags: `lcms`, `exif`, `jpeg2k`, `gif`, `tiff`, `webp`, `exr`, `curl`.
+
+### macOS (Homebrew)
+
+```sh
+brew tap reybits/homebrew-tap
+brew install simple-viewer-gl
+```
+
+To link the app to Applications:
+
+```sh
+ln -sf "$(brew --prefix)/opt/simple-viewer-gl/Simple Viewer GL.app" "/Applications/Simple Viewer GL.app"
+```
+
+### Other
+
+- [Slackbuild by](https://github.com/saahriktu/saahriktu-slackbuilds/tree/master/simple-viewer-gl) [saahriktu](https://www.linux.org.ru/people/saahriktu/profile)
+- [Gentoo ebuild by](https://gogs.lumi.pw/mike/portage/src/master/media-gfx/simpleviewer-gl) [imul](https://www.linux.org.ru/people/imul/profile)
 
 ---
 
-## Dependencies
+## Configuration
 
-| Name     | Debian package       | Description / Notes                                      |
-| :------- | :------------------- | :------------------------------------------------------- |
-| Make     | make                 | Utility for directing compilation.                       |
-| Cmake    | cmake                | Cross-platform, open-source make system.                 |
-| Mesa     | libgl1-mesa-dev      | Transitional dummy package.                              |
-| GLFW3    | libglfw3-dev         | Portable library for OpenGL, window and input.           |
-| Zlib     | zlib1g-dev           | Compression support.                                     |
-| PNG      | libpng-dev           | PNG format support.                                      |
-| JPEG     | libjpeg-turbo8-dev   | JPEG format support.                                     |
-| TIFF     | libtiff-dev          | (optional) TIFF format support.                          |
-| OpenJPEG | libopenjp2-7-dev     | (optional) JPEG 2000 support.                            |
-| curl     | libcurl4-openssl-dev | (optional) Support loading via http/https/ftp protocols. |
+Example config is in `config.example`. Copy it to `$XDG_CONFIG_HOME/sviewgl/config` (defaults to `$HOME/.config/sviewgl/config`).
+
+---
 
 ```
-Copyright © 2008-2026 Andrey A. Ugolnik. All Rights Reserved.
+Copyright (c) 2008-2026 Andrey A. Ugolnik. All Rights Reserved.
 https://github.com/reybits
 and@reybits.dev
 

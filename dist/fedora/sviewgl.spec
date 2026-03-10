@@ -1,38 +1,47 @@
-Prefix: %{_usr}
 Name: sviewgl
 Version: _VERSION_
 Release: 1%{?dist}
-Summary: Simple Viewer GL - simple and tiny image viewer based on OpenGL
+Summary: Lightweight hardware-accelerated image viewer
 
-Group: LOR/stuff
-License: GPLv2
-URL: https://github.com/reybits/simple-viewer-gl.git
+License: GPLv2+
+URL: https://github.com/reybits/simple-viewer-gl
 Source0: %{name}-%{version}.tar.gz
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildRequires: gcc-c++, make, cmake
-BuildRequires: mesa-libGL-devel, glfw-devel, freetype-devel, libpng-devel, libjpeg-turbo-devel, libtiff-devel, giflib-devel, lcms2-devel, libwebp-devel, libexif-devel, zlib-devel, ilmbase-devel, OpenEXR-devel
+
+BuildRequires: gcc-c++
+BuildRequires: make
+BuildRequires: cmake >= 3.22
+BuildRequires: pkgconfig
+BuildRequires: mesa-libGL-devel
+BuildRequires: glfw-devel
+BuildRequires: libpng-devel
+BuildRequires: libjpeg-turbo-devel
+BuildRequires: zlib-devel
+BuildRequires: libexif-devel
+BuildRequires: lcms2-devel
+BuildRequires: openjpeg2-devel
+BuildRequires: giflib-devel
+BuildRequires: libtiff-devel
+BuildRequires: libwebp-devel
+BuildRequires: openexr-devel
+BuildRequires: libcurl-devel
 
 %description
-Simple Viewer GL - simple and tiny image viewer based on OpenGL
+Simple Viewer GL is a fast, minimalist image viewer using OpenGL for
+hardware-accelerated rendering. It features vi-like keybindings and supports
+25+ image formats including PNG, JPEG, WebP, TIFF, PSD, XCF, SVG, OpenEXR,
+JPEG 2000, GIF (animated), ICO, BMP, TGA, DDS, PVR, and more.
 
 %prep
 %setup -q
 
 %build
-%{__make} %{?_smp_mflags} CXXFLAGS="${RPM_OPT_FLAGS}" LFLAGS="${RPM_LD_FLAGS}" release
+%{__make} %{?_smp_mflags} release
 
 %install
-rm -rf $RPM_BUILD_ROOT
-%{__make} install DESTDIR=${RPM_BUILD_ROOT} PREFIX=/usr
-
-%clean
-rm -rf ${RPM_BUILD_ROOT}
-
-%post
-/sbin/ldconfig
-
-%postun
-/sbin/ldconfig
+%{__make} install DESTDIR=%{buildroot} PREFIX=%{_prefix}
 
 %files
-/usr/bin/sviewgl
+%license Copying.txt
+%{_bindir}/sviewgl
+%{_datadir}/applications/sviewgl.desktop
+%{_datadir}/icons/hicolor/*/apps/sviewgl.png
