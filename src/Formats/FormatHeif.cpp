@@ -56,7 +56,7 @@ bool cFormatHeif::isSupported(cFile& file, Buffer& buffer) const
     }
 
     auto result = heif_check_filetype(reinterpret_cast<const uint8_t*>(buffer.data()), static_cast<int>(buffer.size()));
-    return result == heif_filetype_yes_supported;
+    return result == heif_filetype_yes_supported || result == heif_filetype_maybe;
 }
 
 bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
@@ -76,7 +76,13 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
         return false;
     }
 
-    auto* ctx = heif_context_alloc();
+    auto ctx = heif_context_alloc();
+    if (ctx == nullptr)
+    {
+        cLog::Error("Can't allocate HEIF context.");
+        return false;
+    }
+
     auto err = heif_context_read_from_memory_without_copy(ctx, fileData.data(), fileData.size(), nullptr);
     if (err.code != heif_error_Ok)
     {
@@ -85,9 +91,8 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
         return false;
     }
 
-    // Get number of top-level images for multi-image support
-    const int imageCount = heif_context_get_number_of_top_level_images(ctx);
-    info.images = static_cast<uint32_t>(imageCount);
+    // Only the primary image is currently loaded
+    info.images = 1;
     info.current = 0;
 
     // Get primary image handle
@@ -201,7 +206,7 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
                     size_t exifSize = exifRaw.size();
                     if (exifSize > 4)
                     {
-                        uint32_t tiffOffset = helpers::read_uint32(exifData);
+                        auto tiffOffset = static_cast<size_t>(helpers::read_uint32(exifData));
                         if (tiffOffset + 4 < exifSize)
                         {
                             exifData += 4 + tiffOffset;
@@ -214,7 +219,7 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
                         }
                     }
 
-                    auto* ed = exif_data_new_from_data(exifData, static_cast<unsigned>(exifSize));
+                    auto ed = exif_data_new_from_data(exifData, static_cast<unsigned>(exifSize));
                     if (ed != nullptr)
                     {
                         auto& exifList = info.exifList;

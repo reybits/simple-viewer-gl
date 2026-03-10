@@ -359,7 +359,7 @@ endif()
 
 set(DISABLE_HEIF_SUPPORT "0" CACHE STRING "Disable HEIF/AVIF support.")
 if (DISABLE_HEIF_SUPPORT EQUAL 0)
-    pkg_search_module(HEIF QUIET libheif)
+    pkg_check_modules(HEIF QUIET libheif)
     if(HEIF_FOUND)
         pretty_print("* " "[+] HEIF support enabled" " *" " " "<")
         if(VERBOSE_PATHS)
