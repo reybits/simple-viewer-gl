@@ -10,7 +10,7 @@
 #include "DeletionMark.h"
 #include "Quad.h"
 
-#include "img-na.c"
+#include "Assets/img-na.c"
 
 void cDeletionMark::init()
 {

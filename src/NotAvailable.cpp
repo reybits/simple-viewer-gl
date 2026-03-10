@@ -10,7 +10,7 @@
 #include "NotAvailable.h"
 #include "Common/ChunkData.h"
 #include "Common/ImageInfo.h"
-#include "img-na.c"
+#include "Assets/img-na.c"
 
 #include <cstring>
 

@@ -10,8 +10,8 @@
 #include "PixelPopup.h"
 #include "Renderer.h"
 
-#include "img-icons.c"
-#include "img-pointer-cross.c"
+#include "Assets/img-icons.c"
+#include "Assets/img-pointer-cross.c"
 
 #include <cstring>
 #include <fmt/core.h>
