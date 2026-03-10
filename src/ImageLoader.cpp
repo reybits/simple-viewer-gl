@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "ImageLoader.h"
-#include "Common/BitmapDescription.h"
 #include "Common/Callbacks.h"
+#include "Common/Config.h"
 #include "Common/File.h"
+#include "Common/Timing.h"
 #include "Formats/FormatRegistry.h"
 #include "Log/Log.h"
 #include "Network/Curl.h"
@@ -48,6 +49,8 @@ cFormat* cImageLoader::getOrCreateReader(const sFormatEntry& entry)
 
 bool cImageLoader::loadFromFile(const char* path)
 {
+    const auto t0 = timing::seconds();
+
     cFile file;
     if (file.open(path) == false)
     {
@@ -61,8 +64,18 @@ bool cImageLoader::loadFromFile(const char* path)
         return false;
     }
 
+    m_metrics.fileReadMs = (timing::seconds() - t0) * 1000.0;
+
     m_activeReader = getOrCreateReader(*entry);
-    return m_activeReader->Load(path, m_desc);
+    bool result = m_activeReader->Load(path, m_chunk, m_info);
+
+    if (result)
+    {
+        m_metrics.decodeMs = m_activeReader->getDecodeMs();
+        m_metrics.iccMs = m_activeReader->getIccMs();
+    }
+
+    return result;
 }
 
 void cImageLoader::load(const char* path)
@@ -93,22 +106,32 @@ void cImageLoader::load(const char* path)
         it = m_formatCache.find(naKey);
     }
     m_activeReader = it->second.get();
-    m_activeReader->Load(path, m_desc);
+    m_activeReader->Load(path, m_chunk, m_info);
 }
 
 void cImageLoader::loadImage(const std::string& path)
 {
     stop();
     clear();
+    m_metrics.reset();
 
     m_mode = Mode::Image;
+    m_completed.store(false, std::memory_order_relaxed);
     m_loader = std::thread([this](const std::string& path) {
+        if (m_config->debug)
+        {
+            cLog::Debug("=== loading: {} ===", path);
+        }
+        const auto t0 = timing::seconds();
         m_callbacks->startLoading();
         load(path.c_str());
-        if (m_desc.images == 0)
+        if (m_info.images == 0)
         {
-            m_desc.images = 1;
+            m_info.images = 1;
         }
+        m_metrics.bitmapBytes = m_chunk.bitmap.size();
+        m_metrics.totalMs = (timing::seconds() - t0) * 1000.0;
+        m_completed.store(true, std::memory_order_release);
         m_callbacks->endLoading();
     },
                            path);
@@ -119,11 +142,17 @@ void cImageLoader::loadSubImage(unsigned subImage)
     assert(m_activeReader != nullptr);
 
     stop();
+    m_metrics.reset();
 
     m_mode = Mode::SubImage;
+    m_completed.store(false, std::memory_order_relaxed);
     m_loader = std::thread([this](unsigned subImage) {
+        const auto t0 = timing::seconds();
         m_callbacks->startLoading();
-        m_activeReader->LoadSubImage(subImage, m_desc);
+        m_activeReader->LoadSubImage(subImage, m_chunk, m_info);
+        m_metrics.bitmapBytes = m_chunk.bitmap.size();
+        m_metrics.totalMs = (timing::seconds() - t0) * 1000.0;
+        m_completed.store(true, std::memory_order_release);
         m_callbacks->endLoading();
     },
                            subImage);
@@ -131,7 +160,7 @@ void cImageLoader::loadSubImage(unsigned subImage)
 
 bool cImageLoader::isLoaded() const
 {
-    if (m_desc.bitmap.empty() && m_desc.bitmapSize == 0)
+    if (m_chunk.bitmap.empty() && m_chunk.width == 0)
     {
         return false;
     }
@@ -149,20 +178,41 @@ void cImageLoader::stop()
 {
     if (m_loader.joinable())
     {
+        const bool completed = m_completed.load(std::memory_order_acquire);
         if (m_activeReader != nullptr)
         {
             m_activeReader->stop();
         }
+        const auto t0 = timing::seconds();
         m_loader.join();
+        if (m_config->debug && completed == false)
+        {
+            const double joinMs = (timing::seconds() - t0) * 1000.0;
+            cLog::Debug("  aborted:    join {:.1f} ms", joinMs);
+        }
     }
 }
 
 void cImageLoader::clear()
 {
-    m_desc.reset();
+    m_chunk.reset();
+    m_info = {};
+}
+
+bool cImageLoader::wasBitmapModified() const
+{
+    return m_activeReader != nullptr && m_activeReader->wasBitmapModified();
+}
+
+void cImageLoader::clearBitmapModified()
+{
+    if (m_activeReader != nullptr)
+    {
+        m_activeReader->clearBitmapModified();
+    }
 }
 
 const char* cImageLoader::getImageType() const
 {
-    return m_desc.formatName;
+    return m_info.formatName;
 }

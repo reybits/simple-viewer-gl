@@ -7,7 +7,8 @@
 *
 \**********************************************/
 
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
+#include "Common/ImageInfo.h"
 #include "Common/File.h"
 #include "Log/Log.h"
 
@@ -927,7 +928,7 @@ namespace
 
 } // namespace
 
-bool import_xcf(cFile& file, sBitmapDescription& desc)
+bool import_xcf(cFile& file, sChunkData& chunk, sImageInfo& info)
 {
     file.seek(0, SEEK_SET);
 
@@ -1149,14 +1150,14 @@ bool import_xcf(cFile& file, sBitmapDescription& desc)
         raw_layer.mode = col_mode;
     }
 
-    desc.size = file.getSize();
-    desc.images = 1;
-    desc.bppImage = 32;
-    desc.width = width;
-    desc.height = height;
-    desc.allocate(width, height, 32, ePixelFormat::RGBA);
-    auto pix = desc.bitmap.data();
-    std::fill(desc.bitmap.begin(), desc.bitmap.end(), 0);
+    info.fileSize = file.getSize();
+    info.images = 1;
+    info.bppImage = 32;
+    chunk.width = width;
+    chunk.height = height;
+    chunk.allocate(width, height, 32, ePixelFormat::RGBA);
+    auto pix = chunk.bitmap.data();
+    std::fill(chunk.bitmap.begin(), chunk.bitmap.end(), 0);
 
     raw_layer_t canvas_layer = {};
     canvas_layer.bpp = 4;

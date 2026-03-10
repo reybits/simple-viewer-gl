@@ -21,11 +21,11 @@ public:
     bool isSupported(cFile& file, Buffer& buffer) const override;
 
 private:
-    bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
+    bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
 
     void decodePreview(cFile& file, long fileSize, uint32_t reduceFactor, uint32_t fullWidth, uint32_t fullHeight);
-    bool preAllocateBitmap(void* image, sBitmapDescription& desc);
-    bool convertPixels(void* image, sBitmapDescription& desc, uint32_t dstX, uint32_t dstY);
+    bool preAllocateBitmap(void* image, sChunkData& chunk, sImageInfo& info);
+    bool convertPixels(void* image, sChunkData& chunk, uint32_t dstX, uint32_t dstY);
 };
 
 #endif

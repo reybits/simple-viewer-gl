@@ -10,8 +10,9 @@
 #if defined(GIF_SUPPORT)
 
 #include "FormatGif.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -56,24 +57,24 @@ namespace
         return "n/a";
     }
 
-    void putPixel(sBitmapDescription& desc, uint32_t pos, const GifColorType* color, bool transparent)
+    void putPixel(sChunkData& chunk, sImageInfo& info, uint32_t pos, const GifColorType* color, bool transparent)
     {
-        if (!desc.current || !transparent)
+        if (!info.current || !transparent)
         {
-            desc.bitmap[pos + 0] = color->Red;
-            desc.bitmap[pos + 1] = color->Green;
-            desc.bitmap[pos + 2] = color->Blue;
-            desc.bitmap[pos + 3] = transparent ? 0 : 255;
+            chunk.bitmap[pos + 0] = color->Red;
+            chunk.bitmap[pos + 1] = color->Green;
+            chunk.bitmap[pos + 2] = color->Blue;
+            chunk.bitmap[pos + 3] = transparent ? 0 : 255;
         }
     }
 
-    void putRow(sBitmapDescription& desc, uint32_t row, uint32_t width, const SavedImage& image, const ColorMapObject* cmap, uint32_t transparentIdx)
+    void putRow(sChunkData& chunk, sImageInfo& info, uint32_t row, uint32_t width, const SavedImage& image, const ColorMapObject* cmap, uint32_t transparentIdx)
     {
         for (uint32_t x = 0; x < width; x++)
         {
             const uint32_t idx = image.RasterBits[row * width + x];
-            const uint32_t pos = (row + image.ImageDesc.Top) * desc.pitch + (x + image.ImageDesc.Left) * 4;
-            putPixel(desc, pos, &cmap->Colors[idx], transparentIdx == idx);
+            const uint32_t pos = (row + image.ImageDesc.Top) * chunk.pitch + (x + image.ImageDesc.Left) * 4;
+            putPixel(chunk, info, pos, &cmap->Colors[idx], transparentIdx == idx);
         }
     }
 } // namespace
@@ -90,12 +91,12 @@ bool cFormatGif::isSupported(cFile& file, Buffer& buffer) const
         || ::memcmp(h, "GIF89a", 6) == 0;
 }
 
-bool cFormatGif::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatGif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     m_filename = filename;
 
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         cLog::Error("Can't open GIF image.");
         return false;
@@ -123,28 +124,28 @@ bool cFormatGif::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    desc.images = m_gif->ImageCount;
-    desc.isAnimation = desc.images > 1;
+    info.images = m_gif->ImageCount;
+    info.isAnimation = info.images > 1;
 
-    desc.width = m_gif->SWidth;
-    desc.height = m_gif->SHeight;
+    chunk.width = m_gif->SWidth;
+    chunk.height = m_gif->SHeight;
 
-    desc.allocate(desc.width, desc.height, 32, ePixelFormat::RGBA);
+    chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::RGBA);
 
-    return load(0, desc);
+    return load(0, chunk, info);
 }
 
-bool cFormatGif::LoadSubImageImpl(uint32_t current, sBitmapDescription& desc)
+bool cFormatGif::LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
-    return load(current, desc);
+    return load(current, chunk, info);
 }
 
-bool cFormatGif::load(uint32_t current, sBitmapDescription& desc)
+bool cFormatGif::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
-    desc.current = std::max<uint32_t>(current, 0);
-    desc.current = std::min<uint32_t>(desc.current, desc.images - 1);
+    info.current = std::max<uint32_t>(current, 0);
+    info.current = std::min<uint32_t>(info.current, info.images - 1);
 
-    const auto& image = m_gif->SavedImages[desc.current];
+    const auto& image = m_gif->SavedImages[info.current];
 
     auto cmap = image.ImageDesc.ColorMap;
     if (cmap == nullptr)
@@ -157,16 +158,16 @@ bool cFormatGif::load(uint32_t current, sBitmapDescription& desc)
         return false;
     }
 
-    if (desc.images == 1)
+    if (info.images == 1)
     {
         // use frame size instead 'canvas' size
-        desc.width = image.ImageDesc.Width;
-        desc.height = image.ImageDesc.Height;
+        chunk.width = image.ImageDesc.Width;
+        chunk.height = image.ImageDesc.Height;
     }
 
-    desc.bppImage = cmap->BitsPerPixel;
+    info.bppImage = cmap->BitsPerPixel;
 
-    desc.delay = 100; // default value
+    info.delay = 100; // default value
 
     // look for the transparent color extension
     uint32_t transparentIdx = (uint32_t)-1U;
@@ -184,14 +185,14 @@ bool cFormatGif::load(uint32_t current, sBitmapDescription& desc)
                 }
 
                 const uint32_t disposalMode = (eb.Bytes[0] >> 2) & 0x07;
-                // ::printf("Disposal: %u at frame %u\n", disposalMode, desc.current);
+                // ::printf("Disposal: %u at frame %u\n", disposalMode, info.current);
                 // DISPOSAL_UNSPECIFIED 0 // No disposal specified.
                 // DISPOSE_DO_NOT       1 // Leave image in place
                 // DISPOSE_BACKGROUND   2 // Set area too background color
                 // DISPOSE_PREVIOUS     3 // Restore to previous content
                 if (disposalMode == 2)
                 {
-                    ::memset(desc.bitmap.data(), 0, desc.bitmap.size());
+                    ::memset(chunk.bitmap.data(), 0, chunk.bitmap.size());
                 }
             }
 
@@ -199,7 +200,7 @@ bool cFormatGif::load(uint32_t current, sBitmapDescription& desc)
             uint32_t delay = (eb.Bytes[1] | (eb.Bytes[2] << 8)) * 10;
             if (delay != 0)
             {
-                desc.delay = delay;
+                info.delay = delay;
             }
         }
     }
@@ -228,25 +229,25 @@ bool cFormatGif::load(uint32_t current, sBitmapDescription& desc)
         {
             for (uint32_t y = interlace.offset; y < height; y += interlace.jump)
             {
-                putRow(desc, y, width, image, cmap, transparentIdx);
+                putRow(chunk, info, y, width, image, cmap, transparentIdx);
 
                 updateProgress((float)row / height);
                 row++;
             }
         }
 
-        desc.formatName = "gif/i";
+        info.formatName = "gif/i";
     }
     else
     {
         for (uint32_t y = 0; y < height; y++)
         {
-            putRow(desc, y, width, image, cmap, transparentIdx);
+            putRow(chunk, info, y, width, image, cmap, transparentIdx);
 
             updateProgress((float)y / height);
         }
 
-        desc.formatName = "gif/p";
+        info.formatName = "gif/p";
     }
 
     return true;

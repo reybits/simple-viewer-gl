@@ -21,7 +21,7 @@ public:
     bool isSupported(cFile& file, Buffer& buffer) const override;
 
 private:
-    bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
+    bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
 
     void decodePreview(const char* filename);
 };

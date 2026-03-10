@@ -9,8 +9,10 @@
 
 #pragma once
 
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
+#include "Common/ImageInfo.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <thread>
@@ -24,6 +26,20 @@ struct sFormatEntry;
 class cImageLoader final
 {
 public:
+    struct Metrics
+    {
+        double fileReadMs = 0.0;
+        double decodeMs = 0.0;
+        double iccMs = 0.0;
+        double totalMs = 0.0;
+        size_t bitmapBytes = 0;
+
+        void reset()
+        {
+            *this = {};
+        }
+    };
+
     explicit cImageLoader(const sConfig* config, sCallbacks* callbacks);
     ~cImageLoader();
 
@@ -43,30 +59,52 @@ public:
 
     const char* getImageType() const;
 
-    const sBitmapDescription& getDescription() const
+    const sChunkData& getChunkData() const
     {
-        return m_desc;
+        return m_chunk;
+    }
+
+    const sImageInfo& getImageInfo() const
+    {
+        return m_info;
     }
 
     uint32_t getReadyHeight() const
     {
-        return m_desc.readyHeight.load(std::memory_order_acquire);
+        return m_chunk.readyHeight.load(std::memory_order_acquire);
+    }
+
+    void setConsumedHeight(uint32_t h)
+    {
+        m_chunk.consumedHeight.store(h, std::memory_order_release);
     }
 
     const uint8_t* getBitmapData() const
     {
-        return m_desc.bitmap.data();
+        return m_chunk.bitmap.data();
     }
 
     bool isBitmapAvailable() const
     {
-        return m_desc.bitmap.empty() == false;
+        return m_chunk.bitmap.empty() == false;
     }
 
     void releaseBitmap()
     {
-        m_desc.bitmapSize = m_desc.bitmap.size();
-        Buffer().swap(m_desc.bitmap);
+        Buffer().swap(m_chunk.bitmap);
+    }
+
+    bool wasBitmapModified() const;
+    void clearBitmapModified();
+
+    const Metrics& getMetrics() const
+    {
+        return m_metrics;
+    }
+
+    Metrics& metrics()
+    {
+        return m_metrics;
     }
 
 private:
@@ -85,5 +123,8 @@ private:
     std::thread m_loader;
     cFormat* m_activeReader = nullptr;
     std::unordered_map<std::string, std::unique_ptr<cFormat>> m_formatCache;
-    sBitmapDescription m_desc;
+    sChunkData m_chunk;
+    sImageInfo m_info;
+    Metrics m_metrics;
+    std::atomic<bool> m_completed{ false };
 };

@@ -8,11 +8,15 @@
 \**********************************************/
 
 #include "Format.h"
-#include "Common/BitmapDescription.h"
 #include "Common/Callbacks.h"
+#include "Common/ChunkData.h"
 #include "Common/Cms.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
+#include "Common/Timing.h"
 #include "Log/Log.h"
+
+#include <cassert>
 
 cFormat::cFormat(sCallbacks* callbacks)
     : m_callbacks(callbacks)
@@ -28,53 +32,72 @@ void cFormat::setConfig(const sConfig* config)
     m_config = config;
 }
 
-bool cFormat::Load(const char* filename, sBitmapDescription& desc)
+bool cFormat::Load(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     m_stop = false;
-    m_desc = &desc;
-    bool result = LoadImpl(filename, desc);
+    m_chunk = &chunk;
+    m_info = &info;
+    m_decodeMs = 0.0;
+    m_iccMs = 0.0;
+    m_bitmapModified = false;
+
+    const auto t0 = timing::seconds();
+    bool result = LoadImpl(filename, chunk, info);
+    m_decodeMs = (timing::seconds() - t0) * 1000.0 - m_iccMs;
+
     if (result)
     {
-        desc.readyHeight.store(desc.height, std::memory_order_release);
+        signalImageInfo(); // ensure infobar is updated even if format didn't call it
+        chunk.readyHeight.store(chunk.height, std::memory_order_release);
     }
-    m_desc = nullptr;
+    m_chunk = nullptr;
+    m_info = nullptr;
     return result;
 }
 
-bool cFormat::LoadSubImage(uint32_t subImage, sBitmapDescription& desc)
+bool cFormat::LoadSubImage(uint32_t subImage, sChunkData& chunk, sImageInfo& info)
 {
     m_stop = false;
-    m_desc = &desc;
-    bool result = LoadSubImageImpl(subImage, desc);
+    m_chunk = &chunk;
+    m_info = &info;
+    m_decodeMs = 0.0;
+    m_iccMs = 0.0;
+    m_bitmapModified = false;
+
+    const auto t0 = timing::seconds();
+    bool result = LoadSubImageImpl(subImage, chunk, info);
+    m_decodeMs = (timing::seconds() - t0) * 1000.0 - m_iccMs;
+
     if (result)
     {
-        desc.readyHeight.store(desc.height, std::memory_order_release);
+        signalImageInfo();
+        chunk.readyHeight.store(chunk.height, std::memory_order_release);
     }
-    m_desc = nullptr;
+    m_chunk = nullptr;
+    m_info = nullptr;
     return result;
 }
 
-void cFormat::dump(sBitmapDescription& desc) const
+void cFormat::dump(const sChunkData& chunk, const sImageInfo& info) const
 {
-    // cLog::Debug("{}", getFormatName(format));
-    cLog::Debug("bits per pixel: {}", desc.bpp);
-    cLog::Debug("image bpp:      {}", desc.bppImage);
-    cLog::Debug("width:          {}", desc.width);
-    cLog::Debug("height:         {}", desc.height);
-    cLog::Debug("pitch:          {}", desc.pitch);
-    cLog::Debug("size:           {}", desc.size);
-    cLog::Debug("frames count:   {}", desc.images);
-    cLog::Debug("current frame:  {}", desc.current);
-    cLog::Debug("animation:      {}", desc.isAnimation ? "true" : "false");
-    cLog::Debug("frame duration: {}", desc.delay);
+    cLog::Debug("bits per pixel: {}", chunk.bpp);
+    cLog::Debug("image bpp:      {}", info.bppImage);
+    cLog::Debug("width:          {}", chunk.width);
+    cLog::Debug("height:         {}", chunk.height);
+    cLog::Debug("pitch:          {}", chunk.pitch);
+    cLog::Debug("size:           {}", info.fileSize);
+    cLog::Debug("frames count:   {}", info.images);
+    cLog::Debug("current frame:  {}", info.current);
+    cLog::Debug("animation:      {}", info.isAnimation ? "true" : "false");
+    cLog::Debug("frame duration: {}", info.delay);
 }
 
 void cFormat::updateProgress(float percent)
 {
-    if (m_desc != nullptr)
+    if (m_chunk != nullptr)
     {
-        m_desc->readyHeight.store(
-            static_cast<uint32_t>(percent * m_desc->height),
+        m_chunk->readyHeight.store(
+            static_cast<uint32_t>(percent * m_chunk->height),
             std::memory_order_release);
     }
     m_callbacks->doProgress(percent);
@@ -82,18 +105,23 @@ void cFormat::updateProgress(float percent)
 
 void cFormat::signalImageInfo()
 {
-    if (m_callbacks != nullptr && m_callbacks->onImageInfo && m_desc != nullptr)
+    if (m_callbacks != nullptr && m_callbacks->onImageInfo && m_info != nullptr)
     {
-        m_callbacks->onImageInfo(*m_desc);
+        assert(m_chunk->width > 0);
+        assert(m_chunk->height > 0);
+        assert(m_info->bppImage > 0);
+        assert(m_info->formatName != nullptr);
+        m_callbacks->onImageInfo(*m_chunk, *m_info);
     }
 }
 
 void cFormat::signalBitmapAllocated()
 {
-    if (m_callbacks != nullptr && m_desc != nullptr)
+    signalImageInfo();
+    if (m_callbacks != nullptr && m_chunk != nullptr)
     {
-        m_desc->readyHeight.store(0, std::memory_order_release);
-        m_callbacks->onBitmapAllocated(*m_desc);
+        m_chunk->readyHeight.store(0, std::memory_order_release);
+        m_callbacks->onBitmapAllocated(*m_chunk);
     }
 }
 
@@ -105,24 +133,20 @@ void cFormat::signalPreviewReady(sPreviewData&& preview)
     }
 }
 
-void cFormat::setupBitmap(sBitmapDescription& desc, uint32_t w, uint32_t h,
-                          uint32_t bpp, ePixelFormat format, const char* formatName)
+void cFormat::setupBitmap(sChunkData& chunk, sImageInfo& info, uint32_t bpp, ePixelFormat format, const char* formatName)
 {
-    desc.formatName = formatName;
-    desc.width = w;
-    desc.height = h;
-    signalImageInfo();
-    desc.allocate(w, h, bpp, format);
+    info.formatName = formatName;
+    chunk.allocate(chunk.width, chunk.height, bpp, format);
     signalBitmapAllocated();
 }
 
-bool cFormat::openFile(cFile& file, const char* filename, sBitmapDescription& desc) const
+bool cFormat::openFile(cFile& file, const char* filename, sImageInfo& info) const
 {
     if (!file.open(filename))
     {
         return false;
     }
-    desc.size = file.getSize();
+    info.fileSize = file.getSize();
     return true;
 }
 
@@ -142,17 +166,31 @@ bool cFormat::readBuffer(cFile& file, Buffer& buffer, uint32_t minSize) const
     return minSize <= buffer.size();
 }
 
-bool cFormat::applyIccProfile(sBitmapDescription& desc, const void* iccProfile, uint32_t iccProfileSize)
+bool cFormat::applyIccProfile(sChunkData& chunk, const void* iccProfile, uint32_t iccProfileSize)
 {
-    return cms::transformBitmap(iccProfile, iccProfileSize,
-                                desc.bitmap.data(), desc.width, desc.height,
-                                desc.pitch, desc.format);
+    const auto t0 = timing::seconds();
+    bool result = cms::transformBitmap(iccProfile, iccProfileSize,
+                                       chunk.bitmap.data(), chunk.width, chunk.height,
+                                       chunk.pitch, chunk.format);
+    m_iccMs += (timing::seconds() - t0) * 1000.0;
+    if (result)
+    {
+        m_bitmapModified = true;
+    }
+    return result;
 }
 
-bool cFormat::applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp,
+bool cFormat::applyIccProfile(sChunkData& chunk, const float* chr, const float* wp,
                               const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb)
 {
-    return cms::transformBitmap(chr, wp, gmr, gmg, gmb,
-                                desc.bitmap.data(), desc.width, desc.height,
-                                desc.pitch, desc.format);
+    const auto t0 = timing::seconds();
+    bool result = cms::transformBitmap(chr, wp, gmr, gmg, gmb,
+                                       chunk.bitmap.data(), chunk.width, chunk.height,
+                                       chunk.pitch, chunk.format);
+    m_iccMs += (timing::seconds() - t0) * 1000.0;
+    if (result)
+    {
+        m_bitmapModified = true;
+    }
+    return result;
 }

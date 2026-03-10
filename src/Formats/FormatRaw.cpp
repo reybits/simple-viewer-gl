@@ -8,8 +8,9 @@
 \**********************************************/
 
 #include "FormatRaw.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Libs/Rle.h"
 #include "Log/Log.h"
 
@@ -79,10 +80,10 @@ bool cFormatRaw::isSupported(cFile& file, Buffer& buffer) const
     return isValidFormat(*header, file.getSize());
 }
 
-bool cFormatRaw::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatRaw::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -94,7 +95,7 @@ bool cFormatRaw::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    if (!isValidFormat(header, desc.size))
+    if (!isValidFormat(header, info.fileSize))
     {
         return false;
     }
@@ -123,10 +124,10 @@ bool cFormatRaw::LoadImpl(const char* filename, sBitmapDescription& desc)
         cLog::Error("Unknown RAW format.");
         return false;
     }
-    desc.bppImage = bytespp * 8;
-    desc.width = header.w;
-    desc.height = header.h;
-    desc.allocate(desc.width, desc.height, bytespp * 8, bytespp == 3 ? ePixelFormat::RGB : ePixelFormat::RGBA);
+    info.bppImage = bytespp * 8;
+    chunk.width = header.w;
+    chunk.height = header.h;
+    chunk.allocate(chunk.width, chunk.height, bytespp * 8, bytespp == 3 ? ePixelFormat::RGB : ePixelFormat::RGBA);
 
     if (rle)
     {
@@ -142,13 +143,13 @@ bool cFormatRaw::LoadImpl(const char* filename, sBitmapDescription& desc)
         unsigned decoded = 0;
         if (header.format == FORMAT_RGB_RLE4 || header.format == FORMAT_RGBA_RLE4)
         {
-            decoded = decoder.decodeBy4((unsigned*)&rle[0], rle.size() / 4, (unsigned*)&desc.bitmap[0], desc.bitmap.size() / 4);
-            desc.formatName = "raw/rle32";
+            decoded = decoder.decodeBy4((unsigned*)&rle[0], rle.size() / 4, (unsigned*)&chunk.bitmap[0], chunk.bitmap.size() / 4);
+            info.formatName = "raw/rle32";
         }
         else
         {
-            decoded = decoder.decode(&rle[0], rle.size(), &desc.bitmap[0], desc.bitmap.size());
-            desc.formatName = "raw/rle";
+            decoded = decoder.decode(&rle[0], rle.size(), &chunk.bitmap[0], chunk.bitmap.size());
+            info.formatName = "raw/rle";
         }
         if (!decoded)
         {
@@ -160,17 +161,17 @@ bool cFormatRaw::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     else
     {
-        for (unsigned y = 0; y < desc.height; y++)
+        for (unsigned y = 0; y < chunk.height; y++)
         {
-            if (desc.pitch != file.read(&desc.bitmap[y * desc.pitch], desc.pitch))
+            if (chunk.pitch != file.read(&chunk.bitmap[y * chunk.pitch], chunk.pitch))
             {
                 return false;
             }
-            updateProgress((float)y / desc.height);
+            updateProgress((float)y / chunk.height);
         }
     }
 
-    desc.formatName = "raw";
+    info.formatName = "raw";
 
     return true;
 }

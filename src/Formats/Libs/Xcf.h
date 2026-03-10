@@ -10,6 +10,7 @@
 #pragma once
 
 class cFile;
-struct sBitmapDescription;
+struct sChunkData;
+struct sImageInfo;
 
-bool import_xcf(cFile& file, sBitmapDescription& desc);
+bool import_xcf(cFile& file, sChunkData& chunk, sImageInfo& info);

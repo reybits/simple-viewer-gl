@@ -39,7 +39,7 @@ namespace
         return false;
     }
 
-    bool MatchesFilter(const sBitmapDescription::ExifEntry& entry, const char* filter, const char* categoryName)
+    bool MatchesFilter(const sImageInfo::ExifEntry& entry, const char* filter, const char* categoryName)
     {
         return MatchesFilter(entry.tag.c_str(), filter)
             || MatchesFilter(entry.value.c_str(), filter)
@@ -65,14 +65,14 @@ const char* cExifPopup::categoryName(eCategory category)
     return idx < std::size(Names) ? Names[idx] : "Other";
 }
 
-void cExifPopup::setExifList(const sBitmapDescription::ExifList& exifList)
+void cExifPopup::setExifList(const sImageInfo::ExifList& exifList)
 {
     m_exif = exifList;
     m_filter[0] = '\0';
     rebuildGroups();
 }
 
-void cExifPopup::setExifList(sBitmapDescription::ExifList&& exifList)
+void cExifPopup::setExifList(sImageInfo::ExifList&& exifList)
 {
     m_exif = std::move(exifList);
     m_filter[0] = '\0';

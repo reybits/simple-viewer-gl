@@ -8,8 +8,9 @@
 \**********************************************/
 
 #include "FormatScr.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstdio>
@@ -254,22 +255,22 @@ namespace
         };
     }
 
-    void MakeBorder(sBitmapDescription& desc, const sColor& color)
+    void MakeBorder(sChunkData& chunk, const sColor& color)
     {
-        auto pixel = (sPixelRGB*)desc.bitmap.data();
+        auto pixel = (sPixelRGB*)chunk.bitmap.data();
 
-        for (uint32_t i = 0, size = desc.width * desc.height; i < size; i++)
+        for (uint32_t i = 0, size = chunk.width * chunk.height; i < size; i++)
         {
             pixel[i] = color;
         }
     }
 
-    void MakeBorder(sBitmapDescription& desc, const uint8_t* zxBorder)
+    void MakeBorder(sChunkData& chunk, const uint8_t* zxBorder)
     {
         // top
         for (uint32_t y = 0; y < 64; y++)
         {
-            auto out = (sPixelRGB*)(desc.bitmap.data() + y * desc.pitch);
+            auto out = (sPixelRGB*)(chunk.bitmap.data() + y * chunk.pitch);
             for (uint32_t x = 0; x < 24; x++)
             {
                 const uint8_t color = *zxBorder++;
@@ -281,7 +282,7 @@ namespace
         // left / right
         for (uint32_t y = 0; y < 192; y++)
         {
-            auto out = (sPixelRGB*)(desc.bitmap.data() + (y + 64) * desc.pitch);
+            auto out = (sPixelRGB*)(chunk.bitmap.data() + (y + 64) * chunk.pitch);
             for (uint32_t x = 0; x < 4; x++)
             {
                 const uint8_t color = *zxBorder++;
@@ -301,7 +302,7 @@ namespace
         // bottom
         for (uint32_t y = 0; y < 48; y++)
         {
-            auto out = (sPixelRGB*)(desc.bitmap.data() + (y + 64 + 192) * desc.pitch);
+            auto out = (sPixelRGB*)(chunk.bitmap.data() + (y + 64 + 192) * chunk.pitch);
             for (uint32_t x = 0; x < 24; x++)
             {
                 const uint8_t color = *zxBorder++;
@@ -340,7 +341,7 @@ namespace
     }
 
     void FillThird(uint32_t layer, const uint8_t* zxPixels, const uint8_t* zxColors,
-                   sBitmapDescription& desc, uint32_t blockHeight, sPixelRGB* out)
+                   sChunkData& chunk, uint32_t blockHeight, sPixelRGB* out)
     {
         zxPixels += 2048 * layer;
         zxColors += 2048 / blockHeight * layer;
@@ -348,7 +349,7 @@ namespace
         for (uint32_t y = 0; y < 64; y++)
         {
             const uint32_t line = (y * 8) % 64 + (y * 8) / 64;
-            auto startLine = &out[line * desc.width];
+            auto startLine = &out[line * chunk.width];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
                 const uint8_t pixels = *zxPixels++;
@@ -360,7 +361,7 @@ namespace
 
     void FillThird(uint32_t layer, const uint8_t* zxPixels0, const uint8_t* zxPixels1,
                    const uint8_t* zxColors0, const uint8_t* zxColors1,
-                   sBitmapDescription& desc, uint32_t blockHeight, sPixelRGB* out)
+                   sChunkData& chunk, uint32_t blockHeight, sPixelRGB* out)
     {
         zxPixels0 += 2048 * layer;
         zxPixels1 += 2048 * layer;
@@ -371,7 +372,7 @@ namespace
         for (uint32_t y = 0; y < 64; y++)
         {
             const uint32_t line = (y * 8) % 64 + (y * 8) / 64;
-            auto startLine = &out[line * desc.width];
+            auto startLine = &out[line * chunk.width];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
                 const uint8_t pixels[2] = { *zxPixels0++, *zxPixels1++ };
@@ -397,11 +398,11 @@ namespace
         }
     }
 
-    void LoadScr(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadScr(const uint8_t* buffer, sChunkData& chunk, sImageInfo& info, const ZXProperty& prop)
     {
         if (prop.type == ZXProperty::Type::ScS)
         {
-            desc.exifList.push_back({ sBitmapDescription::ExifCategory::Info, "Comment", (const char*)buffer });
+            info.exifList.push_back({ sImageInfo::ExifCategory::Info, "Comment", (const char*)buffer });
             buffer += 17;
         }
         const uint8_t* zxPixels = buffer;
@@ -409,32 +410,32 @@ namespace
 
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(desc.bitmap.data() + ((prop.dy + 64 * i) * desc.pitch)) + prop.dx;
-            FillThird(i, zxPixels, zxColors, desc, 8, out);
+            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
+            FillThird(i, zxPixels, zxColors, chunk, 8, out);
         }
     }
 
-    void LoadBsc(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadBsc(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
         const uint8_t* zxPixels = buffer;
         const uint8_t* zxColors = buffer + 6144;
 
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(desc.bitmap.data() + ((prop.dy + 64 * i) * desc.pitch)) + prop.dx;
-            FillThird(i, zxPixels, zxColors, desc, 8, out);
+            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
+            FillThird(i, zxPixels, zxColors, chunk, 8, out);
         }
 
         const uint8_t* zxBorder = buffer + 6144 + 768;
-        MakeBorder(desc, zxBorder);
+        MakeBorder(chunk, zxBorder);
     }
 
-    void LoadAtr(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadAtr(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
         const uint8_t px[2] = { 0x55, 0xaa }; // { 0b01010101, 0b10101010 };
 
         const uint8_t* zxColors = buffer;
-        auto out = (sPixelRGB*)(desc.bitmap.data() + prop.dy * desc.pitch) + prop.dx;
+        auto out = (sPixelRGB*)(chunk.bitmap.data() + prop.dy * chunk.pitch) + prop.dx;
 
         for (uint32_t y = 0; y < 192; y++)
         {
@@ -448,7 +449,7 @@ namespace
         }
     }
 
-    void LoadMcX(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadMcX(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
         const uint8_t* zxPixels = buffer;
         const uint8_t* zxColors = buffer + 6144;
@@ -457,8 +458,8 @@ namespace
         {
             const uint32_t blockHeight = 1;
 
-            auto out = (sPixelRGB*)desc.bitmap.data();
-            FillLinear(zxPixels, zxColors, blockHeight, desc.width, out);
+            auto out = (sPixelRGB*)chunk.bitmap.data();
+            FillLinear(zxPixels, zxColors, blockHeight, chunk.width, out);
         }
         else
         {
@@ -466,17 +467,17 @@ namespace
 
             for (uint32_t i = 0; i < 3; i++)
             {
-                auto out = (sPixelRGB*)(desc.bitmap.data() + desc.pitch * 64 * i);
-                FillThird(i, zxPixels, zxColors, desc, blockHeight, out);
+                auto out = (sPixelRGB*)(chunk.bitmap.data() + chunk.pitch * 64 * i);
+                FillThird(i, zxPixels, zxColors, chunk, blockHeight, out);
             }
         }
     }
 
-    void LoadBMc4(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadBMc4(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(desc.bitmap.data() + ((prop.dy + 64 * i) * desc.pitch)) + prop.dx;
+            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
             auto zxPixels = buffer + 2048 * i;
 
             auto zxColors0 = buffer + 6144 + (768 / 3) * i;
@@ -485,7 +486,7 @@ namespace
             for (uint32_t y = 0; y < 64; y++)
             {
                 const uint32_t line = (y * 8) % 64 + (y * 8) / 64;
-                auto startLine = &out[line * desc.width];
+                auto startLine = &out[line * chunk.width];
                 auto zxColors = ((line % 8) < 4 ? zxColors0 : zxColors1) + (line / 8) * 32;
                 for (uint32_t x = 0; x < 256 / 8; x++)
                 {
@@ -497,10 +498,10 @@ namespace
         }
 
         const uint8_t* zxBorder = buffer + 6144 + 768 * 2;
-        MakeBorder(desc, zxBorder);
+        MakeBorder(chunk, zxBorder);
     }
 
-    void LoadImg(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadImg(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
         const uint32_t blockHeight = 8;
         const uint8_t* zxPixels = buffer;
@@ -508,17 +509,17 @@ namespace
 
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(desc.bitmap.data() + ((prop.dy + 64 * i) * desc.pitch)) + prop.dx;
-            FillThird(i, zxPixels, zxColors, desc, blockHeight, out);
+            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
+            FillThird(i, zxPixels, zxColors, chunk, blockHeight, out);
         }
     }
 
-    void LoadMgh(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadMgh(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
         const uint32_t blockHeight = buffer[4];
 
         const auto border = MergeColors(buffer[5], buffer[6]);
-        MakeBorder(desc, border);
+        MakeBorder(chunk, border);
 
         buffer += 256; // skip header
 
@@ -527,28 +528,28 @@ namespace
 
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(desc.bitmap.data() + ((prop.dy + 64 * i) * desc.pitch)) + prop.dx;
-            FillThird(i, zxPixels[0], zxPixels[1], zxColors[0], zxColors[1], desc, blockHeight, out);
+            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
+            FillThird(i, zxPixels[0], zxPixels[1], zxColors[0], zxColors[1], chunk, blockHeight, out);
         }
     }
 
-    void LoadMgs(const uint8_t* buffer, sBitmapDescription& desc, const ZXProperty& prop)
+    void LoadMgs(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
         const uint32_t blockHeight = buffer[4];
 
         const auto border = MergeColors(buffer[5], buffer[6]);
-        MakeBorder(desc, border);
+        MakeBorder(chunk, border);
 
         buffer += 7; // skip header
 
         const uint8_t* zxPixels = buffer;
         const uint8_t* zxColors = buffer + 6144 * 2;
 
-        auto out = (sPixelRGB*)(desc.bitmap.data() + prop.dy * desc.pitch) + prop.dx;
+        auto out = (sPixelRGB*)(chunk.bitmap.data() + prop.dy * chunk.pitch) + prop.dx;
 
         for (uint32_t y = 0; y < 192; y++)
         {
-            auto startLine = &out[y * desc.width];
+            auto startLine = &out[y * chunk.width];
             auto colors = &zxColors[(y / blockHeight) * 64];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
@@ -574,10 +575,10 @@ bool cFormatScr::isSupported(cFile& file, Buffer& buffer) const
     return prop.type != ZXProperty::Type::Unknown;
 }
 
-bool cFormatScr::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatScr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (openFile(file, filename, desc) == false)
+    if (openFile(file, filename, info) == false)
     {
         return false;
     }
@@ -598,51 +599,51 @@ bool cFormatScr::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    desc.bppImage = 1;
-    desc.bpp = 24;
-    desc.format = ePixelFormat::RGB;
+    info.bppImage = 1;
+    chunk.bpp = 24;
+    chunk.format = ePixelFormat::RGB;
 
-    desc.width = prop.cw;
-    desc.height = prop.ch;
-    desc.allocate(desc.width, desc.height, 24, ePixelFormat::RGB);
+    chunk.width = prop.cw;
+    chunk.height = prop.ch;
+    chunk.allocate(chunk.width, chunk.height, 24, ePixelFormat::RGB);
 
-    desc.formatName = prop.formatName;
+    info.formatName = prop.formatName;
 
     switch (prop.type)
     {
     case ZXProperty::Type::Scr:
     case ZXProperty::Type::ScS:
-        LoadScr(buffer.data(), desc, prop);
+        LoadScr(buffer.data(), chunk, info, prop);
         break;
 
     case ZXProperty::Type::Bsc:
-        LoadBsc(buffer.data(), desc, prop);
+        LoadBsc(buffer.data(), chunk, prop);
         break;
 
     case ZXProperty::Type::Atr:
-        LoadAtr(buffer.data(), desc, prop);
+        LoadAtr(buffer.data(), chunk, prop);
         break;
 
     case ZXProperty::Type::Mc1:
     case ZXProperty::Type::Mc2:
     case ZXProperty::Type::Mc4:
-        LoadMcX(buffer.data(), desc, prop);
+        LoadMcX(buffer.data(), chunk, prop);
         break;
 
     case ZXProperty::Type::BMc4:
-        LoadBMc4(buffer.data(), desc, prop);
+        LoadBMc4(buffer.data(), chunk, prop);
         break;
 
     case ZXProperty::Type::Img:
-        LoadImg(buffer.data(), desc, prop);
+        LoadImg(buffer.data(), chunk, prop);
         break;
 
     case ZXProperty::Type::Mgh:
-        LoadMgh(buffer.data(), desc, prop);
+        LoadMgh(buffer.data(), chunk, prop);
         break;
 
     case ZXProperty::Type::Mgs:
-        LoadMgs(buffer.data(), desc, prop);
+        LoadMgs(buffer.data(), chunk, prop);
         break;
 
     case ZXProperty::Type::Unknown: // prevent compiler warning

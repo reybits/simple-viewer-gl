@@ -8,8 +8,9 @@
 \**********************************************/
 
 #include "FormatDds.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cassert>
@@ -309,10 +310,10 @@ bool cFormatDds::isSupported(cFile& file, Buffer& buffer) const
     return isValidFormat(*header, file.getSize());
 }
 
-bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatDds::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -324,14 +325,14 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    if (!isValidFormat(header, desc.size))
+    if (!isValidFormat(header, info.fileSize))
     {
         cLog::Error("Invalid DDS header.");
         return false;
     }
 
-    desc.width = header.dwWidth;
-    desc.height = header.dwHeight;
+    chunk.width = header.dwWidth;
+    chunk.height = header.dwHeight;
 
     DDS_FORMAT format = DDS_ERROR;
     DDS_HEADER_DXT10 header10;
@@ -383,7 +384,7 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    const uint32_t data_size = desc.size - file.getOffset();
+    const uint32_t data_size = info.fileSize - file.getOffset();
     std::vector<uint8_t> buffer(data_size);
     uint8_t* src = buffer.data();
     if (data_size != file.read(src, data_size))
@@ -392,17 +393,17 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    desc.formatName = formatToStirng(format);
+    info.formatName = formatToStirng(format);
 
     if (format == DDS_RGB)
     {
-        desc.bppImage = 24;
-        desc.allocate(desc.width, desc.height, 24, ePixelFormat::RGB);
-        uint8_t* dest = desc.bitmap.data();
+        info.bppImage = 24;
+        chunk.allocate(chunk.width, chunk.height, 24, ePixelFormat::RGB);
+        uint8_t* dest = chunk.bitmap.data();
 
-        for (uint32_t y = 0; y < desc.height; y++)
+        for (uint32_t y = 0; y < chunk.height; y++)
         {
-            for (uint32_t x = 0; x < desc.width; x++)
+            for (uint32_t x = 0; x < chunk.width; x++)
             {
                 *dest++ = *src++;
                 *dest++ = *src++;
@@ -412,13 +413,13 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     else if (format == DDS_RGBA)
     {
-        desc.bppImage = 32;
-        desc.allocate(desc.width, desc.height, 32, ePixelFormat::RGBA);
-        uint8_t* dest = desc.bitmap.data();
+        info.bppImage = 32;
+        chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::RGBA);
+        uint8_t* dest = chunk.bitmap.data();
 
-        for (uint32_t y = 0; y < desc.height; y++)
+        for (uint32_t y = 0; y < chunk.height; y++)
         {
-            for (uint32_t x = 0; x < desc.width; x++)
+            for (uint32_t x = 0; x < chunk.width; x++)
             {
                 *dest++ = *src++;
                 *dest++ = *src++;
@@ -429,17 +430,17 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     else
     {
-        desc.format = ePixelFormat::RGBA;
-        desc.bpp = 32;
-        desc.bppImage = 32;
-        desc.pitch = desc.width * 4;
-        const uint32_t h = (uint32_t)::ceilf(desc.height / 4.0f) * 4;
-        const uint32_t size = desc.pitch * h;
-        desc.bitmap.resize(size);
+        chunk.format = ePixelFormat::RGBA;
+        chunk.bpp = 32;
+        info.bppImage = 32;
+        chunk.pitch = chunk.width * 4;
+        const uint32_t h = (uint32_t)::ceilf(chunk.height / 4.0f) * 4;
+        const uint32_t size = chunk.pitch * h;
+        chunk.bitmap.resize(size);
 
-        for (uint32_t y = 0; y < desc.height; y += 4)
+        for (uint32_t y = 0; y < chunk.height; y += 4)
         {
-            for (uint32_t x = 0; x < desc.width; x += 4)
+            for (uint32_t x = 0; x < chunk.width; x += 4)
             {
                 uint64_t alpha = 0;
                 uint32_t a0 = 0;
@@ -488,7 +489,7 @@ bool cFormatDds::LoadImpl(const char* filename, sBitmapDescription& desc)
                 for (uint32_t i = 0; i < 4; i++)
                 {
                     uint32_t index = *src++;
-                    uint8_t* dest = desc.bitmap.data() + (desc.width * (y + i) + x) * 4;
+                    uint8_t* dest = chunk.bitmap.data() + (chunk.width * (y + i) + x) * 4;
                     for (uint32_t j = 0; j < 4; j++)
                     {
                         *dest++ = color[index & 0x03].r;

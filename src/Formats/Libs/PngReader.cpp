@@ -8,13 +8,16 @@
 \**********************************************/
 
 #include "PngReader.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
+#include "Common/Cms.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstring>
 #include <png.h>
+#include <thread>
 
 class cPngWrapper final
 {
@@ -177,7 +180,7 @@ bool cPngReader::isValid(const uint8_t* data, uint32_t size)
     return false;
 }
 
-bool cPngReader::loadPng(sBitmapDescription& desc, const uint8_t* data, uint32_t size)
+bool cPngReader::loadPng(sChunkData& chunk, sImageInfo& info, const uint8_t* data, uint32_t size)
 {
     if (isValid(data, size) == false)
     {
@@ -192,12 +195,12 @@ bool cPngReader::loadPng(sBitmapDescription& desc, const uint8_t* data, uint32_t
         return false;
     }
 
-    return doLoadPNG(wrapper, desc);
+    return doLoadPNG(wrapper, chunk, info);
 }
 
-bool cPngReader::loadPng(sBitmapDescription& desc, cFile& file)
+bool cPngReader::loadPng(sChunkData& chunk, sImageInfo& info, cFile& file)
 {
-    desc.size = file.getSize();
+    info.fileSize = file.getSize();
 
     uint8_t header[HeaderSize];
     if (file.read(&header, HeaderSize) != HeaderSize
@@ -214,10 +217,10 @@ bool cPngReader::loadPng(sBitmapDescription& desc, cFile& file)
         return false;
     }
 
-    return doLoadPNG(wrapper, desc);
+    return doLoadPNG(wrapper, chunk, info);
 }
 
-bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
+bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImageInfo& imgInfo)
 {
     auto png = wrapper.getPng();
     auto info = wrapper.getInfo();
@@ -231,7 +234,7 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
     png_read_info(png, info);
 
     // Store original bpp image
-    desc.bppImage = png_get_bit_depth(png, info) * png_get_channels(png, info);
+    imgInfo.bppImage = png_get_bit_depth(png, info) * png_get_channels(png, info);
 
     auto colorType = png_get_color_type(png, info);
 
@@ -258,72 +261,100 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc)
     // Update info structure to apply transformations
     png_read_update_info(png, info);
 
-    desc.width = png_get_image_width(png, info);
-    desc.height = png_get_image_height(png, info);
-    desc.bpp = png_get_bit_depth(png, info) * png_get_channels(png, info);
-    desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
+    chunk.width = png_get_image_width(png, info);
+    chunk.height = png_get_image_height(png, info);
+    chunk.bpp = png_get_bit_depth(png, info) * png_get_channels(png, info);
+    chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
 
     auto srcPitch = png_get_rowbytes(png, info);
-    if (desc.pitch < srcPitch)
+    if (chunk.pitch < srcPitch)
     {
-        cLog::Error("Source pitch {} is larger than destination pitch {}.", srcPitch, desc.pitch);
+        cLog::Error("Source pitch {} is larger than destination pitch {}.", srcPitch, chunk.pitch);
     }
 
     colorType = png_get_color_type(png, info);
     // cLog::Debug("res color type: {}.", colorType);
-    // cLog::Debug("res bpp: {}.", desc.bpp);
+    // cLog::Debug("res bpp: {}.", chunk.bpp);
 
     // #define PNG_COLOR_MASK_PALETTE    1
     // #define PNG_COLOR_MASK_COLOR      2
     // #define PNG_COLOR_MASK_ALPHA      4
     if (colorType == PNG_COLOR_TYPE_GRAY) // 0b00000000 (gray)
     {
-        desc.format = ePixelFormat::Alpha;
+        chunk.format = ePixelFormat::Alpha;
     }
     else if (colorType == PNG_COLOR_MASK_ALPHA) // 0b00000100 (gray + alpha)
     {
-        desc.format = ePixelFormat::LuminanceAlpha;
+        chunk.format = ePixelFormat::LuminanceAlpha;
     }
     else if (colorType == PNG_COLOR_TYPE_RGB) // 0b00000010 (rgb)
     {
-        desc.format = ePixelFormat::RGB;
+        chunk.format = ePixelFormat::RGB;
     }
     else if (colorType == PNG_COLOR_TYPE_RGB_ALPHA) // 0b00000110 (rgb + alpha)
     {
-        desc.format = ePixelFormat::RGBA;
+        chunk.format = ePixelFormat::RGBA;
     }
     else
     {
         cLog::Error("Unexpected PNG color type.");
     }
 
-    desc.resizeBitmap(desc.pitch, desc.height);
+    // Extract ICC profile early (available after png_read_info)
+    uint32_t iccProfileSize = 0;
+    auto iccProfileData = locateICCProfile(png, info, iccProfileSize);
+    m_iccProfile.resize(iccProfileSize);
+    if (iccProfileData != nullptr && iccProfileSize != 0)
+    {
+        ::memcpy(m_iccProfile.data(), iccProfileData, iccProfileSize);
+    }
+
+    // Allocate band buffer
+    constexpr uint32_t BandRows = 8192;
+    chunk.bandHeight = (BandRows < chunk.height) ? BandRows : chunk.height;
+    chunk.resizeBitmap(chunk.pitch, chunk.bandHeight);
 
     if (m_allocated != nullptr)
     {
         m_allocated();
     }
 
-    for (uint32_t y = 0; y < desc.height; y++)
+    // Create per-scanline ICC transform
+    void* iccTransform = cms::createTransform(
+        m_iccProfile.data(), static_cast<uint32_t>(m_iccProfile.size()), chunk.format);
+
+    for (uint32_t y = 0; y < chunk.height; y++)
     {
         if (m_stop != nullptr && *m_stop)
         {
+            cms::destroyTransform(iccTransform);
             return false;
         }
 
-        auto row = desc.bitmap.data() + desc.pitch * y;
+        // Wait for ring buffer room
+        while (m_stop != nullptr && *m_stop == false)
+        {
+            auto consumed = chunk.consumedHeight.load(std::memory_order_acquire);
+            if (y - consumed < chunk.bandHeight)
+            {
+                break;
+            }
+            std::this_thread::yield();
+        }
+
+        auto row = chunk.rowPtr(y);
         png_read_row(png, row, nullptr);
-        updateProgress(static_cast<float>(y + 1) / desc.height);
+
+        if (iccTransform != nullptr)
+        {
+            cms::transformRow(iccTransform, row, chunk.width);
+        }
+
+        chunk.readyHeight.store(y + 1, std::memory_order_release);
+        updateProgress(static_cast<float>(y + 1) / chunk.height);
     }
 
-    uint32_t iccProfileSize = 0;
-    auto iccProfile = locateICCProfile(png, info, iccProfileSize);
-    m_iccProfile.resize(iccProfileSize);
-    if (iccProfile != nullptr && iccProfileSize != 0)
-    {
-        ::memcpy(m_iccProfile.data(), iccProfile, iccProfileSize);
-    }
-    // cLog::Debug("\n");
+    cms::destroyTransform(iccTransform);
 
     return true;
 }

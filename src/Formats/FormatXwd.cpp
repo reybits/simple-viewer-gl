@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "FormatXwd.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -98,10 +99,10 @@ bool cFormatXwd::isSupported(cFile& file, Buffer& buffer) const
         && h.HeaderSize < file.getSize();
 }
 
-bool cFormatXwd::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatXwd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -144,7 +145,7 @@ bool cFormatXwd::LoadImpl(const char* filename, sBitmapDescription& desc)
         // printf(" WindowBorderWidth: %u\n" , header.WindowBorderWidth);
         // printf(" WindowNumColors: %u\n"   , header.WindowNumColors);
 
-        return loadX10(header, file, desc);
+        return loadX10(header, file, chunk, info);
     }
     else if (common.HeaderSize == sizeof(X11WindowDump) && common.FileVersion == 0x07)
     {
@@ -180,7 +181,7 @@ bool cFormatXwd::LoadImpl(const char* filename, sBitmapDescription& desc)
         // printf(" WindowY: %u\n"           , header.WindowY);
         // printf(" WindowBorderWidth: %u\n" , header.WindowBorderWidth);
 
-        return loadX11(header, file, desc);
+        return loadX11(header, file, chunk, info);
     }
 
     cLog::Error("Invalid XWD file version.");
@@ -188,14 +189,14 @@ bool cFormatXwd::LoadImpl(const char* filename, sBitmapDescription& desc)
     return false;
 }
 
-bool cFormatXwd::loadX10(const X10WindowDump& /*header*/, cFile& /*file*/, sBitmapDescription& desc)
+bool cFormatXwd::loadX10(const X10WindowDump& /*header*/, cFile& /*file*/, sChunkData& /*chunk*/, sImageInfo& info)
 {
-    desc.formatName = "xwd10";
+    info.formatName = "xwd10";
 
     return false;
 }
 
-bool cFormatXwd::loadX11(const X11WindowDump& header, cFile& file, sBitmapDescription& desc)
+bool cFormatXwd::loadX11(const X11WindowDump& header, cFile& file, sChunkData& chunk, sImageInfo& info)
 {
     std::vector<X11ColorMap> colors(header.ColorMapEntries);
     const unsigned color_map_size = sizeof(X11ColorMap) * header.ColorMapEntries;
@@ -205,21 +206,21 @@ bool cFormatXwd::loadX11(const X11WindowDump& header, cFile& file, sBitmapDescri
         return false;
     }
 
-    desc.width = header.PixmapWidth;
-    desc.height = header.PixmapHeight;
-    desc.bpp = header.BitsPerPixel;
-    desc.bppImage = header.BitsPerPixel;
-    desc.pitch = header.BytesPerLine;
-    desc.format = ePixelFormat::RGB;
-    desc.resizeBitmap(desc.pitch, desc.height);
+    chunk.width = header.PixmapWidth;
+    chunk.height = header.PixmapHeight;
+    chunk.bpp = header.BitsPerPixel;
+    info.bppImage = header.BitsPerPixel;
+    chunk.pitch = header.BytesPerLine;
+    chunk.format = ePixelFormat::RGB;
+    chunk.resizeBitmap(chunk.pitch, chunk.height);
 
-    if (desc.bitmap.size() != file.read(desc.bitmap.data(), desc.bitmap.size()))
+    if (chunk.bitmap.size() != file.read(chunk.bitmap.data(), chunk.bitmap.size()))
     {
         cLog::Error("Can't read pixmap.");
         return false;
     }
 
-    desc.formatName = "xwd11";
+    info.formatName = "xwd11";
 
     return true;
 }

@@ -8,10 +8,11 @@
 \**********************************************/
 
 #include "FormatPsd.h"
-#include "Common/BitmapDescription.h"
 #include "Common/Callbacks.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 #include "Libs/JpegDecoder.h"
 #include "Log/Log.h"
 
@@ -271,14 +272,14 @@ namespace
     }
 
     template <typename C>
-    void fromRgba(sBitmapDescription& desc, const C* r, const C* g, const C* b, const C* a)
+    void fromRgba(sChunkData& chunk, const C* r, const C* g, const C* b, const C* a)
     {
         const uint32_t shift = (uint32_t)sizeof(C) >> 1;
-        for (uint32_t y = 0; y < desc.height; y++)
+        for (uint32_t y = 0; y < chunk.height; y++)
         {
-            uint32_t idx = desc.width * y;
-            auto out = desc.bitmap.data() + y * desc.pitch;
-            for (uint32_t x = 0; x < desc.width; x++)
+            uint32_t idx = chunk.width * y;
+            auto out = chunk.bitmap.data() + y * chunk.pitch;
+            for (uint32_t x = 0; x < chunk.width; x++)
             {
                 out[0] = r[idx] >> shift;
                 out[1] = g[idx] >> shift;
@@ -291,13 +292,13 @@ namespace
     }
 
     template <>
-    void fromRgba(sBitmapDescription& desc, const uint32_t* r, const uint32_t* g, const uint32_t* b, const uint32_t* a)
+    void fromRgba(sChunkData& chunk, const uint32_t* r, const uint32_t* g, const uint32_t* b, const uint32_t* a)
     {
-        for (uint32_t y = 0; y < desc.height; y++)
+        for (uint32_t y = 0; y < chunk.height; y++)
         {
-            uint32_t idx = desc.width * y;
-            auto out = desc.bitmap.data() + y * desc.pitch;
-            for (uint32_t x = 0; x < desc.width; x++)
+            uint32_t idx = chunk.width * y;
+            auto out = chunk.bitmap.data() + y * chunk.pitch;
+            for (uint32_t x = 0; x < chunk.width; x++)
             {
                 const uint8_t* ur = (const uint8_t*)&r[idx];
                 const uint8_t* ug = (const uint8_t*)&g[idx];
@@ -362,10 +363,10 @@ void cFormatPsd::decodePreview(const Buffer& jpegData, uint32_t fullWidth, uint3
     signalPreviewReady(std::move(data));
 }
 
-bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -441,19 +442,19 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    desc.width = fullWidth;
-    desc.height = fullHeight;
+    chunk.width = fullWidth;
+    chunk.height = fullHeight;
 
     // this will be needed for RLE decompression
     std::vector<uint16_t> linesLengths;
     if (compression == CompressionMethod::RLE)
     {
-        linesLengths.resize(channels * desc.height);
+        linesLengths.resize(channels * chunk.height);
         for (uint32_t ch = 0; ch < channels; ch++)
         {
-            const uint32_t pos = desc.height * ch;
+            const uint32_t pos = chunk.height * ch;
 
-            if (desc.height * sizeof(uint16_t) != file.read(&linesLengths[pos], desc.height * sizeof(uint16_t)))
+            if (chunk.height * sizeof(uint16_t) != file.read(&linesLengths[pos], chunk.height * sizeof(uint16_t)))
             {
                 cLog::Error("Can't read length of lines");
                 return false;
@@ -461,35 +462,35 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
 
         // convert from different endianness
-        for (uint32_t i = 0; i < desc.height * channels; i++)
+        for (uint32_t i = 0; i < chunk.height * channels; i++)
         {
             linesLengths[i] = helpers::read_uint16((uint8_t*)&linesLengths[i]);
         }
     }
 
-    desc.bppImage = depth * channels;
+    info.bppImage = depth * channels;
 
     // we need buffer that can contain one channel data of one
     // row in RLE compressed format. 2*width should be enough
-    const uint32_t max_line_length = desc.width * 2 * bytes_per_component;
+    const uint32_t max_line_length = chunk.width * 2 * bytes_per_component;
     std::vector<uint8_t> buffer(max_line_length);
 
     // create separate buffers for each channel (up to 56 buffers by spec)
     std::vector<uint8_t*> chBufs(channels);
     for (uint32_t ch = 0; ch < channels; ch++)
     {
-        chBufs[ch] = new uint8_t[desc.width * desc.height * bytes_per_component];
+        chBufs[ch] = new uint8_t[chunk.width * chunk.height * bytes_per_component];
     }
 
     // read all channels rgba and extra if available;
     for (uint32_t ch = 0; ch < channels && m_stop == false; ch++)
     {
         uint32_t pos = 0;
-        for (uint32_t row = 0; row < desc.height && m_stop == false; row++)
+        for (uint32_t row = 0; row < chunk.height && m_stop == false; row++)
         {
             if (compression == CompressionMethod::RLE)
             {
-                uint32_t lineLength = linesLengths[ch * desc.height + row] * bytes_per_component;
+                uint32_t lineLength = linesLengths[ch * chunk.height + row] * bytes_per_component;
                 if (max_line_length < lineLength)
                 {
                     cLog::Warning("Invalid line length: {}.", lineLength);
@@ -506,7 +507,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
             }
             else
             {
-                uint32_t lineLength = desc.width * bytes_per_component;
+                uint32_t lineLength = chunk.width * bytes_per_component;
 
                 const size_t readed = file.read(chBufs[ch] + pos, lineLength);
                 if (lineLength != readed)
@@ -515,9 +516,9 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
                 }
             }
 
-            updateProgress((float)(ch * desc.height + row) / (channels * desc.height));
+            updateProgress((float)(ch * chunk.height + row) / (channels * chunk.height));
 
-            pos += desc.width * bytes_per_component;
+            pos += chunk.width * bytes_per_component;
         }
     }
 
@@ -534,14 +535,14 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
     {
         if (channels == 3)
         {
-            setupBitmap(desc, desc.width, desc.height, 24, ePixelFormat::RGB, "psd");
-            auto bitmap = desc.bitmap.data();
-            for (uint32_t y = 0; y < desc.height; y++)
+            setupBitmap(chunk, info, 24, ePixelFormat::RGB, "psd");
+            auto bitmap = chunk.bitmap.data();
+            for (uint32_t y = 0; y < chunk.height; y++)
             {
-                auto out = bitmap + y * desc.pitch;
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto out = bitmap + y * chunk.pitch;
+                for (uint32_t x = 0; x < chunk.width; x++)
                 {
-                    const uint32_t idx = (desc.width * y + x) * bytes_per_component;
+                    const uint32_t idx = (chunk.width * y + x) * bytes_per_component;
                     out[0] = *(chBufs[0] + idx);
                     out[1] = *(chBufs[1] + idx);
                     out[2] = *(chBufs[2] + idx);
@@ -551,19 +552,19 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
         else
         {
-            setupBitmap(desc, desc.width, desc.height, 32, ePixelFormat::RGBA, "psd");
+            setupBitmap(chunk, info, 32, ePixelFormat::RGBA, "psd");
             switch (depth)
             {
             case 8:
-                fromRgba(desc, chBufs[0], chBufs[1], chBufs[2], chBufs[3]);
+                fromRgba(chunk, chBufs[0], chBufs[1], chBufs[2], chBufs[3]);
                 break;
 
             case 16:
-                fromRgba(desc, (uint16_t*)chBufs[0], (uint16_t*)chBufs[1], (uint16_t*)chBufs[2], (uint16_t*)chBufs[3]);
+                fromRgba(chunk, (uint16_t*)chBufs[0], (uint16_t*)chBufs[1], (uint16_t*)chBufs[2], (uint16_t*)chBufs[3]);
                 break;
 
             case 32:
-                fromRgba(desc, (uint32_t*)chBufs[0], (uint32_t*)chBufs[1], (uint32_t*)chBufs[2], (uint32_t*)chBufs[3]);
+                fromRgba(chunk, (uint32_t*)chBufs[0], (uint32_t*)chBufs[1], (uint32_t*)chBufs[2], (uint32_t*)chBufs[3]);
                 break;
             }
         }
@@ -572,14 +573,14 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
     {
         if (channels == 4)
         {
-            setupBitmap(desc, desc.width, desc.height, 24, ePixelFormat::RGB, "psd");
-            auto bitmap = desc.bitmap.data();
-            for (uint32_t y = 0; y < desc.height; y++)
+            setupBitmap(chunk, info, 24, ePixelFormat::RGB, "psd");
+            auto bitmap = chunk.bitmap.data();
+            for (uint32_t y = 0; y < chunk.height; y++)
             {
-                auto out = bitmap + y * desc.pitch;
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto out = bitmap + y * chunk.pitch;
+                for (uint32_t x = 0; x < chunk.width; x++)
                 {
-                    const uint32_t idx = (desc.width * y + x) * bytes_per_component;
+                    const uint32_t idx = (chunk.width * y + x) * bytes_per_component;
                     const double C = 1.0 - *(chBufs[0] + idx) / 255.0; // C
                     const double M = 1.0 - *(chBufs[1] + idx) / 255.0; // M
                     const double Y = 1.0 - *(chBufs[2] + idx) / 255.0; // Y
@@ -595,14 +596,14 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
         else if (channels == 5)
         {
-            setupBitmap(desc, desc.width, desc.height, 32, ePixelFormat::RGBA, "psd");
-            auto bitmap = desc.bitmap.data();
-            for (uint32_t y = 0; y < desc.height; y++)
+            setupBitmap(chunk, info, 32, ePixelFormat::RGBA, "psd");
+            auto bitmap = chunk.bitmap.data();
+            for (uint32_t y = 0; y < chunk.height; y++)
             {
-                auto out = bitmap + y * desc.pitch;
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto out = bitmap + y * chunk.pitch;
+                for (uint32_t x = 0; x < chunk.width; x++)
                 {
-                    const uint32_t idx = (desc.width * y + x) * bytes_per_component;
+                    const uint32_t idx = (chunk.width * y + x) * bytes_per_component;
                     const double C = 1.0 - *(chBufs[0] + idx) / 255.0; // C
                     const double M = 1.0 - *(chBufs[1] + idx) / 255.0; // M
                     const double Y = 1.0 - *(chBufs[2] + idx) / 255.0; // Y
@@ -624,7 +625,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         if (channels == 2)
         {
-            setupBitmap(desc, desc.width, desc.height, 32, ePixelFormat::RGBA, "psd");
+            setupBitmap(chunk, info, 32, ePixelFormat::RGBA, "psd");
             switch (depth)
             {
             case 8:
@@ -632,7 +633,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
                 {
                     uint8_t* c = chBufs[0];
                     uint8_t* a = chBufs[1];
-                    fromRgba(desc, c, c, c, a);
+                    fromRgba(chunk, c, c, c, a);
                 }
                 break;
             case 16:
@@ -640,7 +641,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
                 {
                     uint16_t* c = (uint16_t*)chBufs[0];
                     uint16_t* a = (uint16_t*)chBufs[1];
-                    fromRgba(desc, c, c, c, a);
+                    fromRgba(chunk, c, c, c, a);
                 }
                 break;
             case 32:
@@ -648,21 +649,21 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
                 {
                     uint32_t* c = (uint32_t*)chBufs[0];
                     uint32_t* a = (uint32_t*)chBufs[1];
-                    fromRgba(desc, c, c, c, a);
+                    fromRgba(chunk, c, c, c, a);
                 }
                 break;
             }
         }
         else if (channels == 1)
         {
-            setupBitmap(desc, desc.width, desc.height, 24, ePixelFormat::RGB, "psd");
-            auto bitmap = desc.bitmap.data();
-            for (uint32_t y = 0; y < desc.height; y++)
+            setupBitmap(chunk, info, 24, ePixelFormat::RGB, "psd");
+            auto bitmap = chunk.bitmap.data();
+            for (uint32_t y = 0; y < chunk.height; y++)
             {
-                auto out = bitmap + y * desc.pitch;
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto out = bitmap + y * chunk.pitch;
+                for (uint32_t x = 0; x < chunk.width; x++)
                 {
-                    const uint32_t idx = (desc.width * y + x) * bytes_per_component;
+                    const uint32_t idx = (chunk.width * y + x) * bytes_per_component;
                     out[0] = *(chBufs[0] + idx);
                     out[1] = *(chBufs[0] + idx);
                     out[2] = *(chBufs[0] + idx);
@@ -677,9 +678,9 @@ bool cFormatPsd::LoadImpl(const char* filename, sBitmapDescription& desc)
         delete[] chBufs[ch];
     }
 
-    if (applyIccProfile(desc, iccProfile.data(), static_cast<uint32_t>(iccProfile.size())))
+    if (applyIccProfile(chunk, iccProfile.data(), static_cast<uint32_t>(iccProfile.size())))
     {
-        desc.formatName = "psd/icc";
+        info.formatName = "psd/icc";
     }
 
     return true;

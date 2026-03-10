@@ -24,4 +24,9 @@ namespace cms
                          uint8_t* bitmap, uint32_t width, uint32_t height,
                          uint32_t pitch, ePixelFormat format);
 
+    // Per-scanline ICC transform: create once, apply per row, destroy when done.
+    void* createTransform(const void* iccProfile, uint32_t iccProfileSize, ePixelFormat format);
+    void transformRow(void* transform, uint8_t* row, uint32_t width);
+    void destroyTransform(void* transform);
+
 } // namespace cms

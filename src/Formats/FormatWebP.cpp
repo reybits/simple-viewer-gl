@@ -10,8 +10,9 @@
 #if defined(WEBP_SUPPORT)
 
 #include "FormatWebP.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -44,10 +45,10 @@ bool cFormatWebP::isSupported(cFile& file, Buffer& buffer) const
         && !::memcmp(h->webp, webp, 4);
 }
 
-bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatWebP::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -68,17 +69,17 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    desc.images = 1;
-    desc.current = 0;
-    desc.width = features.width;
-    desc.height = features.height;
+    info.images = 1;
+    info.current = 0;
+    chunk.width = features.width;
+    chunk.height = features.height;
 
     if (features.has_alpha)
     {
-        desc.bppImage = 32;
-        setupBitmap(desc, desc.width, desc.height, 32, ePixelFormat::RGBA, "webp");
+        info.bppImage = 32;
+        setupBitmap(chunk, info, 32, ePixelFormat::RGBA, "webp");
 
-        if (WebPDecodeRGBAInto(buffer.data(), buffer.size(), desc.bitmap.data(), desc.bitmap.size(), desc.pitch) == nullptr)
+        if (WebPDecodeRGBAInto(buffer.data(), buffer.size(), chunk.bitmap.data(), chunk.bitmap.size(), chunk.pitch) == nullptr)
         {
             cLog::Error("Can't decode WebP data.");
             return false;
@@ -86,10 +87,10 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     else
     {
-        desc.bppImage = 24;
-        setupBitmap(desc, desc.width, desc.height, 24, ePixelFormat::RGB, "webp");
+        info.bppImage = 24;
+        setupBitmap(chunk, info, 24, ePixelFormat::RGB, "webp");
 
-        if (WebPDecodeRGBInto(buffer.data(), buffer.size(), desc.bitmap.data(), desc.bitmap.size(), desc.pitch) == nullptr)
+        if (WebPDecodeRGBInto(buffer.data(), buffer.size(), chunk.bitmap.data(), chunk.bitmap.size(), chunk.pitch) == nullptr)
         {
             cLog::Error("Can't decode WebP data.");
             return false;
@@ -105,9 +106,9 @@ bool cFormatWebP::LoadImpl(const char* filename, sBitmapDescription& desc)
         WebPChunkIterator chunkIter;
         if (WebPDemuxGetChunk(demux, "ICCP", 1, &chunkIter))
         {
-            if (applyIccProfile(desc, chunkIter.chunk.bytes, static_cast<uint32_t>(chunkIter.chunk.size)))
+            if (applyIccProfile(chunk, chunkIter.chunk.bytes, static_cast<uint32_t>(chunkIter.chunk.size)))
             {
-                desc.formatName = "webp/icc";
+                info.formatName = "webp/icc";
             }
             WebPDemuxReleaseChunkIterator(&chunkIter);
         }

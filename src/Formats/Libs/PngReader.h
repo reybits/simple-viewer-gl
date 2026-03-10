@@ -15,7 +15,8 @@
 
 class cFile;
 class cPngWrapper;
-struct sBitmapDescription;
+struct sChunkData;
+struct sImageInfo;
 
 class cPngReader
 {
@@ -43,8 +44,8 @@ public:
 
     static bool isValid(const uint8_t* data, uint32_t size);
 
-    bool loadPng(sBitmapDescription& desc, const uint8_t* data, uint32_t size);
-    bool loadPng(sBitmapDescription& desc, cFile& file);
+    bool loadPng(sChunkData& chunk, sImageInfo& info, const uint8_t* data, uint32_t size);
+    bool loadPng(sChunkData& chunk, sImageInfo& info, cFile& file);
 
     using IccProfile = std::vector<uint8_t>;
 
@@ -54,7 +55,7 @@ public:
     }
 
 private:
-    bool doLoadPNG(const cPngWrapper& wrapper, sBitmapDescription& desc);
+    bool doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImageInfo& info);
 
     void updateProgress(float percent) const
     {

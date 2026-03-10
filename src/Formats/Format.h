@@ -14,8 +14,9 @@
 
 class cFile;
 struct sCallbacks;
-struct sBitmapDescription;
+struct sChunkData;
 struct sConfig;
+struct sImageInfo;
 struct sPreviewData;
 
 class cFormat
@@ -27,43 +28,51 @@ public:
 
     virtual bool isSupported(cFile& file, Buffer& buffer) const = 0;
 
-    bool Load(const char* filename, sBitmapDescription& desc);
-    bool LoadSubImage(uint32_t subImage, sBitmapDescription& desc);
+    bool Load(const char* filename, sChunkData& chunk, sImageInfo& info);
+    bool LoadSubImage(uint32_t subImage, sChunkData& chunk, sImageInfo& info);
 
     void updateProgress(float percent);
     void signalImageInfo();
     void signalBitmapAllocated();
     void signalPreviewReady(sPreviewData&& preview);
 
-    // Centralized bitmap setup for progressive formats:
-    // sets desc.formatName, calls desc.allocate(), and signals the viewer.
-    void setupBitmap(sBitmapDescription& desc, uint32_t w, uint32_t h,
-                     uint32_t bpp, ePixelFormat format, const char* formatName);
+    // Centralized bitmap setup: signals image info, allocates bitmap, signals viewer.
+    // Caller must set chunk.width, chunk.height, info.bppImage before calling.
+    void setupBitmap(sChunkData& chunk, sImageInfo& info, uint32_t bpp, ePixelFormat format, const char* formatName);
 
     virtual void stop()
     {
         m_stop = true;
     }
 
-    virtual void dump(sBitmapDescription& desc) const;
+    virtual void dump(const sChunkData& chunk, const sImageInfo& info) const;
+
+    double getDecodeMs() const { return m_decodeMs; }
+    double getIccMs() const { return m_iccMs; }
+    bool wasBitmapModified() const { return m_bitmapModified; }
+    void clearBitmapModified() { m_bitmapModified = false; }
 
     cFormat(sCallbacks* callbacks);
 
 protected:
-    bool openFile(cFile& file, const char* filename, sBitmapDescription& desc) const;
+    bool openFile(cFile& file, const char* filename, sImageInfo& info) const;
     bool readBuffer(cFile& file, Buffer& buffer, uint32_t minSize) const;
-    bool applyIccProfile(sBitmapDescription& desc, const void* iccProfile, uint32_t iccProfileSize);
-    bool applyIccProfile(sBitmapDescription& desc, const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb);
+    bool applyIccProfile(sChunkData& chunk, const void* iccProfile, uint32_t iccProfileSize);
+    bool applyIccProfile(sChunkData& chunk, const float* chr, const float* wp, const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb);
 
-    virtual bool LoadImpl(const char* filename, sBitmapDescription& desc) = 0;
-    virtual bool LoadSubImageImpl(uint32_t /*subImage*/, sBitmapDescription& /*desc*/)
+    virtual bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) = 0;
+    virtual bool LoadSubImageImpl(uint32_t /*subImage*/, sChunkData& /*chunk*/, sImageInfo& /*info*/)
     {
         return false;
     }
 
 private:
     sCallbacks* m_callbacks;
-    sBitmapDescription* m_desc = nullptr;
+    sChunkData* m_chunk = nullptr;
+    sImageInfo* m_info = nullptr;
+    double m_decodeMs = 0.0;
+    double m_iccMs = 0.0;
+    bool m_bitmapModified = false;
 
 protected:
     const sConfig* m_config = nullptr;

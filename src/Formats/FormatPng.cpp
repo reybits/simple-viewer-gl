@@ -8,8 +8,9 @@
 \**********************************************/
 
 #include "FormatPng.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Libs/PngReader.h"
 
 #include <cstring>
@@ -24,10 +25,10 @@ bool cFormatPng::isSupported(cFile& file, Buffer& buffer) const
     return cPngReader::isValid(buffer.data(), file.getSize());
 }
 
-bool cFormatPng::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatPng::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -41,16 +42,11 @@ bool cFormatPng::LoadImpl(const char* filename, sBitmapDescription& desc)
     });
     reader.setStopFlag(&m_stop);
 
-    desc.formatName = "png";
-
-    auto result = reader.loadPng(desc, file);
+    // ICC is applied per-scanline inside loadPng()
+    auto result = reader.loadPng(chunk, info, file);
     if (result)
     {
-        auto& iccProfile = reader.getIccProfile();
-        if (applyIccProfile(desc, iccProfile.data(), static_cast<uint32_t>(iccProfile.size())))
-        {
-            desc.formatName = "png/icc";
-        }
+        info.formatName = reader.getIccProfile().empty() ? "png" : "png/icc";
     }
 
     return result;

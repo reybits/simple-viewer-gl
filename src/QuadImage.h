@@ -26,17 +26,23 @@ public:
     ~cQuadImage();
 
     void clear();
-    void setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePixelFormat format, uint32_t bpp, const uint8_t* image);
+    void setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePixelFormat format, uint32_t bpp, const uint8_t* image, uint32_t bandHeight = 0);
     void refreshData(const uint8_t* image);
     void setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image);
     bool upload(uint32_t readyHeight);
 
     void stop();
+    void reset();
     bool isUploading() const;
     float getProgress() const;
 
     void useFilter(bool filter);
     void render();
+
+    size_t getGpuMemory() const
+    {
+        return m_gpuMemory;
+    }
 
     bool getPixel(uint32_t x, uint32_t y, cColor& color) const;
 
@@ -105,13 +111,17 @@ private:
     uint32_t m_width = 0;
     uint32_t m_height = 0;
     uint32_t m_pitch = 0;
+    uint32_t m_bandHeight = 0;
     ePixelFormat m_format = ePixelFormat::RGB;
     uint32_t m_bitsPerPixel = 0;
     const uint8_t* m_image = nullptr;
 
+    size_t chunkGpuBytes(uint32_t tw, uint32_t th) const;
+
     std::vector<Chunk> m_chunks;
     std::vector<Chunk> m_chunksOld;
 
+    size_t m_gpuMemory = 0;
     std::vector<uint8_t> m_buffer;
 
     // Pixel readback cache: stores the last-read pixel

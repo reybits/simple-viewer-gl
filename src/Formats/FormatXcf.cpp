@@ -8,8 +8,9 @@
 \**********************************************/
 
 #include "FormatXcf.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Libs/Xcf.h"
 
 #include <cstdio>
@@ -27,15 +28,15 @@ bool cFormatXcf::isSupported(cFile& file, Buffer& buffer) const
     return ::memcmp(buffer.data(), header, sizeof(header)) == 0;
 }
 
-bool cFormatXcf::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatXcf::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
 
-    desc.formatName = "xcf";
+    info.formatName = "xcf";
 
-    return import_xcf(file, desc);
+    return import_xcf(file, chunk, info);
 }

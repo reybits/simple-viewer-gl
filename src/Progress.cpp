@@ -29,12 +29,30 @@ void cProgress::init()
     m_dot = std::make_unique<cQuad>(DotSize, DotSize);
 }
 
+void cProgress::show()
+{
+    m_visible = true;
+
+    constexpr auto WaitTime = 2.0;
+    m_showTime = timing::seconds() + WaitTime;
+}
+
+void cProgress::hide()
+{
+    m_visible = false;
+}
+
 void cProgress::render()
 {
     if (m_visible)
     {
         static auto lastTime = timing::seconds();
         auto currentTime = timing::seconds();
+
+        if (m_showTime > currentTime)
+        {
+            return;
+        }
 
         auto dt = static_cast<float>(currentTime - lastTime);
         m_time -= dt;

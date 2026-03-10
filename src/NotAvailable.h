@@ -22,5 +22,5 @@ public:
     }
 
 private:
-    bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
+    bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
 };

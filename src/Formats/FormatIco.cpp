@@ -8,8 +8,9 @@
 \**********************************************/
 
 #include "FormatIco.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Libs/PngReader.h"
 #include "Log/Log.h"
 
@@ -83,21 +84,21 @@ bool cFormatIco::isSupported(cFile& file, Buffer& buffer) const
             && (h->type == 1 || h->type == 2));
 }
 
-bool cFormatIco::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatIco::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     m_filename = filename;
-    return load(0, desc);
+    return load(0, chunk, info);
 }
 
-bool cFormatIco::LoadSubImageImpl(uint32_t current, sBitmapDescription& desc)
+bool cFormatIco::LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
-    return load(current, desc);
+    return load(current, chunk, info);
 }
 
-bool cFormatIco::load(uint32_t current, sBitmapDescription& desc)
+bool cFormatIco::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, m_filename.c_str(), desc))
+    if (!openFile(file, m_filename.c_str(), info))
     {
         return false;
     }
@@ -132,25 +133,25 @@ bool cFormatIco::load(uint32_t current, sBitmapDescription& desc)
 
     if (image->colors == 0 && image->width == 0 && image->height == 0)
     {
-        desc.formatName = "ico/png";
+        info.formatName = "ico/png";
 
-        result = loadPngFrame(desc, file, image);
+        result = loadPngFrame(chunk, info, file, image);
     }
     else
     {
-        desc.formatName = "ico";
+        info.formatName = "ico";
 
-        result = loadOrdinaryFrame(desc, file, image);
+        result = loadOrdinaryFrame(chunk, info, file, image);
     }
 
     // store frame number and frames count after reset again
-    desc.images = header.count;
-    desc.current = current;
+    info.images = header.count;
+    info.current = current;
 
     return result;
 }
 
-bool cFormatIco::loadPngFrame(sBitmapDescription& desc, cFile& file, const IcoDirentry* image)
+bool cFormatIco::loadPngFrame(sChunkData& chunk, sImageInfo& info, cFile& file, const IcoDirentry* image)
 {
     auto size = image->size;
     std::vector<uint8_t> buffer(size);
@@ -168,22 +169,18 @@ bool cFormatIco::loadPngFrame(sBitmapDescription& desc, cFile& file, const IcoDi
         updateProgress(percent);
     });
 
-    bool result = reader.loadPng(desc, data, size);
-
-    if (result)
+    // ICC is applied per-scanline inside loadPng()
+    bool result = reader.loadPng(chunk, info, data, size);
+    if (result && reader.getIccProfile().empty() == false)
     {
-        auto& iccProfile = reader.getIccProfile();
-        if (applyIccProfile(desc, iccProfile.data(), static_cast<uint32_t>(iccProfile.size())))
-        {
-            desc.formatName = "ico/png/icc";
-        }
+        info.formatName = "ico/png/icc";
     }
 
     return result;
 }
 
 // load frame in ordinary format
-bool cFormatIco::loadOrdinaryFrame(sBitmapDescription& desc, cFile& file, const IcoDirentry* image)
+bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& file, const IcoDirentry* image)
 {
     file.seek(image->offset, SEEK_SET);
     std::vector<uint8_t> p(image->size);
@@ -194,19 +191,19 @@ bool cFormatIco::loadOrdinaryFrame(sBitmapDescription& desc, cFile& file, const 
     }
 
     auto imgHeader = reinterpret_cast<const IcoBmpInfoHeader*>(p.data());
-    desc.width = imgHeader->width;
-    desc.height = imgHeader->height / 2; // xor mask + and mask
-    desc.bppImage = imgHeader->bits;
-    desc.allocate(desc.width, desc.height, 32, ePixelFormat::RGBA);
+    chunk.width = imgHeader->width;
+    chunk.height = imgHeader->height / 2; // xor mask + and mask
+    info.bppImage = imgHeader->bits;
+    chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::RGBA);
 
-    int pitch = calcIcoPitch(desc.bppImage, desc.width);
+    int pitch = calcIcoPitch(info.bppImage, chunk.width);
     if (pitch == -1)
     {
         cLog::Error("Invalid icon pitch.");
         return false;
     }
 
-    auto out = desc.bitmap.data();
+    auto out = chunk.bitmap.data();
 
     // ::printf("--- IcoBmpInfoHeader ---\n");
     // ::printf("size: %u\n", imgHeader->size);
@@ -216,91 +213,91 @@ bool cFormatIco::loadOrdinaryFrame(sBitmapDescription& desc, cFile& file, const 
     // ::printf("bits: %u\n", (uint32_t)imgHeader->bits);
     // ::printf("imagesize: %u\n", imgHeader->imagesize);
 
-    // const uint32_t colors = image->colors == 0 ? (1 << desc.bppImage) : image->colors;
+    // const uint32_t colors = image->colors == 0 ? (1 << info.bppImage) : image->colors;
     uint32_t colors = image->colors;
-    if (desc.bppImage < 16)
+    if (info.bppImage < 16)
     {
-        colors = colors == 0 ? (1 << desc.bppImage) : image->colors;
+        colors = colors == 0 ? (1 << info.bppImage) : image->colors;
     }
     const auto palette = reinterpret_cast<const uint32_t*>(p.data() + imgHeader->size);
     const auto xorMask = reinterpret_cast<const uint8_t*>(p.data() + imgHeader->size + colors * 4);
-    const auto andMask = reinterpret_cast<const uint8_t*>(p.data() + imgHeader->size + colors * 4 + desc.height * pitch);
+    const auto andMask = reinterpret_cast<const uint8_t*>(p.data() + imgHeader->size + colors * 4 + chunk.height * pitch);
 
-    switch (desc.bppImage)
+    switch (info.bppImage)
     {
     case 1:
-        for (uint32_t y = 0; y < desc.height; y++)
+        for (uint32_t y = 0; y < chunk.height; y++)
         {
-            uint32_t idx = (desc.height - y - 1) * desc.pitch;
-            for (uint32_t x = 0; x < desc.width; x++)
+            uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
+            for (uint32_t x = 0; x < chunk.width; x++)
             {
-                const uint32_t color = palette[getBit(xorMask, y * desc.width + x, desc.width)];
+                const uint32_t color = palette[getBit(xorMask, y * chunk.width + x, chunk.width)];
 
                 out[idx + 0] = ((uint8_t*)(&color))[2];
                 out[idx + 1] = ((uint8_t*)(&color))[1];
                 out[idx + 2] = ((uint8_t*)(&color))[0];
-                out[idx + 3] = getBit(andMask, y * desc.width + x, desc.width) ? 0 : 255;
+                out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
                 idx += 4;
 
-                updateProgress((float)desc.height * desc.width / (y * desc.width + x));
+                updateProgress((float)chunk.height * chunk.width / (y * chunk.width + x));
             }
         }
         break;
 
     case 4:
-        for (uint32_t y = 0; y < desc.height; y++)
+        for (uint32_t y = 0; y < chunk.height; y++)
         {
-            uint32_t idx = (desc.height - y - 1) * desc.pitch;
-            for (uint32_t x = 0; x < desc.width; x++)
+            uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
+            for (uint32_t x = 0; x < chunk.width; x++)
             {
-                const uint32_t color = palette[getNibble(xorMask, y * desc.width + x, desc.width)];
+                const uint32_t color = palette[getNibble(xorMask, y * chunk.width + x, chunk.width)];
 
                 out[idx + 0] = ((uint8_t*)(&color))[2];
                 out[idx + 1] = ((uint8_t*)(&color))[1];
                 out[idx + 2] = ((uint8_t*)(&color))[0];
-                out[idx + 3] = getBit(andMask, y * desc.width + x, desc.width) ? 0 : 255;
+                out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
                 idx += 4;
 
-                updateProgress((float)desc.height * desc.width / (y * desc.width + x));
+                updateProgress((float)chunk.height * chunk.width / (y * chunk.width + x));
             }
         }
         break;
 
     case 8:
-        for (uint32_t y = 0; y < desc.height; y++)
+        for (uint32_t y = 0; y < chunk.height; y++)
         {
-            uint32_t idx = (desc.height - y - 1) * desc.pitch;
-            for (uint32_t x = 0; x < desc.width; x++)
+            uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
+            for (uint32_t x = 0; x < chunk.width; x++)
             {
-                const uint32_t color = palette[getByte(xorMask, y * desc.width + x, desc.width)];
+                const uint32_t color = palette[getByte(xorMask, y * chunk.width + x, chunk.width)];
 
                 out[idx + 0] = ((uint8_t*)(&color))[2];
                 out[idx + 1] = ((uint8_t*)(&color))[1];
                 out[idx + 2] = ((uint8_t*)(&color))[0];
-                out[idx + 3] = getBit(andMask, y * desc.width + x, desc.width) ? 0 : 255;
+                out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
                 idx += 4;
 
-                updateProgress((float)desc.height * desc.width / (y * desc.width + x));
+                updateProgress((float)chunk.height * chunk.width / (y * chunk.width + x));
             }
         }
         break;
 
     default: {
-        const uint32_t bpp = desc.bppImage / 8;
-        for (uint32_t y = 0; y < desc.height; y++)
+        const uint32_t bpp = info.bppImage / 8;
+        for (uint32_t y = 0; y < chunk.height; y++)
         {
             const uint8_t* row = xorMask + pitch * y;
 
-            uint32_t idx = (desc.height - y - 1) * desc.pitch;
-            for (uint32_t x = 0; x < desc.width; x++)
+            uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
+            for (uint32_t x = 0; x < chunk.width; x++)
             {
                 out[idx + 0] = row[2];
                 out[idx + 1] = row[1];
                 out[idx + 2] = row[0];
 
-                if (desc.bppImage < 32)
+                if (info.bppImage < 32)
                 {
-                    out[idx + 3] = getBit(andMask, y * desc.width + x, desc.width) ? 0 : 255;
+                    out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
                 }
                 else
                 {
@@ -310,7 +307,7 @@ bool cFormatIco::loadOrdinaryFrame(sBitmapDescription& desc, cFile& file, const 
                 idx += 4;
                 row += bpp;
 
-                updateProgress((float)desc.height * desc.width / (y * desc.width + x));
+                updateProgress((float)chunk.height * chunk.width / (y * chunk.width + x));
             }
         }
     }

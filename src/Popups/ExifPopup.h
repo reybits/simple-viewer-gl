@@ -11,7 +11,7 @@
 
 #include "Popup.h"
 
-#include "Common/BitmapDescription.h"
+#include "Common/ImageInfo.h"
 
 #include <vector>
 
@@ -20,16 +20,16 @@ class cExifPopup final : public cPopup
 public:
     void render() override;
 
-    void setExifList(const sBitmapDescription::ExifList& exifList);
-    void setExifList(sBitmapDescription::ExifList&& exifList);
+    void setExifList(const sImageInfo::ExifList& exifList);
+    void setExifList(sImageInfo::ExifList&& exifList);
 
 private:
-    using eCategory = sBitmapDescription::ExifCategory;
+    using eCategory = sImageInfo::ExifCategory;
 
     struct sGroup
     {
         eCategory category;
-        std::vector<const sBitmapDescription::ExifEntry*> entries;
+        std::vector<const sImageInfo::ExifEntry*> entries;
     };
 
     void rebuildGroups();
@@ -37,7 +37,7 @@ private:
 
     static constexpr auto CategoryCount = static_cast<size_t>(eCategory::Count);
 
-    sBitmapDescription::ExifList m_exif;
+    sImageInfo::ExifList m_exif;
     sGroup m_groups[CategoryCount];
     char m_filter[128] = {};
 };

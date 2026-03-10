@@ -24,9 +24,9 @@ public:
     bool isSupported(cFile& file, Buffer& buffer) const override;
 
 private:
-    bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
+    bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
 
 private:
-    bool loadX10(const X10WindowDump& header, cFile& file, sBitmapDescription& desc);
-    bool loadX11(const X11WindowDump& header, cFile& file, sBitmapDescription& desc);
+    bool loadX10(const X10WindowDump& header, cFile& file, sChunkData& chunk, sImageInfo& info);
+    bool loadX11(const X11WindowDump& header, cFile& file, sChunkData& chunk, sImageInfo& info);
 };

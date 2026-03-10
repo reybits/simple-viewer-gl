@@ -62,9 +62,9 @@ cViewer::cViewer(sConfig& config, cWindow& window)
     m_windowEvents.onFileDrop = [this](const StringsList& p) { onFileDrop(p); };
 
     m_callbacks.startLoading = [this]() { startLoading(); };
-    m_callbacks.onImageInfo = [this](const sBitmapDescription& d) { onImageInfo(d); };
+    m_callbacks.onImageInfo = [this](const sChunkData& c, const sImageInfo& i) { onImageInfo(c, i); };
     m_callbacks.onPreviewReady = [this](sPreviewData&& p) { onPreviewReady(std::move(p)); };
-    m_callbacks.onBitmapAllocated = [this](const sBitmapDescription& d) { onBitmapAllocated(d); };
+    m_callbacks.onBitmapAllocated = [this](const sChunkData& c) { onBitmapAllocated(c); };
     m_callbacks.doProgress = [this](float p) { doProgress(p); };
     m_callbacks.endLoading = [this]() { endLoading(); };
 
@@ -146,9 +146,23 @@ void cViewer::onRender()
 
     if (m_preview != nullptr)
     {
-        const float previewScale = scale
-            * static_cast<float>(m_previewData.fullImageWidth)
-            / static_cast<float>(m_preview->getWidth());
+        auto fw = static_cast<float>(m_previewData.fullImageWidth);
+        auto fh = static_cast<float>(m_previewData.fullImageHeight);
+
+        // When fitImage is active, compute the fit scale from the full-res
+        // dimensions directly — m_image may still have old dimensions before
+        // handleBitmapAllocated() runs.  When fitImage is off, scale is a
+        // user-set percentage (image-size-independent), so use it as-is.
+        auto displayScale = scale;
+        if (m_config.fitImage)
+        {
+            const auto centralFb = getCentralAreaFbSize();
+            displayScale = (fw >= centralFb.x || fh >= centralFb.y)
+                ? std::min(centralFb.x / fw, centralFb.y / fh)
+                : 1.0f;
+        }
+
+        const auto previewScale = displayScale * fw / static_cast<float>(m_preview->getWidth());
         render::setGlobals(getAdjustedCamera(previewScale), m_angle, previewScale, m_flipH, m_flipV);
         m_preview->render();
         render::setGlobals(getAdjustedCamera(), m_angle, scale, m_flipH, m_flipV);
@@ -156,12 +170,12 @@ void cViewer::onRender()
 
     m_image->render();
 
-    const auto half_w = static_cast<float>((m_image->getWidth() + 1) >> 1u);
-    const auto half_h = static_cast<float>((m_image->getHeight() + 1) >> 1u);
-
     auto isLoaded = m_loader->isLoaded();
     if (isLoaded)
     {
+        const auto half_w = static_cast<float>((m_image->getWidth() + 1) >> 1u);
+        const auto half_h = static_cast<float>((m_image->getHeight() + 1) >> 1u);
+
         if (m_config.showImageBorder)
         {
             m_border->render(-half_w, -half_h, m_image->getWidth(), m_image->getHeight());
@@ -205,6 +219,10 @@ void cViewer::onRender()
         else if (progress > -1.5f)
         {
             m_infoBar->clearProgress();
+        }
+        else if (progress < -3.5f)
+        {
+            m_infoBar->setProgressText("[post-processing...]");
         }
         else
         {
@@ -264,32 +282,39 @@ void cViewer::onUpdate()
     {
         const uint32_t ready = m_loader->getReadyHeight();
         const bool isDone = m_image->upload(ready);
+        m_loader->setConsumedHeight(ready);
 
-        // Only show upload progress after at least one chunk has been uploaded,
-        // otherwise the decode-phase progress from doProgress() is more accurate.
         const float uploadProgress = m_image->getProgress();
         if (uploadProgress > 0.0f)
         {
-            m_loadProgress.store(0.5f + uploadProgress * 0.5f, std::memory_order_relaxed);
+            m_loadProgress.store(uploadProgress, std::memory_order_relaxed);
         }
 
         if (isDone)
         {
-            const auto& desc = m_loader->getDescription();
-
             if (m_config.debug)
             {
-                const double uploadTime = timing::seconds() - m_uploadStartTime;
-                cLog::Debug("upload: {}x{} chunk {}x{} grid {}x{} in {:.1f} ms",
-                            desc.width, desc.height,
+                const double uploadMs = (timing::seconds() - m_uploadStartTime) * 1000.0;
+                cLog::Debug("  upload {}x{}: {:.1f} ms  (chunk {}x{} grid {}x{}) [{}]",
+                            m_image->getWidth(), m_image->getHeight(),
+                            uploadMs,
                             m_image->getTexWidth(), m_image->getTexHeight(),
                             m_image->getCols(), m_image->getRows(),
-                            uploadTime * 1000.0);
+                            m_uploadFinal ? "final" : "progressive");
             }
 
-            m_progress->hide();
-            m_loadProgress.store(-1.0f, std::memory_order_relaxed);
-            m_animation = desc.isAnimation;
+            if (m_uploadFinal)
+            {
+                m_progress->hide();
+                m_loadProgress.store(-1.0f, std::memory_order_relaxed);
+            }
+            else
+            {
+                m_loadProgress.store(-4.0f, std::memory_order_relaxed); // "[post-processing...]"
+            }
+
+            const auto& uploadInfo = m_loader->getImageInfo();
+            m_animation = uploadInfo.isAnimation;
 
             // Full-res upload complete — discard preview.
             if (m_preview != nullptr)
@@ -298,17 +323,21 @@ void cViewer::onUpdate()
                 m_previewData = {};
             }
 
-            // Free bitmap memory — pixel readback now uses GPU textures
-            if (m_uploadFinal && !desc.isAnimation && desc.images <= 1)
+            // Free bitmap memory — pixel readback now uses GPU textures.
+            // Skip if bitmap was modified (ICC post-processing) — handleImageReady()
+            // still needs it for re-upload via refreshData().
+            if (m_uploadFinal && !uploadInfo.isAnimation && uploadInfo.images <= 1
+                && !m_loader->wasBitmapModified())
             {
                 m_loader->releaseBitmap();
+                updateInfobar();
             }
         }
     }
     else if (m_animation && m_subImageForced == false)
     {
-        const auto& desc = m_loader->getDescription();
-        if (m_animationTime + desc.delay * 0.001f <= timing::seconds())
+        const auto& animInfo = m_loader->getImageInfo();
+        if (m_animationTime + animInfo.delay * 0.001f <= timing::seconds())
         {
             m_animation = false;
             m_animationTime = timing::seconds();
@@ -332,10 +361,11 @@ void cViewer::handlePreviewReady()
 
 void cViewer::handleBitmapAllocated()
 {
+    m_uploadActive.store(true, std::memory_order_relaxed);
     m_uploadStartTime = timing::seconds();
 
-    const auto& desc = m_loader->getDescription();
-    m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
+    const auto& chunk = m_loader->getChunkData();
+    m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData(), chunk.bandHeight);
 
     if (m_loader->getMode() == cImageLoader::Mode::Image)
     {
@@ -346,7 +376,7 @@ void cViewer::handleBitmapAllocated()
             m_camera = Vectorf();
         }
 
-        m_selection->setImageDimension(desc.width, desc.height);
+        m_selection->setImageDimension(chunk.width, chunk.height);
         centerWindow();
         enablePixelInfo(m_config.showPixelInfo);
     }
@@ -356,18 +386,32 @@ void cViewer::handleBitmapAllocated()
 
 void cViewer::handleImageReady()
 {
-    m_uploadFinal = true;
+    const auto& chunk = m_loader->getChunkData();
+    const auto& info = m_loader->getImageInfo();
 
-    const auto& desc = m_loader->getDescription();
-
-    if (m_image->getWidth() == desc.width
-        && m_image->getHeight() == desc.height)
+    if (m_config.debug)
     {
-        m_image->refreshData(m_loader->getBitmapData());
+        const auto& met = m_loader->getMetrics();
+        cLog::Debug("--- {} {}x{} {}-bit ---",
+                    info.formatName ? info.formatName : "?",
+                    chunk.width, chunk.height, info.bppImage);
+        cLog::Debug("  file read:  {:.1f} ms", met.fileReadMs);
+        cLog::Debug("  decode:     {:.1f} ms", met.decodeMs);
+        if (met.iccMs > 0.0)
+        {
+            cLog::Debug("  icc:        {:.1f} ms", met.iccMs);
+        }
+        cLog::Debug("  total load: {:.1f} ms", met.totalMs);
+        cLog::Debug("  bitmap:     {:.1f} MB", met.bitmapBytes / (1024.0 * 1024.0));
     }
-    else
+
+    // Formats that don't call signalBitmapAllocated() (e.g., AGE) never trigger
+    // handleBitmapAllocated(), so the GPU buffer was never set up. Do it now.
+    if (m_image->getWidth() == 0 && chunk.width > 0)
     {
-        m_image->setBuffer(desc.width, desc.height, desc.pitch, desc.format, desc.bpp, m_loader->getBitmapData());
+        m_uploadActive.store(true, std::memory_order_relaxed);
+        m_uploadStartTime = timing::seconds();
+        m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData());
 
         if (m_loader->getMode() == cImageLoader::Mode::Image)
         {
@@ -377,19 +421,34 @@ void cViewer::handleImageReady()
                 resetOrientation();
                 m_camera = Vectorf();
             }
-            m_selection->setImageDimension(desc.width, desc.height);
+
+            m_selection->setImageDimension(chunk.width, chunk.height);
             centerWindow();
+            enablePixelInfo(m_config.showPixelInfo);
         }
+    }
+    // Re-upload only if bitmap was modified after initial upload (e.g., ICC transform).
+    // For non-ICC images, the progressive upload already has the final pixels.
+    else if (m_loader->wasBitmapModified())
+    {
+        m_image->refreshData(m_loader->getBitmapData());
+        m_loader->clearBitmapModified();
+    }
+    else if (isUploading() == false)
+    {
+        // Progressive upload already completed and no re-upload needed.
+        m_progress->hide();
+        m_loadProgress.store(-1.0f, std::memory_order_relaxed);
     }
 
     if (m_loader->getMode() == cImageLoader::Mode::Image)
     {
-        m_exifPopup->setExifList(desc.exifList);
+        m_exifPopup->setExifList(info.exifList);
 
         // Reset orientation before applying EXIF — orientation is intrinsic
         // to the image, not a user preference that should persist across images.
         resetOrientation();
-        applyExifOrientation(desc.exifOrientation);
+        applyExifOrientation(info.exifOrientation);
     }
 
     updateInfobar();
@@ -1144,7 +1203,7 @@ void cViewer::loadImage(const char* path)
 
     m_subImageForced = false;
     m_animation = false;
-    m_image->stop();
+    m_image->reset();
     m_preview.reset();
     m_previewData = {};
 
@@ -1157,11 +1216,11 @@ void cViewer::loadSubImage(int subStep)
     assert(subStep == -1 || subStep == 1);
 
     m_animation = false;
-    m_image->stop();
+    m_image->reset();
 
-    const auto& desc = m_loader->getDescription();
-    const unsigned next = (desc.current + desc.images + subStep) % desc.images;
-    if (desc.current != next)
+    const auto& subInfo = m_loader->getImageInfo();
+    const unsigned next = (subInfo.current + subInfo.images + subStep) % subInfo.images;
+    if (subInfo.current != next)
     {
         m_loader->loadSubImage(next);
     }
@@ -1177,14 +1236,15 @@ void cViewer::updateInfobar()
 
     if (m_loader->isLoaded())
     {
-        const auto& desc = m_loader->getDescription();
-        s.width = desc.width;
-        s.height = desc.height;
-        s.bpp = desc.bppImage;
-        s.images = desc.images;
-        s.current = desc.current;
-        s.file_size = desc.size;
-        s.mem_size = desc.bitmap.empty() ? desc.bitmapSize : desc.bitmap.size();
+        const auto& chunk = m_loader->getChunkData();
+        const auto& info = m_loader->getImageInfo();
+        s.width = chunk.width;
+        s.height = chunk.height;
+        s.bpp = info.bppImage;
+        s.images = info.images;
+        s.current = info.current;
+        s.file_size = info.fileSize;
+        s.mem_size = chunk.bitmap.size() + m_image->getGpuMemory();
         s.type = m_loader->getImageType();
     }
     else if (m_imageInfo.formatName != nullptr)
@@ -1234,8 +1294,8 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
 
     if (m_loader->isLoaded())
     {
-        const auto& desc = m_loader->getDescription();
-        pixelInfo.bpp = desc.bpp;
+        const auto& chunk = m_loader->getChunkData();
+        pixelInfo.bpp = chunk.bpp;
 
         const int x = static_cast<int>(point.x);
         const int y = static_cast<int>(point.y);
@@ -1267,12 +1327,13 @@ void cViewer::updateCursorState(bool show)
 
 void cViewer::startLoading()
 {
-    const auto& desc = m_loader->getDescription();
-    if (desc.isAnimation == false)
+    const auto& startInfo = m_loader->getImageInfo();
+    if (startInfo.isAnimation == false)
     {
         m_progress->show();
     }
     m_loadProgress.store(-2.0f, std::memory_order_relaxed); // "loading..."
+    m_uploadActive.store(false, std::memory_order_relaxed);
     m_previewReady.store(false, std::memory_order_relaxed);
     // Note: m_preview and m_previewData are NOT cleaned here because
     // startLoading() runs on the loader thread. GL resources (m_preview)
@@ -1285,13 +1346,13 @@ void cViewer::startLoading()
     m_uploadFinal = false;
 }
 
-void cViewer::onImageInfo(const sBitmapDescription& desc)
+void cViewer::onImageInfo(const sChunkData& chunk, const sImageInfo& info)
 {
-    m_imageInfo.width = desc.width;
-    m_imageInfo.height = desc.height;
-    m_imageInfo.bpp = desc.bppImage;
-    m_imageInfo.size = desc.size;
-    m_imageInfo.formatName = desc.formatName;
+    m_imageInfo.width = chunk.width;
+    m_imageInfo.height = chunk.height;
+    m_imageInfo.bpp = info.bppImage;
+    m_imageInfo.size = info.fileSize;
+    m_imageInfo.formatName = info.formatName;
     m_imageInfoReady.store(true, std::memory_order_release);
 }
 
@@ -1301,7 +1362,7 @@ void cViewer::onPreviewReady(sPreviewData&& preview)
     m_previewReady.store(true, std::memory_order_release);
 }
 
-void cViewer::onBitmapAllocated(const sBitmapDescription& /*desc*/)
+void cViewer::onBitmapAllocated(const sChunkData& /*chunk*/)
 {
     m_loadProgress.store(-3.0f, std::memory_order_relaxed); // "decoding..."
     m_bitmapAllocated.store(true, std::memory_order_release);
@@ -1309,11 +1370,16 @@ void cViewer::onBitmapAllocated(const sBitmapDescription& /*desc*/)
 
 void cViewer::doProgress(float progress)
 {
-    m_loadProgress.store(progress * 0.5f, std::memory_order_relaxed);
+    // Once upload is active, upload progress is the authoritative metric.
+    if (m_uploadActive.load(std::memory_order_relaxed) == false)
+    {
+        m_loadProgress.store(progress * 0.5f, std::memory_order_relaxed);
+    }
 }
 
 void cViewer::endLoading()
 {
+    m_uploadFinal = true;
     m_imagePrepared.store(true, std::memory_order_release);
 }
 

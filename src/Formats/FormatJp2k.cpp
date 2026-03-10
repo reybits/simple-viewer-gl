@@ -11,9 +11,10 @@
 
 #if defined(JPEG2000_SUPPORT)
 
-#include "Common/BitmapDescription.h"
 #include "Common/Callbacks.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -44,9 +45,9 @@ namespace
         }
     }
 
-    uint8_t* getScanLine(sBitmapDescription& desc, uint32_t y)
+    uint8_t* getScanLine(sChunkData& chunk, uint32_t y)
     {
-        return desc.bitmap.data() + desc.pitch * y;
+        return chunk.bitmap.data() + chunk.pitch * y;
     }
 
     using FillPixelFunction = uint8_t* (*)(opj_image_t* image, uint32_t pixel_pos, uint8_t* bits);
@@ -319,10 +320,10 @@ bool cFormatJp2k::isSupported(cFile& file, Buffer& buffer) const
     return ::memcmp(jp2_signature, buffer.data(), sizeof(jp2_signature)) == 0;
 }
 
-bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatJp2k::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -330,7 +331,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
     StreamContext sctx{ &file, &m_stop };
 
     // Phase 1: Read header to determine image properties and tile/resolution info.
-    auto stream = createStream(&sctx, desc.size);
+    auto stream = createStream(&sctx, info.fileSize);
     CodecContext headerCtx;
     if (createCodec(headerCtx, stream, &m_stop, 0) == false)
     {
@@ -375,7 +376,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
     // Phase 2: Quick low-resolution preview (if image is large enough).
     if (reduceFactor > 0 && m_stop == false)
     {
-        decodePreview(file, desc.size, reduceFactor, fullWidth, fullHeight);
+        decodePreview(file, info.fileSize, reduceFactor, fullWidth, fullHeight);
     }
 
     if (m_stop)
@@ -385,7 +386,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     // Phase 3: Full-resolution decode.
     file.seek(0, SEEK_SET);
-    stream = createStream(&sctx, desc.size);
+    stream = createStream(&sctx, info.fileSize);
     CodecContext fullCtx;
     if (createCodec(fullCtx, stream, &m_stop, 0) == false)
     {
@@ -394,7 +395,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    if (preAllocateBitmap(fullCtx.image, desc) == false)
+    if (preAllocateBitmap(fullCtx.image, chunk, info) == false)
     {
         cLog::Error("Unsupported JPEG2000 format.");
         opj_stream_destroy(stream);
@@ -407,14 +408,14 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
     {
         // Single-tile image: strip-based decoding via opj_set_decode_area().
         constexpr uint32_t StripHeight = 4096;
-        const uint32_t numStrips = (desc.height + StripHeight - 1) / StripHeight;
+        const uint32_t numStrips = (chunk.height + StripHeight - 1) / StripHeight;
 
         for (uint32_t strip = 0; strip < numStrips && m_stop == false; strip++)
         {
             const uint32_t y0 = strip * StripHeight;
-            const uint32_t y1 = std::min(y0 + StripHeight, desc.height);
+            const uint32_t y1 = std::min(y0 + StripHeight, chunk.height);
 
-            if (opj_set_decode_area(fullCtx.codec, fullCtx.image, 0, y0, desc.width, y1) == false)
+            if (opj_set_decode_area(fullCtx.codec, fullCtx.image, 0, y0, chunk.width, y1) == false)
             {
                 if (m_stop == false)
                 {
@@ -434,13 +435,13 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
                 break;
             }
 
-            if (convertPixels(fullCtx.image, desc, 0, y0) == false)
+            if (convertPixels(fullCtx.image, chunk, 0, y0) == false)
             {
                 decodeOk = false;
                 break;
             }
 
-            desc.readyHeight.store(y1, std::memory_order_release);
+            chunk.readyHeight.store(y1, std::memory_order_release);
             updateProgress(static_cast<float>(strip + 1) / numStrips);
         }
     }
@@ -464,7 +465,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
             const uint32_t dstX = tileX * tdx;
             const uint32_t dstY = tileY * tdy;
 
-            if (convertPixels(fullCtx.image, desc, dstX, dstY) == false)
+            if (convertPixels(fullCtx.image, chunk, dstX, dstY) == false)
             {
                 decodeOk = false;
                 break;
@@ -472,8 +473,8 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
 
             if (tileX == numTilesX - 1)
             {
-                const uint32_t ready = std::min((tileY + 1) * tdy, desc.height);
-                desc.readyHeight.store(ready, std::memory_order_release);
+                const uint32_t ready = std::min((tileY + 1) * tdy, chunk.height);
+                chunk.readyHeight.store(ready, std::memory_order_release);
             }
 
             updateProgress(static_cast<float>(tileIdx + 1) / numTiles);
@@ -486,16 +487,16 @@ bool cFormatJp2k::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    desc.readyHeight.store(desc.height, std::memory_order_release);
+    chunk.readyHeight.store(chunk.height, std::memory_order_release);
 
     if (opj_end_decompress(fullCtx.codec, stream) == false)
     {
         cLog::Error("Can't finalize JPEG2000 decompression.");
     }
 
-    if (applyIccProfile(desc, fullCtx.image->icc_profile_buf, fullCtx.image->icc_profile_len))
+    if (applyIccProfile(chunk, fullCtx.image->icc_profile_buf, fullCtx.image->icc_profile_len))
     {
-        desc.formatName = "jpeg2000/icc";
+        info.formatName = "jpeg2000/icc";
     }
 
     opj_stream_destroy(stream);
@@ -532,29 +533,29 @@ void cFormatJp2k::decodePreview(cFile& file, long fileSize, uint32_t reduceFacto
         return;
     }
 
-    // Use a temporary sBitmapDescription for convertPixels.
-    sBitmapDescription previewBitmap;
-    previewBitmap.allocate(ctx.image->comps[0].w, ctx.image->comps[0].h, bpp, format);
+    // Use a temporary sChunkData for convertPixels.
+    sChunkData previewChunk;
+    previewChunk.allocate(ctx.image->comps[0].w, ctx.image->comps[0].h, bpp, format);
 
-    if (convertPixels(ctx.image, previewBitmap, 0, 0) == false)
+    if (convertPixels(ctx.image, previewChunk, 0, 0) == false)
     {
         return;
     }
 
     sPreviewData preview;
-    preview.width = previewBitmap.width;
-    preview.height = previewBitmap.height;
-    preview.pitch = previewBitmap.pitch;
+    preview.width = previewChunk.width;
+    preview.height = previewChunk.height;
+    preview.pitch = previewChunk.pitch;
     preview.bpp = bpp;
     preview.format = format;
     preview.fullImageWidth = fullWidth;
     preview.fullImageHeight = fullHeight;
-    preview.bitmap = std::move(previewBitmap.bitmap);
+    preview.bitmap = std::move(previewChunk.bitmap);
 
     signalPreviewReady(std::move(preview));
 }
 
-bool cFormatJp2k::preAllocateBitmap(void* img, sBitmapDescription& desc)
+bool cFormatJp2k::preAllocateBitmap(void* img, sChunkData& chunk, sImageInfo& info)
 {
     auto image = static_cast<opj_image_t*>(img);
 
@@ -567,10 +568,10 @@ bool cFormatJp2k::preAllocateBitmap(void* img, sBitmapDescription& desc)
 
     uint32_t numcomps = image->numcomps;
 
-    desc.width = image->comps[0].w;
-    desc.height = image->comps[0].h;
-    desc.bppImage = numcomps * image->comps[0].prec;
-    desc.images = 1;
+    chunk.width = image->comps[0].w;
+    chunk.height = image->comps[0].h;
+    info.bppImage = numcomps * image->comps[0].prec;
+    info.images = 1;
 
     cLog::Debug("Components: {}.", numcomps);
     cLog::Debug("  Colorspace: {}.", getColorSpaceName(image->color_space));
@@ -579,15 +580,15 @@ bool cFormatJp2k::preAllocateBitmap(void* img, sBitmapDescription& desc)
     cLog::Debug("  Factor: {}.", image->comps[0].factor);
     cLog::Debug("  Decoded resolution: {}.", image->comps[0].resno_decoded);
 
-    desc.formatName = "jpeg2000";
-    desc.allocate(desc.width, desc.height, bpp, format);
+    info.formatName = "jpeg2000";
+    chunk.allocate(chunk.width, chunk.height, bpp, format);
 
     signalBitmapAllocated();
 
     return true;
 }
 
-bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t dstX, uint32_t dstY)
+bool cFormatJp2k::convertPixels(void* img, sChunkData& chunk, uint32_t dstX, uint32_t dstY)
 {
     auto image = static_cast<opj_image_t*>(img);
 
@@ -595,7 +596,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t ds
     const uint32_t tileH = image->comps[0].h;
     auto colorspace = image->color_space;
     uint32_t numcomps = image->numcomps;
-    const uint32_t bytesPerPixel = desc.bpp / 8;
+    const uint32_t bytesPerPixel = chunk.bpp / 8;
 
     if (image->comps[0].prec <= 8)
     {
@@ -603,7 +604,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t ds
         {
             for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                auto bits = getScanLine(chunk, dstY + y) + dstX * bytesPerPixel;
                 for (uint32_t x = 0; x < tileW; x++)
                 {
                     bits[x] = static_cast<uint8_t>(readComponent(image->comps[0], y * tileW + x));
@@ -614,7 +615,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t ds
         {
             for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                auto bits = getScanLine(chunk, dstY + y) + dstX * bytesPerPixel;
                 for (uint32_t x = 0; x < tileW; x++)
                 {
                     const uint32_t pos = y * tileW + x;
@@ -627,7 +628,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t ds
         {
             for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                auto bits = getScanLine(chunk, dstY + y) + dstX * bytesPerPixel;
                 for (uint32_t x = 0; x < tileW; x++)
                 {
                     bits = RGBtoRGB(image, y * tileW + x, bits);
@@ -641,7 +642,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t ds
                 : RGBAtoRGBA;
             for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                auto bits = getScanLine(chunk, dstY + y) + dstX * bytesPerPixel;
                 for (uint32_t x = 0; x < tileW; x++)
                 {
                     bits = fillPixel(image, y * tileW + x, bits);
@@ -655,7 +656,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t ds
         {
             for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                auto bits = getScanLine(chunk, dstY + y) + dstX * bytesPerPixel;
                 for (uint32_t x = 0; x < tileW; x++)
                 {
                     bits[x] = static_cast<uint8_t>(readComponent(image->comps[0], y * tileW + x) >> 4);
@@ -666,7 +667,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t ds
         {
             for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                auto bits = getScanLine(chunk, dstY + y) + dstX * bytesPerPixel;
                 for (uint32_t x = 0; x < tileW; x++)
                 {
                     const uint32_t pos = y * tileW + x;
@@ -679,7 +680,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t ds
         {
             for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                auto bits = getScanLine(chunk, dstY + y) + dstX * bytesPerPixel;
                 for (uint32_t x = 0; x < tileW; x++)
                 {
                     const uint32_t pos = y * tileW + x;
@@ -694,7 +695,7 @@ bool cFormatJp2k::convertPixels(void* img, sBitmapDescription& desc, uint32_t ds
         {
             for (uint32_t y = 0; y < tileH && m_stop == false; y++)
             {
-                auto bits = getScanLine(desc, dstY + y) + dstX * bytesPerPixel;
+                auto bits = getScanLine(chunk, dstY + y) + dstX * bytesPerPixel;
                 for (uint32_t x = 0; x < tileW; x++)
                 {
                     const uint32_t pos = y * tileW + x;

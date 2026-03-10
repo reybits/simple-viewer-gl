@@ -23,11 +23,11 @@ public:
     bool isSupported(cFile& file, Buffer& buffer) const override;
 
 private:
-    bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
-    bool LoadSubImageImpl(unsigned current, sBitmapDescription& desc) override;
+    bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
+    bool LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInfo& info) override;
 
 private:
-    bool load(unsigned current, sBitmapDescription& desc);
+    bool load(uint32_t current, sChunkData& chunk, sImageInfo& info);
     void decodePreview(void* tif, uint32_t fullWidth, uint32_t fullHeight, unsigned current);
 
 private:

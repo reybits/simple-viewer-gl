@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "FormatTarga.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 namespace
@@ -61,41 +62,41 @@ namespace
         return (imageDescriptor & (1 << 5)) ? Origin::UpperLeft : Origin::LowerLeft;
     }
 
-    inline uint32_t getIndexUpperLeft(uint32_t x, uint32_t y, const sBitmapDescription& desc)
+    inline uint32_t getIndexUpperLeft(uint32_t x, uint32_t y, const sChunkData& chunk)
     {
-        const uint32_t components = desc.bpp / 8;
-        return y * desc.pitch + x * components;
+        const uint32_t components = chunk.bpp / 8;
+        return y * chunk.pitch + x * components;
     }
 
-    inline uint32_t getIndexLowerLeft(uint32_t x, uint32_t y, const sBitmapDescription& desc)
+    inline uint32_t getIndexLowerLeft(uint32_t x, uint32_t y, const sChunkData& chunk)
     {
-        const uint32_t components = desc.bpp / 8;
-        return (desc.height - y - 1) * desc.pitch + x * components;
+        const uint32_t components = chunk.bpp / 8;
+        return (chunk.height - y - 1) * chunk.pitch + x * components;
     }
 
 #if 0
-    inline uint32_t getIndexUpperRight(uint32_t x, uint32_t y, const sBitmapDescription& desc)
+    inline uint32_t getIndexUpperRight(uint32_t x, uint32_t y, const sChunkData& chunk)
     {
-        const uint32_t components = desc.bpp / 8;
-        return y * desc.pitch + (desc.width - x - 1) * components;
+        const uint32_t components = chunk.bpp / 8;
+        return y * chunk.pitch + (chunk.width - x - 1) * components;
     }
 
-    inline uint32_t getIndexLowerRight(uint32_t x, uint32_t y, const sBitmapDescription& desc)
+    inline uint32_t getIndexLowerRight(uint32_t x, uint32_t y, const sChunkData& chunk)
     {
-        const uint32_t components = desc.bpp / 8;
-        return (desc.height - y - 1) * desc.pitch + (desc.width - x - 1) * components;
+        const uint32_t components = chunk.bpp / 8;
+        return (chunk.height - y - 1) * chunk.pitch + (chunk.width - x - 1) * components;
     }
 #endif
 
-    inline uint32_t getIndex(uint32_t x, uint32_t y, const sBitmapDescription& desc, Origin origin)
+    inline uint32_t getIndex(uint32_t x, uint32_t y, const sChunkData& chunk, Origin origin)
     {
         const uint32_t idx = origin == Origin::LowerLeft
-            ? getIndexLowerLeft(x, y, desc)
-            : getIndexUpperLeft(x, y, desc);
+            ? getIndexLowerLeft(x, y, chunk)
+            : getIndexUpperLeft(x, y, chunk);
         return idx;
     }
 
-    bool colormapped(const sTARGAHeader& header, const uint8_t* tga, sBitmapDescription& desc)
+    bool colormapped(const sTARGAHeader& header, const uint8_t* tga, sChunkData& chunk, sImageInfo& info)
     {
         if (header.colorMapType != 1)
         {
@@ -114,11 +115,11 @@ namespace
             cLog::Error("8 bit with non 24 bit color map entry size currently not supported.");
         }
 
-        desc.bppImage = 8;
-        desc.bpp = 24;
-        desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-        desc.resizeBitmap(desc.pitch, desc.height);
-        auto out = desc.bitmap.data();
+        info.bppImage = 8;
+        chunk.bpp = 24;
+        chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+        chunk.resizeBitmap(chunk.pitch, chunk.height);
+        auto out = chunk.bitmap.data();
 
         auto cmdData = tga + header.idLength;
         const uint32_t cmtWidth = header.colorMapEntrySize / 8;
@@ -133,7 +134,7 @@ namespace
             uint32_t sp = 0;
             for (uint32_t y = 0; y < header.height; y++)
             {
-                uint32_t dp = getIndex(0, y, desc, origin);
+                uint32_t dp = getIndex(0, y, chunk, origin);
                 for (uint32_t x = 0; x < header.width; x++)
                 {
                     out[dp + 0] = cmdData[tga[sp] * cmtWidth + 2];
@@ -178,7 +179,7 @@ namespace
                                 break;
                             }
                         }
-                        const uint32_t dp = getIndex(x, y, desc, origin);
+                        const uint32_t dp = getIndex(x, y, chunk, origin);
                         out[dp + 0] = r;
                         out[dp + 1] = g;
                         out[dp + 2] = b;
@@ -198,7 +199,7 @@ namespace
                                 break;
                             }
                         }
-                        const uint32_t dp = getIndex(x, y, desc, origin);
+                        const uint32_t dp = getIndex(x, y, chunk, origin);
                         out[dp + 0] = cmdData[tga[sp] * cmtWidth + 2];
                         out[dp + 1] = cmdData[tga[sp] * cmtWidth + 1];
                         out[dp + 2] = cmdData[tga[sp] * cmtWidth + 0];
@@ -214,7 +215,7 @@ namespace
         return false;
     }
 
-    bool rgbUncompressed(const sTARGAHeader& header, const uint8_t* tga, sBitmapDescription& desc)
+    bool rgbUncompressed(const sTARGAHeader& header, const uint8_t* tga, sChunkData& chunk, sImageInfo& info)
     {
         if (header.colorMapType != 0)
         {
@@ -227,15 +228,15 @@ namespace
 
         if (header.pixelDepth == 16)
         {
-            desc.bppImage = 16;
-            desc.bpp = 24;
-            desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.resizeBitmap(desc.pitch, desc.height);
-            auto out = desc.bitmap.data();
+            info.bppImage = 16;
+            chunk.bpp = 24;
+            chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+            chunk.resizeBitmap(chunk.pitch, chunk.height);
+            auto out = chunk.bitmap.data();
 
             for (uint32_t y = 0; y < header.height; y++)
             {
-                uint32_t dp = getIndex(0, y, desc, origin);
+                uint32_t dp = getIndex(0, y, chunk, origin);
                 for (uint32_t x = 0; x < header.width; x++)
                 {
                     auto c = *(uint16_t*)&tga[sp];
@@ -249,15 +250,15 @@ namespace
         }
         else if (header.pixelDepth == 24)
         {
-            desc.bppImage = 24;
-            desc.bpp = 24;
-            desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.resizeBitmap(desc.pitch, desc.height);
-            auto out = desc.bitmap.data();
+            info.bppImage = 24;
+            chunk.bpp = 24;
+            chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+            chunk.resizeBitmap(chunk.pitch, chunk.height);
+            auto out = chunk.bitmap.data();
 
             for (uint32_t y = 0; y < header.height; y++)
             {
-                uint32_t dp = getIndex(0, y, desc, origin);
+                uint32_t dp = getIndex(0, y, chunk, origin);
                 for (uint32_t x = 0; x < header.width; x++)
                 {
                     out[dp + 0] = tga[sp + 2];
@@ -270,15 +271,15 @@ namespace
         }
         else if (header.pixelDepth == 32)
         {
-            desc.bpp = 32;
-            desc.bppImage = 32;
-            desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.resizeBitmap(desc.pitch, desc.height);
-            auto out = desc.bitmap.data();
+            chunk.bpp = 32;
+            info.bppImage = 32;
+            chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+            chunk.resizeBitmap(chunk.pitch, chunk.height);
+            auto out = chunk.bitmap.data();
 
             for (uint32_t y = 0; y < header.height; y++)
             {
-                uint32_t dp = getIndex(0, y, desc, origin);
+                uint32_t dp = getIndex(0, y, chunk, origin);
                 for (uint32_t x = 0; x < header.width; x++)
                 {
                     out[dp + 0] = tga[sp + 2];
@@ -299,7 +300,7 @@ namespace
         return true;
     }
 
-    bool rgbCompressed(const sTARGAHeader& header, const uint8_t* tga, sBitmapDescription& desc)
+    bool rgbCompressed(const sTARGAHeader& header, const uint8_t* tga, sChunkData& chunk, sImageInfo& info)
     {
         if (header.colorMapType != 0)
         {
@@ -314,11 +315,11 @@ namespace
 
         if (header.pixelDepth == 16)
         {
-            desc.bppImage = 16;
-            desc.bpp = 24;
-            desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.resizeBitmap(desc.pitch, desc.height);
-            auto out = desc.bitmap.data();
+            info.bppImage = 16;
+            chunk.bpp = 24;
+            chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+            chunk.resizeBitmap(chunk.pitch, chunk.height);
+            auto out = chunk.bitmap.data();
 
             while (y < header.height)
             {
@@ -340,7 +341,7 @@ namespace
                             }
                         }
                         auto c = *(uint16_t*)&tga[sp];
-                        const uint32_t dp = getIndex(x, y, desc, origin);
+                        const uint32_t dp = getIndex(x, y, chunk, origin);
                         out[dp + 0] = (uint8_t)(((c >> 0) & 31) * 255) / 31;
                         out[dp + 1] = (uint8_t)(((c >> 5) & 31) * 255) / 31;
                         out[dp + 2] = (uint8_t)(((c >> 10) & 31) * 255) / 31;
@@ -367,7 +368,7 @@ namespace
                                 break;
                             }
                         }
-                        const uint32_t dp = getIndex(x, y, desc, origin);
+                        const uint32_t dp = getIndex(x, y, chunk, origin);
                         out[dp + 0] = r;
                         out[dp + 1] = g;
                         out[dp + 2] = b;
@@ -378,11 +379,11 @@ namespace
         }
         else if (header.pixelDepth == 24)
         {
-            desc.bppImage = 24;
-            desc.bpp = 24;
-            desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.resizeBitmap(desc.pitch, desc.height);
-            auto out = desc.bitmap.data();
+            info.bppImage = 24;
+            chunk.bpp = 24;
+            chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+            chunk.resizeBitmap(chunk.pitch, chunk.height);
+            auto out = chunk.bitmap.data();
 
             while (y < header.height)
             {
@@ -403,7 +404,7 @@ namespace
                                 break;
                             }
                         }
-                        const uint32_t dp = getIndex(x, y, desc, origin);
+                        const uint32_t dp = getIndex(x, y, chunk, origin);
                         out[dp + 0] = tga[sp + 2];
                         out[dp + 1] = tga[sp + 1];
                         out[dp + 2] = tga[sp + 0];
@@ -428,7 +429,7 @@ namespace
                                 break;
                             }
                         }
-                        const uint32_t dp = getIndex(x, y, desc, origin);
+                        const uint32_t dp = getIndex(x, y, chunk, origin);
                         out[dp + 0] = r;
                         out[dp + 1] = g;
                         out[dp + 2] = b;
@@ -439,11 +440,11 @@ namespace
         }
         else if (header.pixelDepth == 32)
         {
-            desc.bppImage = 32;
-            desc.bpp = 32;
-            desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-            desc.resizeBitmap(desc.pitch, desc.height);
-            auto out = desc.bitmap.data();
+            info.bppImage = 32;
+            chunk.bpp = 32;
+            chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+            chunk.resizeBitmap(chunk.pitch, chunk.height);
+            auto out = chunk.bitmap.data();
 
             while (y < header.height)
             {
@@ -464,7 +465,7 @@ namespace
                                 break;
                             }
                         }
-                        const uint32_t dp = getIndex(x, y, desc, origin);
+                        const uint32_t dp = getIndex(x, y, chunk, origin);
                         out[dp + 0] = tga[sp + 2];
                         out[dp + 1] = tga[sp + 1];
                         out[dp + 2] = tga[sp + 0];
@@ -492,7 +493,7 @@ namespace
                                 break;
                             }
                         }
-                        const uint32_t dp = getIndex(x, y, desc, origin);
+                        const uint32_t dp = getIndex(x, y, chunk, origin);
                         out[dp + 0] = r;
                         out[dp + 1] = g;
                         out[dp + 2] = b;
@@ -531,16 +532,16 @@ bool cFormatTarga::isSupported(cFile& file, Buffer& buffer) const
         && (h->pixelDepth == 8 || h->pixelDepth == 16 || h->pixelDepth == 24 || h->pixelDepth == 32);
 }
 
-bool cFormatTarga::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatTarga::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
 
-    std::vector<uint8_t> tga(desc.size);
-    if (desc.size != file.read(tga.data(), desc.size))
+    std::vector<uint8_t> tga(info.fileSize);
+    if (info.fileSize != file.read(tga.data(), info.fileSize))
     {
         cLog::Error("Can't read TARGA data.");
         return false;
@@ -549,8 +550,8 @@ bool cFormatTarga::LoadImpl(const char* filename, sBitmapDescription& desc)
     auto& header = *reinterpret_cast<const sTARGAHeader*>(tga.data());
     auto tga_data = reinterpret_cast<const uint8_t*>(tga.data() + sizeof(sTARGAHeader));
 
-    desc.width = header.width;
-    desc.height = header.height;
+    chunk.width = header.width;
+    chunk.height = header.height;
 
 #if defined(_DEBUG)
     cLog::Debug("idLength:          {}", (uint32_t)header.idLength);
@@ -579,15 +580,15 @@ bool cFormatTarga::LoadImpl(const char* filename, sBitmapDescription& desc)
     // 33 - Compressed color-mapped data, using Huffman, Delta, and runlength encoding. 4-pass quadtree-type process.
     if (header.imageType == ImageType::Colormap || header.imageType == ImageType::RLEColormap)
     {
-        result = colormapped(header, tga_data, desc);
+        result = colormapped(header, tga_data, chunk, info);
     }
     else if (header.imageType == ImageType::RGB)
     {
-        result = rgbUncompressed(header, tga_data, desc);
+        result = rgbUncompressed(header, tga_data, chunk, info);
     }
     else if (header.imageType == ImageType::RLERGB)
     {
-        result = rgbCompressed(header, tga_data, desc);
+        result = rgbCompressed(header, tga_data, chunk, info);
     }
 
     if (result == false)
@@ -596,13 +597,13 @@ bool cFormatTarga::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    desc.formatName = (header.imageType == ImageType::RLEColormap
-                       || header.imageType == ImageType::RLERGB
-                       || header.imageType == ImageType::RLEMonochrome)
+    info.formatName = (header.imageType == ImageType::RLEColormap
+                            || header.imageType == ImageType::RLERGB
+                            || header.imageType == ImageType::RLEMonochrome)
         ? "targa/rle"
         : "targa";
 
-    desc.format = desc.bpp == 32 ? ePixelFormat::RGBA : ePixelFormat::RGB;
+    chunk.format = chunk.bpp == 32 ? ePixelFormat::RGBA : ePixelFormat::RGB;
 
     return true;
 }

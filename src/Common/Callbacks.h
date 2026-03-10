@@ -14,7 +14,8 @@
 
 #include <functional>
 
-struct sBitmapDescription;
+struct sChunkData;
+struct sImageInfo;
 
 struct sPreviewData
 {
@@ -31,8 +32,8 @@ struct sPreviewData
 struct sCallbacks
 {
     std::function<void()> startLoading;
-    std::function<void(const sBitmapDescription& desc)> onImageInfo;
-    std::function<void(const sBitmapDescription& desc)> onBitmapAllocated;
+    std::function<void(const sChunkData& chunk, const sImageInfo& info)> onImageInfo;
+    std::function<void(const sChunkData& chunk)> onBitmapAllocated;
     std::function<void(float progress)> doProgress;
     std::function<void()> endLoading;
     std::function<void(sPreviewData&&)> onPreviewReady;

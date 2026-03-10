@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "FormatPvr.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 #include "Libs/Etc1.h"
 #include "Libs/PVRTDecompress.h"
 #include "Log/Log.h"
@@ -455,16 +456,16 @@ bool cFormatPvr::isSupported(cFile& file, Buffer& buffer) const
     return isPvr2(buffer.data(), buffer.size()) || isPvr3(buffer.data(), buffer.size());
 }
 
-bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatPvr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
     file.seek(0, SEEK_SET);
 
-    Buffer buffer(desc.size);
+    Buffer buffer(info.fileSize);
 
     if (file.read(buffer.data(), (uint32_t)buffer.size()) != (uint32_t)buffer.size())
     {
@@ -508,7 +509,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (isPvr2(unpackedData, unpackedSize))
     {
-        desc.formatName = "pvr2";
+        info.formatName = "pvr2";
 
         auto& header = *reinterpret_cast<const PVRv2TexHeader*>(unpackedData);
 
@@ -555,45 +556,45 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
         {
         case PVR2TexturePixelFormat::RGBA4444:
             bytes = 2;
-            desc.format = ePixelFormat::RGBA4444;
+            chunk.format = ePixelFormat::RGBA4444;
             break;
         case PVR2TexturePixelFormat::RGBA5551:
             bytes = 2;
-            desc.format = ePixelFormat::RGBA5551;
+            chunk.format = ePixelFormat::RGBA5551;
             break;
         case PVR2TexturePixelFormat::RGBA8888:
             bytes = 4;
-            desc.format = ePixelFormat::RGBA;
+            chunk.format = ePixelFormat::RGBA;
             break;
         case PVR2TexturePixelFormat::RGB565:
             bytes = 2;
-            desc.format = ePixelFormat::RGB565;
+            chunk.format = ePixelFormat::RGB565;
             break;
         case PVR2TexturePixelFormat::RGB555:
             bytes = 2;
-            desc.format = ePixelFormat::RGBA5551;
+            chunk.format = ePixelFormat::RGBA5551;
             break;
         case PVR2TexturePixelFormat::RGB888:
             bytes = 3;
-            desc.format = ePixelFormat::RGB;
+            chunk.format = ePixelFormat::RGB;
             break;
         case PVR2TexturePixelFormat::BGRA8888:
             bytes = 4;
-            desc.format = ePixelFormat::BGRA;
+            chunk.format = ePixelFormat::BGRA;
             break;
         case PVR2TexturePixelFormat::A8:
             bytes = 1;
-            desc.format = ePixelFormat::Alpha;
+            chunk.format = ePixelFormat::Alpha;
             break;
         case PVR2TexturePixelFormat::PVRTC2BPP_RGBA:
             decopmress = Decomp::PVR;
             bytes = 4;
-            desc.format = ePixelFormat::RGBA;
+            chunk.format = ePixelFormat::RGBA;
             break;
         case PVR2TexturePixelFormat::PVRTC4BPP_RGBA:
             decopmress = Decomp::PVR;
             bytes = 4;
-            desc.format = ePixelFormat::RGBA;
+            chunk.format = ePixelFormat::RGBA;
             break;
 
         case PVR2TexturePixelFormat::I8:
@@ -603,22 +604,22 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
             return false;
         }
 
-        desc.bpp = bytes * 8;
-        desc.bppImage = bytes * 8;
-        desc.width = width;
-        desc.height = height;
-        desc.pitch = width * bytes;
-        desc.resizeBitmap(desc.pitch, desc.height);
+        chunk.bpp = bytes * 8;
+        info.bppImage = bytes * 8;
+        chunk.width = width;
+        chunk.height = height;
+        chunk.pitch = width * bytes;
+        chunk.resizeBitmap(chunk.pitch, chunk.height);
         auto src = unpackedData + sizeof(PVRv2TexHeader);
 
         auto result = true;
         switch (decopmress)
         {
         case Decomp::Copy:
-            ::memcpy(desc.bitmap.data(), src, desc.bitmap.size());
+            ::memcpy(chunk.bitmap.data(), src, chunk.bitmap.size());
             break;
         case Decomp::PVR:
-            result = pvr::PVRTDecompressPVRTC(src, true, width, height, desc.bitmap.data()) == desc.bitmap.size();
+            result = pvr::PVRTDecompressPVRTC(src, true, width, height, chunk.bitmap.data()) == chunk.bitmap.size();
             break;
         }
 
@@ -626,7 +627,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     else if (isPvr3(unpackedData, unpackedSize))
     {
-        desc.formatName = "pvr3";
+        info.formatName = "pvr3";
 
         auto& header = *reinterpret_cast<const PVRv3TexHeader*>(unpackedData);
 
@@ -668,52 +669,52 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
             {
             case PVR3TexturePixelFormat::RGBA8888:
                 bytes = 4;
-                desc.format = ePixelFormat::RGBA;
+                chunk.format = ePixelFormat::RGBA;
                 break;
             case PVR3TexturePixelFormat::BGRA8888:
                 bytes = 4;
-                desc.format = ePixelFormat::BGRA;
+                chunk.format = ePixelFormat::BGRA;
                 break;
             case PVR3TexturePixelFormat::RGB888:
                 bytes = 3;
-                desc.format = ePixelFormat::RGB;
+                chunk.format = ePixelFormat::RGB;
                 break;
             case PVR3TexturePixelFormat::RGB565:
                 bytes = 2;
-                desc.format = ePixelFormat::RGB565;
+                chunk.format = ePixelFormat::RGB565;
                 break;
             case PVR3TexturePixelFormat::RGBA4444:
                 bytes = 2;
-                desc.format = ePixelFormat::RGBA4444;
+                chunk.format = ePixelFormat::RGBA4444;
                 break;
             case PVR3TexturePixelFormat::RGBA5551:
                 bytes = 2;
-                desc.format = ePixelFormat::RGBA5551;
+                chunk.format = ePixelFormat::RGBA5551;
                 break;
             case PVR3TexturePixelFormat::A8:
                 bytes = 1;
-                desc.format = ePixelFormat::Alpha;
+                chunk.format = ePixelFormat::Alpha;
                 break;
             case PVR3TexturePixelFormat::L8:
                 bytes = 1;
-                desc.format = ePixelFormat::Luminance;
+                chunk.format = ePixelFormat::Luminance;
                 break;
             case PVR3TexturePixelFormat::PVRTC2BPP_RGB:
             case PVR3TexturePixelFormat::PVRTC2BPP_RGBA:
                 decopmress = Decomp::PVR;
                 bytes = 4;
-                desc.format = ePixelFormat::RGBA;
+                chunk.format = ePixelFormat::RGBA;
                 break;
             case PVR3TexturePixelFormat::PVRTC4BPP_RGB:
             case PVR3TexturePixelFormat::PVRTC4BPP_RGBA:
                 decopmress = Decomp::PVR;
                 bytes = 4;
-                desc.format = ePixelFormat::RGBA;
+                chunk.format = ePixelFormat::RGBA;
                 break;
             case PVR3TexturePixelFormat::ETC1:
                 decopmress = Decomp::ETC1;
                 bytes = 3;
-                desc.format = ePixelFormat::RGB;
+                chunk.format = ePixelFormat::RGB;
                 break;
 
             default:
@@ -721,25 +722,25 @@ bool cFormatPvr::LoadImpl(const char* filename, sBitmapDescription& desc)
                 return false;
             }
 
-            desc.bpp = bytes * 8;
-            desc.bppImage = bytes * 8;
-            desc.width = width;
-            desc.height = height;
-            desc.pitch = width * bytes;
-            desc.resizeBitmap(desc.pitch, desc.height);
+            chunk.bpp = bytes * 8;
+            info.bppImage = bytes * 8;
+            chunk.width = width;
+            chunk.height = height;
+            chunk.pitch = width * bytes;
+            chunk.resizeBitmap(chunk.pitch, chunk.height);
             auto src = unpackedData + sizeof(PVRv3TexHeader) + header.metadataLength;
 
             auto result = true;
             switch (decopmress)
             {
             case Decomp::Copy:
-                ::memcpy(desc.bitmap.data(), src, desc.bitmap.size());
+                ::memcpy(chunk.bitmap.data(), src, chunk.bitmap.size());
                 break;
             case Decomp::PVR:
-                result = pvr::PVRTDecompressPVRTC(src, true, width, height, desc.bitmap.data()) == desc.bitmap.size();
+                result = pvr::PVRTDecompressPVRTC(src, true, width, height, chunk.bitmap.data()) == chunk.bitmap.size();
                 break;
             case Decomp::ETC1:
-                result = etc1_decode_image(src, static_cast<etc1_byte*>(desc.bitmap.data()), width, height, bytes, desc.pitch) != 0;
+                result = etc1_decode_image(src, static_cast<etc1_byte*>(chunk.bitmap.data()), width, height, bytes, chunk.pitch) != 0;
                 break;
             }
 
