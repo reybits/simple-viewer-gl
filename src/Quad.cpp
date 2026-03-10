@@ -147,6 +147,18 @@ void cQuad::renderEx(const Vectorf& pos, const Vectorf& size, int angle)
     render::render(m_quad);
 }
 
+void cQuad::setupVertices(const Vectorf& pos)
+{
+    m_quad.v[0].x = pos.x;
+    m_quad.v[0].y = pos.y;
+    m_quad.v[1].x = pos.x + m_size.x;
+    m_quad.v[1].y = pos.y;
+    m_quad.v[2].x = pos.x + m_size.x;
+    m_quad.v[2].y = pos.y + m_size.y;
+    m_quad.v[3].x = pos.x;
+    m_quad.v[3].y = pos.y + m_size.y;
+}
+
 void cQuad::useFilter(bool filter)
 {
     if (m_filter != filter)

@@ -111,7 +111,7 @@ bool cFormatJpeg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
         return false;
     }
 
-    // ICC is applied per-scanline inside decodeJpeg() — no post-processing needed.
+    // ICC LUT generated inside decodeJpeg() — applied on GPU during rendering.
 
 #if defined(EXIF_SUPPORT)
     ExifData* ed = nullptr;

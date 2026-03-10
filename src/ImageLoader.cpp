@@ -199,19 +199,6 @@ void cImageLoader::clear()
     m_info = {};
 }
 
-bool cImageLoader::wasBitmapModified() const
-{
-    return m_activeReader != nullptr && m_activeReader->wasBitmapModified();
-}
-
-void cImageLoader::clearBitmapModified()
-{
-    if (m_activeReader != nullptr)
-    {
-        m_activeReader->clearBitmapModified();
-    }
-}
-
 const char* cImageLoader::getImageType() const
 {
     return m_info.formatName;

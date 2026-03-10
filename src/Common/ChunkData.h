@@ -14,6 +14,7 @@
 #include "PixelFormat.h"
 
 #include <atomic>
+#include <vector>
 
 struct sChunkData
 {
@@ -29,6 +30,9 @@ struct sChunkData
 
         isCompressedTexture = false;
         compressedSize = 0;
+
+        lutData.clear();
+        lutSize = 0;
 
         readyHeight.store(0, std::memory_order_relaxed);
         consumedHeight.store(0, std::memory_order_relaxed);
@@ -79,4 +83,8 @@ struct sChunkData
     // GPU-compressed texture (ASTC, ETC2, BC)
     bool isCompressedTexture = false;
     uint32_t compressedSize = 0; // size of compressed texture data in bytes
+
+    // 3D LUT for GPU ICC color correction (33³×3 RGB bytes)
+    std::vector<uint8_t> lutData;
+    uint32_t lutSize = 0; // grid dimension (e.g. 33)
 };

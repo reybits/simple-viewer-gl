@@ -39,7 +39,6 @@ bool cFormat::Load(const char* filename, sChunkData& chunk, sImageInfo& info)
     m_info = &info;
     m_decodeMs = 0.0;
     m_iccMs = 0.0;
-    m_bitmapModified = false;
 
     const auto t0 = timing::seconds();
     bool result = LoadImpl(filename, chunk, info);
@@ -62,7 +61,6 @@ bool cFormat::LoadSubImage(uint32_t subImage, sChunkData& chunk, sImageInfo& inf
     m_info = &info;
     m_decodeMs = 0.0;
     m_iccMs = 0.0;
-    m_bitmapModified = false;
 
     const auto t0 = timing::seconds();
     bool result = LoadSubImageImpl(subImage, chunk, info);
@@ -169,28 +167,26 @@ bool cFormat::readBuffer(cFile& file, Buffer& buffer, uint32_t minSize) const
 bool cFormat::applyIccProfile(sChunkData& chunk, const void* iccProfile, uint32_t iccProfileSize)
 {
     const auto t0 = timing::seconds();
-    bool result = cms::transformBitmap(iccProfile, iccProfileSize,
-                                       chunk.bitmap.data(), chunk.width, chunk.height,
-                                       chunk.pitch, chunk.format);
+    chunk.lutData = cms::generateLut3D(iccProfile, iccProfileSize, chunk.format);
     m_iccMs += (timing::seconds() - t0) * 1000.0;
-    if (result)
+    if (chunk.lutData.empty() == false)
     {
-        m_bitmapModified = true;
+        chunk.lutSize = cms::LutGridSize;
+        return true;
     }
-    return result;
+    return false;
 }
 
 bool cFormat::applyIccProfile(sChunkData& chunk, const float* chr, const float* wp,
                               const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb)
 {
     const auto t0 = timing::seconds();
-    bool result = cms::transformBitmap(chr, wp, gmr, gmg, gmb,
-                                       chunk.bitmap.data(), chunk.width, chunk.height,
-                                       chunk.pitch, chunk.format);
+    chunk.lutData = cms::generateLut3D(chr, wp, gmr, gmg, gmb, chunk.format);
     m_iccMs += (timing::seconds() - t0) * 1000.0;
-    if (result)
+    if (chunk.lutData.empty() == false)
     {
-        m_bitmapModified = true;
+        chunk.lutSize = cms::LutGridSize;
+        return true;
     }
-    return result;
+    return false;
 }

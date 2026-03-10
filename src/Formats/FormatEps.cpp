@@ -115,7 +115,7 @@ bool cFormatEps::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
             auto result = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), chunk, info, progressCb, allocatedCb, imageInfoCb, nullptr, m_stop);
             if (result.success)
             {
-                // ICC is applied per-scanline inside decodeJpeg()
+                // ICC LUT generated inside decodeJpeg() — applied on GPU
                 info.formatName = result.iccProfile.empty() ? "eps" : "eps/icc";
 
                 auto& exifList = info.exifList;

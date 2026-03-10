@@ -23,4 +23,5 @@ enum class ePixelFormat : uint32_t
     RGB565,
     RGBA5551,
     RGBA4444,
+    CMYK,
 };

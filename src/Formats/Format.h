@@ -49,8 +49,6 @@ public:
 
     double getDecodeMs() const { return m_decodeMs; }
     double getIccMs() const { return m_iccMs; }
-    bool wasBitmapModified() const { return m_bitmapModified; }
-    void clearBitmapModified() { m_bitmapModified = false; }
 
     cFormat(sCallbacks* callbacks);
 
@@ -72,7 +70,6 @@ private:
     sImageInfo* m_info = nullptr;
     double m_decodeMs = 0.0;
     double m_iccMs = 0.0;
-    bool m_bitmapModified = false;
 
 protected:
     const sConfig* m_config = nullptr;

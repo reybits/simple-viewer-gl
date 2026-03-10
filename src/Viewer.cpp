@@ -324,10 +324,7 @@ void cViewer::onUpdate()
             }
 
             // Free bitmap memory — pixel readback now uses GPU textures.
-            // Skip if bitmap was modified (ICC post-processing) — handleImageReady()
-            // still needs it for re-upload via refreshData().
-            if (m_uploadFinal && !uploadInfo.isAnimation && uploadInfo.images <= 1
-                && !m_loader->wasBitmapModified())
+            if (m_uploadFinal && !uploadInfo.isAnimation && uploadInfo.images <= 1)
             {
                 m_loader->releaseBitmap();
                 updateInfobar();
@@ -366,6 +363,11 @@ void cViewer::handleBitmapAllocated()
 
     const auto& chunk = m_loader->getChunkData();
     m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData(), chunk.bandHeight);
+
+    if (chunk.lutData.empty() == false)
+    {
+        m_image->setLutData(chunk.lutData, chunk.lutSize);
+    }
 
     if (m_loader->getMode() == cImageLoader::Mode::Image)
     {
@@ -427,18 +429,17 @@ void cViewer::handleImageReady()
             enablePixelInfo(m_config.showPixelInfo);
         }
     }
-    // Re-upload only if bitmap was modified after initial upload (e.g., ICC transform).
-    // For non-ICC images, the progressive upload already has the final pixels.
-    else if (m_loader->wasBitmapModified())
-    {
-        m_image->refreshData(m_loader->getBitmapData());
-        m_loader->clearBitmapModified();
-    }
     else if (isUploading() == false)
     {
         // Progressive upload already completed and no re-upload needed.
         m_progress->hide();
         m_loadProgress.store(-1.0f, std::memory_order_relaxed);
+    }
+
+    // Wire LUT for batch ICC formats (generated after decode, not at allocation time)
+    if (chunk.lutData.empty() == false && m_image->hasLut() == false)
+    {
+        m_image->setLutData(chunk.lutData, chunk.lutSize);
     }
 
     if (m_loader->getMode() == cImageLoader::Mode::Image)
