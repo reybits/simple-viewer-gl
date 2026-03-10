@@ -17,7 +17,7 @@ install:
     sudo apt-get --assume-yes install cmake pkg-config
     sudo apt-get --assume-yes install libglfw3-dev
     sudo apt-get --assume-yes install libjpeg-dev libpng-dev zlib1g-dev
-    sudo apt-get --assume-yes install liblcms2-dev libexif-dev libgif-dev libtiff-dev libwebp-dev libopenexr-dev libopenjp2-7-dev
+    sudo apt-get --assume-yes install liblcms2-dev libexif-dev libgif-dev libtiff-dev libwebp-dev libopenexr-dev libopenjp2-7-dev libheif-dev
     echo "--- pkg-config glfw3 ---"
     pkg-config --modversion glfw3 || echo "glfw3 not found by pkg-config"
     dpkg -l | grep glfw || echo "no glfw packages installed"
