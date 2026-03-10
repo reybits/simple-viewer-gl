@@ -465,7 +465,8 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     const auto colorMode = static_cast<ColorMode>(helpers::read_uint16(reinterpret_cast<uint8_t*>(&header.colorMode)));
     if (colorMode != ColorMode::RGB && colorMode != ColorMode::CMYK
-        && colorMode != ColorMode::GRAYSCALE && colorMode != ColorMode::LAB)
+        && colorMode != ColorMode::GRAYSCALE && colorMode != ColorMode::LAB
+        && colorMode != ColorMode::DUOTONE)
     {
         cLog::Error("Unsupported color mode: {}.", modeToString(colorMode));
         return false;
@@ -652,8 +653,9 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
             outFormat = ePixelFormat::CMYK;
         }
     }
-    else if (colorMode == ColorMode::GRAYSCALE)
+    else if (colorMode == ColorMode::GRAYSCALE || colorMode == ColorMode::DUOTONE)
     {
+        // Duotone stores a single grayscale channel (ink curves are ignored)
         if (channels == 2)
         {
             outBpp = 16;
