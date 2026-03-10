@@ -16,9 +16,11 @@
 #include "Libs/JpegDecoder.h"
 #include "Log/Log.h"
 
+#include <algorithm>
 #include <cstring>
 #include <iterator>
 #include <vector>
+#include <zlib.h>
 
 #if defined(EXIF_SUPPORT)
 #include <libexif/exif-data.h>
@@ -256,6 +258,69 @@ namespace
 
         // Ensure we're positioned at the end of the block
         file.seek(blockEnd, SEEK_SET);
+        return true;
+    }
+
+    // Undo horizontal delta prediction for a single row.
+    // Each sample stores the difference from the previous sample.
+    void undoDeltaPredict(uint8_t* row, uint32_t width, uint32_t bytesPerComponent)
+    {
+        const uint32_t stride = bytesPerComponent;
+        const uint32_t rowLen = width * bytesPerComponent;
+        for (uint32_t i = stride; i < rowLen; i++)
+        {
+            row[i] = static_cast<uint8_t>(row[i] + row[i - stride]);
+        }
+    }
+
+    // Decompress all channel data from a single zlib stream.
+    // Returns per-channel buffers, each containing (height × rowBytes) decompressed bytes.
+    bool decompressZip(cFile& file, uint32_t channels, uint32_t height, uint32_t rowBytes,
+                       std::vector<std::vector<uint8_t>>& channelBufs)
+    {
+        const uint32_t channelSize = height * rowBytes;
+
+        // Read all remaining compressed data from file
+        const auto compressedStart = file.getOffset();
+        const auto compressedSize = file.getSize() - compressedStart;
+        if (compressedSize <= 0)
+        {
+            return false;
+        }
+
+        std::vector<uint8_t> compressed(static_cast<size_t>(compressedSize));
+        const auto bytesRead = file.read(compressed.data(), static_cast<uint32_t>(compressedSize));
+        if (bytesRead == 0)
+        {
+            return false;
+        }
+
+        z_stream strm = {};
+        if (inflateInit(&strm) != Z_OK)
+        {
+            return false;
+        }
+
+        strm.next_in = compressed.data();
+        strm.avail_in = static_cast<uInt>(bytesRead);
+
+        channelBufs.resize(channels);
+        for (uint32_t ch = 0; ch < channels; ch++)
+        {
+            channelBufs[ch].resize(channelSize);
+            strm.next_out = channelBufs[ch].data();
+            strm.avail_out = channelSize;
+
+            auto ret = inflate(&strm, Z_SYNC_FLUSH);
+            if (ret != Z_OK && ret != Z_STREAM_END)
+            {
+                cLog::Error("ZIP decompression failed for channel {} (zlib error: {}).", ch, ret);
+                inflateEnd(&strm);
+                return false;
+            }
+        }
+
+        inflateEnd(&strm);
         return true;
     }
 
@@ -503,7 +568,10 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
     compression = static_cast<CompressionMethod>(helpers::read_uint16(reinterpret_cast<uint8_t*>(&compression)));
-    if (compression != CompressionMethod::RAW && compression != CompressionMethod::RLE)
+    if (compression != CompressionMethod::RAW
+        && compression != CompressionMethod::RLE
+        && compression != CompressionMethod::ZIP
+        && compression != CompressionMethod::ZIP_PREDICT)
     {
         cLog::Error("Unsupported compression: {}.", static_cast<uint32_t>(compression));
         return false;
@@ -617,52 +685,86 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     signalImageInfo();
 
-    // Compute file offsets for each (channel, row) so we can read row-interleaved:
-    // for each row, seek to each channel's data, decode, interleave, update readyHeight.
-    const auto dataStart = file.getOffset();
-    std::vector<long> channelRowOffsets(channels * chunk.height);
+    const bool isZip = (compression == CompressionMethod::ZIP || compression == CompressionMethod::ZIP_PREDICT);
+    const uint32_t rowBytes = chunk.width * bytesPerComponent;
 
-    if (compression == CompressionMethod::RLE)
+    // For ZIP: decompress all channels upfront (one zlib stream, no per-row offsets).
+    // For RAW/RLE: use row-interleaved batch reading with precomputed file offsets.
+    std::vector<std::vector<uint8_t>> zipChannelBufs;
+    std::vector<long> channelRowOffsets;
+
+    if (isZip)
     {
-        long offset = dataStart;
-        for (uint32_t ch = 0; ch < channels; ch++)
+        if (decompressZip(file, channels, chunk.height, rowBytes, zipChannelBufs) == false)
         {
-            for (uint32_t row = 0; row < chunk.height; row++)
+            cLog::Error("ZIP decompression failed.");
+            return false;
+        }
+
+        // Undo delta prediction if ZIP+Predict
+        if (compression == CompressionMethod::ZIP_PREDICT)
+        {
+            for (uint32_t ch = 0; ch < channels; ch++)
             {
-                channelRowOffsets[ch * chunk.height + row] = offset;
-                offset += linesLengths[ch * chunk.height + row];
+                for (uint32_t row = 0; row < chunk.height; row++)
+                {
+                    undoDeltaPredict(zipChannelBufs[ch].data() + row * rowBytes,
+                                     chunk.width, bytesPerComponent);
+                }
             }
         }
     }
     else
     {
-        const long rowBytes = chunk.width * bytesPerComponent;
-        for (uint32_t ch = 0; ch < channels; ch++)
+        // Compute file offsets for each (channel, row) so we can read row-interleaved
+        const auto dataStart = file.getOffset();
+        channelRowOffsets.resize(channels * chunk.height);
+
+        if (compression == CompressionMethod::RLE)
         {
-            for (uint32_t row = 0; row < chunk.height; row++)
+            long offset = dataStart;
+            for (uint32_t ch = 0; ch < channels; ch++)
             {
-                channelRowOffsets[ch * chunk.height + row] = dataStart + static_cast<long>(ch * chunk.height + row) * rowBytes;
+                for (uint32_t row = 0; row < chunk.height; row++)
+                {
+                    channelRowOffsets[ch * chunk.height + row] = offset;
+                    offset += linesLengths[ch * chunk.height + row];
+                }
+            }
+        }
+        else
+        {
+            for (uint32_t ch = 0; ch < channels; ch++)
+            {
+                for (uint32_t row = 0; row < chunk.height; row++)
+                {
+                    channelRowOffsets[ch * chunk.height + row] = dataStart + static_cast<long>(ch * chunk.height + row) * static_cast<long>(rowBytes);
+                }
             }
         }
     }
 
-    // Read rows in batches: one seek per channel per batch, then sequential reads.
-    // Reduces seek count from (height × channels) to (height/batch × channels)
-    // while keeping memory small (~2.7MB for 20978px × 4ch × 32 rows).
+    // Read/interleave rows in batches for progressive display.
+    // ZIP: channel data already in memory; RAW/RLE: read from file per batch.
     constexpr uint32_t BatchSize = 16;
-    const uint32_t rowBytes = chunk.width * bytesPerComponent;
 
-    std::vector<std::vector<uint8_t>> batchBufs(channels);
-    for (uint32_t ch = 0; ch < channels; ch++)
+    std::vector<std::vector<uint8_t>> batchBufs;
+    std::vector<uint8_t> rleBuffer;
+    if (isZip == false)
     {
-        batchBufs[ch].resize(BatchSize * rowBytes);
-    }
+        batchBufs.resize(channels);
+        for (uint32_t ch = 0; ch < channels; ch++)
+        {
+            batchBufs[ch].resize(BatchSize * rowBytes);
+        }
 
-    // RLE worst case: each literal byte needs a count byte, so ~2x expansion
-    const uint32_t maxLineLength = chunk.width * 2 * bytesPerComponent;
-    std::vector<uint8_t> rleBuffer(compression == CompressionMethod::RLE
-                                       ? maxLineLength
-                                       : 0);
+        if (compression == CompressionMethod::RLE)
+        {
+            // RLE worst case: each literal byte needs a count byte, so ~2x expansion
+            const uint32_t maxLineLength = chunk.width * 2 * bytesPerComponent;
+            rleBuffer.resize(maxLineLength);
+        }
+    }
 
     signalBitmapAllocated();
 
@@ -670,54 +772,78 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     {
         const uint32_t batchEnd = std::min(batchStart + BatchSize, chunk.height);
 
-        // Read all batch rows for each channel (sequential within channel)
-        for (uint32_t ch = 0; ch < channels && m_stop == false; ch++)
+        // For RAW/RLE: read batch rows from file
+        if (isZip == false)
         {
-            file.seek(channelRowOffsets[ch * chunk.height + batchStart], SEEK_SET);
-
-            for (uint32_t row = batchStart; row < batchEnd && m_stop == false; row++)
+            for (uint32_t ch = 0; ch < channels && m_stop == false; ch++)
             {
-                auto dst = batchBufs[ch].data() + (row - batchStart) * rowBytes;
+                file.seek(channelRowOffsets[ch * chunk.height + batchStart], SEEK_SET);
 
-                if (compression == CompressionMethod::RLE)
+                for (uint32_t row = batchStart; row < batchEnd && m_stop == false; row++)
                 {
-                    uint32_t lineLength = linesLengths[ch * chunk.height + row];
-                    if (maxLineLength < lineLength)
-                    {
-                        cLog::Warning("Invalid line length: {}.", lineLength);
-                        lineLength = maxLineLength;
-                    }
+                    auto dst = batchBufs[ch].data() + (row - batchStart) * rowBytes;
 
-                    const auto bytesRead = file.read(rleBuffer.data(), lineLength);
-                    if (lineLength != bytesRead)
+                    if (compression == CompressionMethod::RLE)
                     {
-                        cLog::Warning("Can't read image data block.");
-                    }
+                        uint32_t lineLength = linesLengths[ch * chunk.height + row];
+                        if (static_cast<uint32_t>(rleBuffer.size()) < lineLength)
+                        {
+                            cLog::Warning("Invalid line length: {}.", lineLength);
+                            lineLength = static_cast<uint32_t>(rleBuffer.size());
+                        }
 
-                    decodeRle(dst, rleBuffer.data(), lineLength);
-                }
-                else
-                {
-                    const auto bytesRead = file.read(dst, rowBytes);
-                    if (rowBytes != bytesRead)
+                        const auto bytesRead = file.read(rleBuffer.data(), lineLength);
+                        if (lineLength != bytesRead)
+                        {
+                            cLog::Warning("Can't read image data block.");
+                        }
+
+                        decodeRle(dst, rleBuffer.data(), lineLength);
+                    }
+                    else
                     {
-                        cLog::Warning("Can't read image data block.");
+                        const auto bytesRead = file.read(dst, rowBytes);
+                        if (rowBytes != bytesRead)
+                        {
+                            cLog::Warning("Can't read image data block.");
+                        }
                     }
                 }
             }
         }
 
-        // Interleave batch rows into bitmap (take MSB for >8-bit depth)
+        // Interleave batch rows into bitmap
         for (uint32_t row = batchStart; row < batchEnd; row++)
         {
             auto out = chunk.bitmap.data() + row * chunk.pitch;
-            const auto rowOff = (row - batchStart) * rowBytes;
+            // ZIP: absolute row offset; RAW/RLE: batch-relative offset
+            const auto rowOff = isZip
+                ? row * rowBytes
+                : (row - batchStart) * rowBytes;
+            auto& srcBufs = isZip ? zipChannelBufs : batchBufs;
             for (uint32_t x = 0; x < chunk.width; x++)
             {
                 const uint32_t idx = rowOff + x * bytesPerComponent;
                 for (uint32_t ch = 0; ch < outChannels; ch++)
                 {
-                    out[ch] = batchBufs[ch][idx];
+                    if (bytesPerComponent == 4)
+                    {
+                        // 32-bit: IEEE 754 float (big-endian) → uint8_t
+                        const auto* p = srcBufs[ch].data() + idx;
+                        const uint32_t bits = helpers::read_uint32(p);
+                        float val;
+                        std::memcpy(&val, &bits, sizeof(float));
+                        out[ch] = static_cast<uint8_t>(std::clamp(val, 0.0f, 1.0f) * 255.0f + 0.5f);
+                    }
+                    else if (bytesPerComponent == 2)
+                    {
+                        // 16-bit: take MSB of big-endian uint16
+                        out[ch] = srcBufs[ch][idx];
+                    }
+                    else
+                    {
+                        out[ch] = srcBufs[ch][idx];
+                    }
                 }
                 out += outChannels;
             }
