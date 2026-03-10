@@ -10,10 +10,11 @@
 #if defined(OPENEXR_SUPPORT)
 
 #include "FormatExr.h"
-#include "Common/BitmapDescription.h"
 #include "Common/Callbacks.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <OpenEXR/ImfArray.h>
@@ -69,9 +70,9 @@ namespace
         return format < std::size(Formats) ? Formats[format] : "unknown";
     }
 
-    using eCategory = sBitmapDescription::ExifCategory;
+    using eCategory = sImageInfo::ExifCategory;
 
-    void ReadStringField(const Imf::Header& header, const char* field, const char* title, eCategory category, sBitmapDescription::ExifList& exifList)
+    void ReadStringField(const Imf::Header& header, const char* field, const char* title, eCategory category, sImageInfo::ExifList& exifList)
     {
         auto value = header.findTypedAttribute<Imf::StringAttribute>(field);
         if (value != nullptr)
@@ -80,9 +81,9 @@ namespace
         }
     }
 
-    void ReadHeader(const Imf::Header& header, sBitmapDescription& desc)
+    void ReadHeader(const Imf::Header& header, sChunkData& chunk, sImageInfo& info)
     {
-        auto& exifList = desc.exifList;
+        auto& exifList = info.exifList;
 
         ReadStringField(header, "owner", "Owner", eCategory::Info, exifList);
         ReadStringField(header, "capDate", "Date", eCategory::Date, exifList);
@@ -98,7 +99,7 @@ namespace
 #endif
     }
 
-    bool ReadTiledRgba(const char* filename, Imf::Array2D<Imf::Rgba>& pixels, sBitmapDescription& desc, Imf::RgbaChannels& channels, uint32_t& compression)
+    bool ReadTiledRgba(const char* filename, Imf::Array2D<Imf::Rgba>& pixels, sChunkData& chunk, sImageInfo& info, Imf::RgbaChannels& channels, uint32_t& compression)
     {
         Imf::TiledRgbaInputFile in(filename);
         bool result = in.isComplete();
@@ -107,13 +108,13 @@ namespace
             channels = in.channels();
             compression = in.compression();
             auto& header = in.header();
-            ReadHeader(header, desc);
+            ReadHeader(header, chunk, info);
 
             auto& dw = in.dataWindow();
             const auto width = dw.max.x - dw.min.x + 1;
             const auto height = dw.max.y - dw.min.y + 1;
-            desc.width = width;
-            desc.height = height;
+            chunk.width = width;
+            chunk.height = height;
 
             const auto dx = dw.min.x;
             const auto dy = dw.min.y;
@@ -126,7 +127,7 @@ namespace
         return result;
     }
 
-    bool ReadScanlineRgba(const char* filename, Imf::Array2D<Imf::Rgba>& pixels, sBitmapDescription& desc, Imf::RgbaChannels& channels, uint32_t& compression)
+    bool ReadScanlineRgba(const char* filename, Imf::Array2D<Imf::Rgba>& pixels, sChunkData& chunk, sImageInfo& info, Imf::RgbaChannels& channels, uint32_t& compression)
     {
         Imf::RgbaInputFile in(filename);
         bool result = in.isComplete();
@@ -136,13 +137,13 @@ namespace
             channels = in.channels();
             compression = in.compression();
             auto& header = in.header();
-            ReadHeader(header, desc);
+            ReadHeader(header, chunk, info);
 
             auto& dw = in.dataWindow();
             const auto width = dw.max.x - dw.min.x + 1;
             const auto height = dw.max.y - dw.min.y + 1;
-            desc.width = width;
-            desc.height = height;
+            chunk.width = width;
+            chunk.height = height;
 
             const auto dx = dw.min.x;
             const auto dy = dw.min.y;
@@ -235,10 +236,10 @@ void cFormatExr::decodePreview(const char* filename)
     }
 }
 
-bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatExr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -255,7 +256,7 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     try
     {
-        result = ReadScanlineRgba(filename, pixels, desc, channels, compression);
+        result = ReadScanlineRgba(filename, pixels, chunk, info, channels, compression);
     }
     catch (...)
     {
@@ -263,7 +264,7 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         try
         {
-            result = ReadTiledRgba(filename, pixels, desc, channels, compression);
+            result = ReadTiledRgba(filename, pixels, chunk, info, channels, compression);
         }
         catch (...)
         {
@@ -274,8 +275,8 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (result)
     {
-        desc.images = 1;
-        desc.current = 0;
+        info.images = 1;
+        info.current = 0;
 
         // WRITE_R    = 0x01, // Red
         // WRITE_G    = 0x02, // Green
@@ -300,21 +301,21 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
         chCount += (channels & Imf::WRITE_Y) != 0;
         chCount += (channels & Imf::WRITE_C) != 0;
 
-        desc.bppImage = chCount * 8;
+        info.bppImage = chCount * 8;
 
         const bool hasA = (channels & Imf::WRITE_A) != 0;
         const uint32_t bytes = hasA ? 4 : 3;
-        desc.bpp = bytes * 8;
-        desc.format = hasA ? ePixelFormat::RGBA : ePixelFormat::RGB;
-        desc.allocate(desc.width, desc.height, desc.bpp, desc.format);
+        chunk.bpp = bytes * 8;
+        chunk.format = hasA ? ePixelFormat::RGBA : ePixelFormat::RGB;
+        chunk.allocate(chunk.width, chunk.height, chunk.bpp, chunk.format);
 
         if (hasA)
         {
             auto src = &pixels[0][0];
-            for (uint32_t y = 0; y < desc.height; y++)
+            for (uint32_t y = 0; y < chunk.height; y++)
             {
-                auto dst = reinterpret_cast<sRgba8888*>(desc.bitmap.data() + y * desc.pitch);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto dst = reinterpret_cast<sRgba8888*>(chunk.bitmap.data() + y * chunk.pitch);
+                for (uint32_t x = 0; x < chunk.width; x++)
                 {
                     const auto& i = *src++;
                     dst[x].r = HalfToUint8(i.r);
@@ -327,10 +328,10 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
         else
         {
             auto src = &pixels[0][0];
-            for (uint32_t y = 0; y < desc.height; y++)
+            for (uint32_t y = 0; y < chunk.height; y++)
             {
-                auto dst = reinterpret_cast<sRgb888*>(desc.bitmap.data() + y * desc.pitch);
-                for (uint32_t x = 0; x < desc.width; x++)
+                auto dst = reinterpret_cast<sRgb888*>(chunk.bitmap.data() + y * chunk.pitch);
+                for (uint32_t x = 0; x < chunk.width; x++)
                 {
                     const auto& i = *src++;
                     dst[x].r = HalfToUint8(i.r);
@@ -340,7 +341,7 @@ bool cFormatExr::LoadImpl(const char* filename, sBitmapDescription& desc)
             }
         }
 
-        desc.formatName = GetFormat(compression);
+        info.formatName = GetFormat(compression);
     }
 
     return result;

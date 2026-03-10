@@ -68,9 +68,9 @@ private:
 
     // Loader callback handlers
     void startLoading();
-    void onImageInfo(const sBitmapDescription& desc);
+    void onImageInfo(const sChunkData& chunk, const sImageInfo& info);
     void onPreviewReady(sPreviewData&& preview);
-    void onBitmapAllocated(const sBitmapDescription& desc);
+    void onBitmapAllocated(const sChunkData& chunk);
     void doProgress(float progress);
     void endLoading();
 
@@ -138,6 +138,7 @@ private:
     std::atomic<bool> m_imageInfoReady{ false };
     ImageInfo m_imageInfo;
     std::atomic<bool> m_bitmapAllocated{ false };
+    std::atomic<bool> m_uploadActive{ false };
     std::atomic<bool> m_imagePrepared{ false };
     std::atomic<float> m_loadProgress{ -1.0f };
     bool m_uploadFinal = false;

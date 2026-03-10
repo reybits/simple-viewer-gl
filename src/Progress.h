@@ -20,21 +20,13 @@ public:
     cProgress() = default;
 
     void init();
-
-    void show()
-    {
-        m_visible = true;
-    }
-
-    void hide()
-    {
-        m_visible = false;
-    }
-
+    void show();
+    void hide();
     void render();
 
 private:
     bool m_visible = false;
+    double m_showTime = 0.0;
 
     std::unique_ptr<cQuad> m_back;
     std::unique_ptr<cQuad> m_dot;

@@ -140,6 +140,85 @@ bool cms::transformBitmap(const void* iccProfile, uint32_t iccProfileSize,
 #endif
 }
 
+void* cms::createTransform(const void* iccProfile, uint32_t iccProfileSize, ePixelFormat format)
+{
+#if defined(LCMS2_SUPPORT)
+    if (iccProfile == nullptr || iccProfileSize == 0)
+    {
+        return nullptr;
+    }
+
+    auto inProfile = cmsOpenProfileFromMem(iccProfile, iccProfileSize);
+    if (inProfile == nullptr)
+    {
+        return nullptr;
+    }
+
+    auto pixelType = toLcmsPixelType(format);
+    if (pixelType == 0)
+    {
+        cmsCloseProfile(inProfile);
+        return nullptr;
+    }
+
+    auto profileSpace = cmsGetColorSpace(static_cast<cmsHPROFILE>(inProfile));
+    bool compatible = false;
+    switch (profileSpace)
+    {
+    case cmsSigRgbData:
+        compatible = (format == ePixelFormat::RGB || format == ePixelFormat::RGBA
+                      || format == ePixelFormat::BGR || format == ePixelFormat::BGRA);
+        break;
+    case cmsSigGrayData:
+        compatible = (format == ePixelFormat::Luminance || format == ePixelFormat::LuminanceAlpha);
+        break;
+    default:
+        break;
+    }
+
+    if (compatible == false)
+    {
+        cmsCloseProfile(inProfile);
+        return nullptr;
+    }
+
+    auto transform = cmsCreateTransform(inProfile, pixelType, getSrgbProfile(), pixelType, INTENT_PERCEPTUAL, 0);
+    cmsCloseProfile(inProfile);
+    return transform;
+#else
+    (void)iccProfile;
+    (void)iccProfileSize;
+    (void)format;
+    return nullptr;
+#endif
+}
+
+void cms::transformRow(void* transform, uint8_t* row, uint32_t width)
+{
+#if defined(LCMS2_SUPPORT)
+    if (transform != nullptr)
+    {
+        cmsDoTransform(transform, row, row, width);
+    }
+#else
+    (void)transform;
+    (void)row;
+    (void)width;
+#endif
+}
+
+void cms::destroyTransform(void* transform)
+{
+#if defined(LCMS2_SUPPORT)
+    if (transform != nullptr)
+    {
+        cmsDeleteTransform(transform);
+    }
+#else
+    (void)transform;
+#endif
+}
+
 bool cms::transformBitmap(const float* chr, const float* wp,
                           const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
                           uint8_t* bitmap, uint32_t width, uint32_t height,

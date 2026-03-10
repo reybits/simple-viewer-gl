@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "FormatEps.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -36,9 +37,9 @@ namespace
         return false;
     }
 
-    using eCategory = sBitmapDescription::ExifCategory;
+    using eCategory = sImageInfo::ExifCategory;
 
-    void AddExifTag(const char* data, size_t size, const char* name, eCategory category, sBitmapDescription::ExifList& exifList)
+    void AddExifTag(const char* data, size_t size, const char* name, eCategory category, sImageInfo::ExifList& exifList)
     {
         std::string out;
         if (GetContent(data, size, name, out))
@@ -82,10 +83,10 @@ bool cFormatEps::isSupported(cFile& file, Buffer& buffer) const
     return false;
 }
 
-bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatEps::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (openFile(file, filename, desc) == false)
+    if (openFile(file, filename, info) == false)
     {
         return false;
     }
@@ -111,17 +112,13 @@ bool cFormatEps::LoadImpl(const char* filename, sBitmapDescription& desc)
             auto progressCb = [this](float p) { updateProgress(p); };
             auto allocatedCb = [this]() { signalBitmapAllocated(); };
             auto imageInfoCb = [this]() { signalImageInfo(); };
-            auto result = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), desc, progressCb, allocatedCb, imageInfoCb, m_stop);
+            auto result = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), chunk, info, progressCb, allocatedCb, imageInfoCb, nullptr, m_stop);
             if (result.success)
             {
-                desc.formatName = "eps";
+                // ICC is applied per-scanline inside decodeJpeg()
+                info.formatName = result.iccProfile.empty() ? "eps" : "eps/icc";
 
-                if (applyIccProfile(desc, result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size())))
-                {
-                    desc.formatName = "eps/icc";
-                }
-
-                auto& exifList = desc.exifList;
+                auto& exifList = info.exifList;
                 AddExifTag(data, size, "xmp:CreatorTool", eCategory::Software, exifList);
                 AddExifTag(data, size, "xmp:CreateDate", eCategory::Date, exifList);
                 AddExifTag(data, size, "xmp:ModifyDate", eCategory::Date, exifList);

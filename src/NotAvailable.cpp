@@ -8,7 +8,8 @@
 \**********************************************/
 
 #include "NotAvailable.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
+#include "Common/ImageInfo.h"
 #include "img-na.c"
 
 #include <cstring>
@@ -18,22 +19,22 @@ cNotAvailable::cNotAvailable()
 {
 }
 
-bool cNotAvailable::LoadImpl(const char* /*filename*/, sBitmapDescription& desc)
+bool cNotAvailable::LoadImpl(const char* /*filename*/, sChunkData& chunk, sImageInfo& info)
 {
-    desc.format = imgNa.bytes_per_pixel == 3
+    chunk.format = imgNa.bytes_per_pixel == 3
         ? ePixelFormat::RGB
         : ePixelFormat::RGBA;
-    desc.width = imgNa.width;
-    desc.height = imgNa.height;
-    desc.bpp = imgNa.bytes_per_pixel * 8;
-    desc.bppImage = 0;
-    desc.pitch = desc.width * imgNa.bytes_per_pixel;
+    chunk.width = imgNa.width;
+    chunk.height = imgNa.height;
+    chunk.bpp = imgNa.bytes_per_pixel * 8;
+    info.bppImage = 0;
+    chunk.pitch = chunk.width * imgNa.bytes_per_pixel;
 
-    const auto size = desc.pitch * desc.height;
-    desc.bitmap.resize(size);
-    ::memcpy(desc.bitmap.data(), imgNa.pixel_data, size);
+    const auto size = chunk.pitch * chunk.height;
+    chunk.bitmap.resize(size);
+    ::memcpy(chunk.bitmap.data(), imgNa.pixel_data, size);
 
-    desc.formatName = "n/a";
+    info.formatName = "n/a";
 
     return true;
 }

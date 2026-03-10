@@ -8,8 +8,9 @@
 \**********************************************/
 
 #include "FormatAge.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Common/ZlibDecoder.h"
 #include "Libs/AGEheader.h"
 #include "Libs/GpuDecode.h"
@@ -106,10 +107,10 @@ bool cFormatAge::isSupported(cFile& file, Buffer& buffer) const
     return isValidFormat(*header, file.getSize());
 }
 
-bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatAge::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -121,7 +122,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
         return false;
     }
 
-    if (!isValidFormat(header, desc.size))
+    if (!isValidFormat(header, info.fileSize))
     {
         return false;
     }
@@ -144,10 +145,10 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     if (isCompressed)
     {
-        auto info = getCompressedFormatInfo(format);
-        auto blocksW = (header.w + info->blockW - 1) / info->blockW;
-        auto blocksH = (header.h + info->blockH - 1) / info->blockH;
-        compressedDataSize = blocksW * blocksH * info->blockBytes;
+        auto fmtInfo = getCompressedFormatInfo(format);
+        auto blocksW = (header.w + fmtInfo->blockW - 1) / fmtInfo->blockW;
+        auto blocksH = (header.h + fmtInfo->blockH - 1) / fmtInfo->blockH;
+        compressedDataSize = blocksW * blocksH * fmtInfo->blockBytes;
     }
 
     unsigned bytespp = 0;
@@ -155,27 +156,27 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
     {
     case AGE::Format::RGBA8888:
         bytespp = 4;
-        desc.format = ePixelFormat::RGBA;
+        chunk.format = ePixelFormat::RGBA;
         break;
     case AGE::Format::RGBA5551:
         bytespp = 2;
-        desc.format = ePixelFormat::RGBA5551;
+        chunk.format = ePixelFormat::RGBA5551;
         break;
     case AGE::Format::RGBA4444:
         bytespp = 2;
-        desc.format = ePixelFormat::RGBA4444;
+        chunk.format = ePixelFormat::RGBA4444;
         break;
     case AGE::Format::RGB888:
         bytespp = 3;
-        desc.format = ePixelFormat::RGB;
+        chunk.format = ePixelFormat::RGB;
         break;
     case AGE::Format::RGB565:
         bytespp = 2;
-        desc.format = ePixelFormat::RGB565;
+        chunk.format = ePixelFormat::RGB565;
         break;
     case AGE::Format::A8:
         bytespp = 1;
-        desc.format = ePixelFormat::Alpha;
+        chunk.format = ePixelFormat::Alpha;
         break;
     default:
         if (!isCompressed)
@@ -185,12 +186,12 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
         // compressed formats will be decoded to RGBA
         bytespp = 4;
-        desc.format = ePixelFormat::RGBA;
+        chunk.format = ePixelFormat::RGBA;
         break;
     }
 
-    desc.width = header.w;
-    desc.height = header.h;
+    chunk.width = header.w;
+    chunk.height = header.h;
 
     // For compressed: first decompress AGE compression into a temp buffer,
     // then software-decode GPU blocks to RGBA.
@@ -247,10 +248,10 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         updateProgress(0.6f);
 
-        desc.bppImage = bytespp * 8;
-        desc.allocate(desc.width, desc.height, bytespp * 8, desc.format);
+        info.bppImage = bytespp * 8;
+        chunk.allocate(chunk.width, chunk.height, bytespp * 8, chunk.format);
 
-        if (!decodeCompressedToRGBA(format, compressedBuf.data(), desc.bitmap.data(), desc.width, desc.height))
+        if (!decodeCompressedToRGBA(format, compressedBuf.data(), chunk.bitmap.data(), chunk.width, chunk.height))
         {
             cLog::Error("Failed to decode compressed AGE texture.");
             return false;
@@ -260,9 +261,9 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     else
     {
-        desc.bppImage = bytespp * 8;
-        desc.allocate(desc.width, desc.height, bytespp * 8, desc.format);
-        unsigned dataSize = desc.pitch * desc.height;
+        info.bppImage = bytespp * 8;
+        chunk.allocate(chunk.width, chunk.height, bytespp * 8, chunk.format);
+        unsigned dataSize = chunk.pitch * chunk.height;
 
         if (header.compression != AGE::Compression::NONE)
         {
@@ -278,7 +279,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
 
             if (header.compression == AGE::Compression::LZ4 || header.compression == AGE::Compression::LZ4HC)
             {
-                decoded = LZ4_decompress_safe(reinterpret_cast<const char*>(in.data()), reinterpret_cast<char*>(desc.bitmap.data()), in.size(), desc.bitmap.size());
+                decoded = LZ4_decompress_safe(reinterpret_cast<const char*>(in.data()), reinterpret_cast<char*>(chunk.bitmap.data()), in.size(), chunk.bitmap.size());
                 if (decoded <= 0)
                 {
                     cLog::Error("Can't decode {}.",
@@ -291,7 +292,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
             else if (header.compression == AGE::Compression::ZLIB)
             {
                 cZlibDecoder decoder;
-                decoded = decoder.decode(in.data(), in.size(), desc.bitmap.data(), desc.bitmap.size());
+                decoded = decoder.decode(in.data(), in.size(), chunk.bitmap.data(), chunk.bitmap.size());
                 if (decoded == 0)
                 {
                     cLog::Error("Can't decode ZLIB data.");
@@ -303,11 +304,11 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
                 cRLE decoder;
                 if (header.compression == AGE::Compression::RLE4)
                 {
-                    decoded = decoder.decodeBy4(reinterpret_cast<unsigned*>(in.data()), in.size() / 4, reinterpret_cast<unsigned*>(desc.bitmap.data()), desc.bitmap.size() / 4);
+                    decoded = decoder.decodeBy4(reinterpret_cast<unsigned*>(in.data()), in.size() / 4, reinterpret_cast<unsigned*>(chunk.bitmap.data()), chunk.bitmap.size() / 4);
                 }
                 else
                 {
-                    decoded = decoder.decode(in.data(), in.size(), desc.bitmap.data(), desc.bitmap.size());
+                    decoded = decoder.decode(in.data(), in.size(), chunk.bitmap.data(), chunk.bitmap.size());
                 }
 
                 if (decoded == 0)
@@ -321,7 +322,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
         else
         {
-            if (dataSize != file.read(desc.bitmap.data(), dataSize))
+            if (dataSize != file.read(chunk.bitmap.data(), dataSize))
             {
                 return false;
             }
@@ -329,7 +330,7 @@ bool cFormatAge::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
     }
 
-    desc.formatName = AGE::FormatToStr(format);
+    info.formatName = AGE::FormatToStr(format);
 
     return true;
 }

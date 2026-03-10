@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "FormatBmp.h"
-#include "Common/BitmapDescription.h"
 #include "Common/CachedReader.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -278,35 +279,35 @@ namespace
         return idValid && size == header.fileSize && header.bitmapOffset < size;
     }
 
-    void setGLformat(uint32_t bitCount, sBitmapDescription& desc)
+    void setGLformat(uint32_t bitCount, sChunkData& chunk, sImageInfo& info)
     {
-        desc.bppImage = bitCount;
+        info.bppImage = bitCount;
 
         switch (bitCount)
         {
         case 1:
-            desc.format = ePixelFormat::BGRA; // GL_LUMINANCE;
-            desc.bpp = 32;                    // 8;
+            chunk.format = ePixelFormat::BGRA; // GL_LUMINANCE;
+            chunk.bpp = 32;                    // 8;
             break;
 
         case 8:
-            desc.format = ePixelFormat::BGRA; // GL_BGR;
-            desc.bpp = 32;                    // 24;
+            chunk.format = ePixelFormat::BGRA; // GL_BGR;
+            chunk.bpp = 32;                    // 24;
             break;
 
         case 16:
-            desc.format = ePixelFormat::RGB565;
-            desc.bpp = 16;
+            chunk.format = ePixelFormat::RGB565;
+            chunk.bpp = 16;
             break;
 
         case 32:
-            desc.format = ePixelFormat::BGRA;
-            desc.bpp = 32;
+            chunk.format = ePixelFormat::BGRA;
+            chunk.bpp = 32;
             break;
 
         default:
-            desc.format = ePixelFormat::BGR;
-            desc.bpp = 24;
+            chunk.format = ePixelFormat::BGR;
+            chunk.bpp = 24;
         }
     }
 
@@ -335,27 +336,27 @@ namespace
         }
     };
 
-    bool readUncompressed1(cFile& file, sBitmapDescription& desc, const BITMAPCOMMON& header, const Buffer& pal)
+    bool readUncompressed1(cFile& file, sChunkData& chunk, const BITMAPCOMMON& header, const Buffer& pal)
     {
-        const uint32_t inPitch = header.sizeImage / desc.height;
+        const uint32_t inPitch = header.sizeImage / chunk.height;
         Buffer buffer(inPitch);
 
         auto in = buffer.data();
         auto palette = (RGBA*)pal.data();
 
-        for (uint32_t row = 0; row < desc.height; row++)
+        for (uint32_t row = 0; row < chunk.height; row++)
         {
             if (inPitch != file.read(in, inPitch))
             {
                 return false;
             }
 
-            auto out = (uint32_t*)(desc.bitmap.data() + (desc.height - row - 1) * desc.pitch);
+            auto out = (uint32_t*)(chunk.bitmap.data() + (chunk.height - row - 1) * chunk.pitch);
             size_t idx = 0;
             for (uint32_t i = 0; i < inPitch; i++)
             {
                 auto byte = in[i];
-                for (uint32_t b = 0; b < 8 && idx < desc.width; b++, idx++)
+                for (uint32_t b = 0; b < 8 && idx < chunk.width; b++, idx++)
                 {
                     const uint32_t val = byte & 0x80;
                     auto color = palette[val ? 1 : 0];
@@ -369,7 +370,7 @@ namespace
         return true;
     }
 
-    bool readRLE8(cFile& file, sBitmapDescription& desc, const BITMAPCOMMON& header, const Buffer& pal, bool isRle8)
+    bool readRLE8(cFile& file, sChunkData& chunk, const BITMAPCOMMON& header, const Buffer& pal, bool isRle8)
     {
         (void)header;
 
@@ -378,9 +379,9 @@ namespace
         auto palette = (const RGBA*)pal.data();
 
         size_t ofs = 0;
-        const auto pitch = desc.width;
-        const auto start = (uint32_t*)desc.bitmap.data();
-        const auto end = start + (desc.height * pitch);
+        const auto pitch = chunk.width;
+        const auto start = (uint32_t*)chunk.bitmap.data();
+        const auto end = start + (chunk.height * pitch);
         auto bits = end - pitch;
 
 #define COPY_PIXEL(x)                     \
@@ -533,22 +534,22 @@ namespace
         return false;
     }
 
-    bool readUncompressed8(cFile& file, sBitmapDescription& desc, const BITMAPCOMMON& header, const Buffer& pal)
+    bool readUncompressed8(cFile& file, sChunkData& chunk, const BITMAPCOMMON& header, const Buffer& pal)
     {
-        const uint32_t inPitch = header.sizeImage / desc.height;
+        const uint32_t inPitch = header.sizeImage / chunk.height;
         Buffer buffer(inPitch);
 
         auto in = buffer.data();
         auto palette = (RGBA*)pal.data();
 
-        for (uint32_t row = 0; row < desc.height; row++)
+        for (uint32_t row = 0; row < chunk.height; row++)
         {
             if (inPitch != file.read(in, inPitch))
             {
                 return false;
             }
 
-            auto out = (uint32_t*)(desc.bitmap.data() + (desc.height - row - 1) * desc.pitch);
+            auto out = (uint32_t*)(chunk.bitmap.data() + (chunk.height - row - 1) * chunk.pitch);
             size_t idx = 0;
             for (uint32_t i = 0; i < inPitch; i++)
             {
@@ -561,12 +562,12 @@ namespace
         return true;
     }
 
-    bool readUncompressed16(cFile& file, sBitmapDescription& desc)
+    bool readUncompressed16(cFile& file, sChunkData& chunk)
     {
-        for (uint32_t row = 0; row < desc.height; row++)
+        for (uint32_t row = 0; row < chunk.height; row++)
         {
-            auto out = desc.bitmap.data() + (desc.height - row - 1) * desc.pitch;
-            if (file.read(out, desc.pitch) != desc.pitch)
+            auto out = chunk.bitmap.data() + (chunk.height - row - 1) * chunk.pitch;
+            if (file.read(out, chunk.pitch) != chunk.pitch)
             {
                 return false;
             }
@@ -574,12 +575,12 @@ namespace
         return true;
     }
 
-    bool readUncompressed24(cFile& file, sBitmapDescription& desc)
+    bool readUncompressed24(cFile& file, sChunkData& chunk)
     {
-        for (uint32_t row = 0; row < desc.height; row++)
+        for (uint32_t row = 0; row < chunk.height; row++)
         {
-            auto out = desc.bitmap.data() + (desc.height - row - 1) * desc.pitch;
-            if (file.read(out, desc.pitch) != desc.pitch)
+            auto out = chunk.bitmap.data() + (chunk.height - row - 1) * chunk.pitch;
+            if (file.read(out, chunk.pitch) != chunk.pitch)
             {
                 return false;
             }
@@ -587,12 +588,12 @@ namespace
         return true;
     }
 
-    bool readUncompressed32(cFile& file, sBitmapDescription& desc)
+    bool readUncompressed32(cFile& file, sChunkData& chunk)
     {
-        for (uint32_t row = 0; row < desc.height; row++)
+        for (uint32_t row = 0; row < chunk.height; row++)
         {
-            auto out = desc.bitmap.data() + (desc.height - row - 1) * desc.pitch;
-            if (file.read(out, desc.pitch) != desc.pitch)
+            auto out = chunk.bitmap.data() + (chunk.height - row - 1) * chunk.pitch;
+            if (file.read(out, chunk.pitch) != chunk.pitch)
             {
                 return false;
             }
@@ -613,10 +614,10 @@ bool cFormatBmp::isSupported(cFile& file, Buffer& buffer) const
     return isValidFormat(*bmpHeader, file.getSize());
 }
 
-bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatBmp::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -664,12 +665,12 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         debugHeader(header);
 
-        desc.width = header.width;
-        desc.height = header.height;
+        chunk.width = header.width;
+        chunk.height = header.height;
 
-        setGLformat(header.bitCount, desc);
+        setGLformat(header.bitCount, chunk, info);
 
-        setupBitmap(desc, desc.width, desc.height, desc.bpp, desc.format, "bmp");
+        setupBitmap(chunk, info, chunk.bpp, chunk.format, "bmp");
 
         const uint32_t fileOffset = file.getOffset();
         // ::printf("fileOffset: %u , offset: %u\n", fileOffset, bmpHeader.bitmapOffset);
@@ -691,23 +692,23 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
             switch (header.bitCount)
             {
             case 1:
-                result = readUncompressed1(file, desc, header, palette);
+                result = readUncompressed1(file, chunk, header, palette);
                 break;
 
             case 8:
-                result = readUncompressed8(file, desc, header, palette);
+                result = readUncompressed8(file, chunk, header, palette);
                 break;
 
             case 16:
-                result = readUncompressed16(file, desc);
+                result = readUncompressed16(file, chunk);
                 break;
 
             case 24:
-                result = readUncompressed24(file, desc);
+                result = readUncompressed24(file, chunk);
                 break;
 
             case 32:
-                result = readUncompressed32(file, desc);
+                result = readUncompressed32(file, chunk);
                 break;
             }
 
@@ -724,7 +725,7 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
             switch (header.bitCount)
             {
             case 8:
-                result = readRLE8(file, desc, header, palette, false);
+                result = readRLE8(file, chunk, header, palette, false);
                 break;
             }
 
@@ -741,7 +742,7 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
             switch (header.bitCount)
             {
             case 8:
-                result = readRLE8(file, desc, header, palette, true);
+                result = readRLE8(file, chunk, header, palette, true);
                 break;
             }
 
@@ -759,7 +760,7 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
 
         // Extract ICC profile from V5 header (only for 8-bit-per-channel formats)
         if (ver == Version::V5 && header.profileSize > 0 && header.profileData > 0
-            && (desc.format == ePixelFormat::BGR || desc.format == ePixelFormat::BGRA))
+            && (chunk.format == ePixelFormat::BGR || chunk.format == ePixelFormat::BGRA))
         {
             auto profileOffset = sizeof(BmpHeader) + header.profileData;
             if (profileOffset + header.profileSize <= static_cast<size_t>(file.getSize()))
@@ -768,9 +769,9 @@ bool cFormatBmp::LoadImpl(const char* filename, sBitmapDescription& desc)
                 file.seek(static_cast<long>(profileOffset), SEEK_SET);
                 if (file.read(iccBuffer.data(), header.profileSize) == header.profileSize)
                 {
-                    if (applyIccProfile(desc, iccBuffer.data(), header.profileSize))
+                    if (applyIccProfile(chunk, iccBuffer.data(), header.profileSize))
                     {
-                        desc.formatName = "bmp/icc";
+                        info.formatName = "bmp/icc";
                     }
                 }
             }

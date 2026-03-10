@@ -8,8 +8,9 @@
 \**********************************************/
 
 #include "FormatXpm.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstdio>
@@ -976,10 +977,10 @@ bool cFormatXpm::isSupported(cFile& file, Buffer& buffer) const
     return isValidFormat(data, buffer.size());
 }
 
-bool cFormatXpm::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatXpm::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -1039,14 +1040,14 @@ bool cFormatXpm::LoadImpl(const char* filename, sBitmapDescription& desc)
         colorMap[pixel] = parseColor(color);
     }
 
-    desc.width = width;
-    desc.height = height;
-    desc.allocate(width, height, 32, ePixelFormat::RGBA);
+    chunk.width = width;
+    chunk.height = height;
+    chunk.allocate(width, height, 32, ePixelFormat::RGBA);
 
-    desc.bppImage = 24;
+    info.bppImage = 24;
 
     // fill bitmap
-    auto out = reinterpret_cast<unsigned*>(desc.bitmap.data());
+    auto out = reinterpret_cast<unsigned*>(chunk.bitmap.data());
     for (unsigned y = 0; y < height; y++)
     {
         line = getNextLine(line);
@@ -1063,7 +1064,7 @@ bool cFormatXpm::LoadImpl(const char* filename, sBitmapDescription& desc)
         }
     }
 
-    desc.formatName = "xpm";
+    info.formatName = "xpm";
 
     return true;
 }

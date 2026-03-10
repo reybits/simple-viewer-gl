@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "FormatPnm.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 
 #include <algorithm>
 #include <cmath>
@@ -89,28 +90,28 @@ namespace
 
     const char* TokenSep = "\n\t ";
 
-    bool readAscii1(cFile& file, sBitmapDescription& desc)
+    bool readAscii1(cFile& file, sChunkData& chunk, sImageInfo& info)
     {
-        desc.bppImage = 1;
-        desc.allocate(desc.width, desc.height, 8, ePixelFormat::Luminance);
+        info.bppImage = 1;
+        chunk.allocate(chunk.width, chunk.height, 8, ePixelFormat::Luminance);
 
         Line line;
 
         uint32_t x = 0;
         uint32_t y = 0;
 
-        auto out = desc.bitmap.data();
+        auto out = chunk.bitmap.data();
         while (getline(line, file))
         {
             for (auto word = ::strtok(line.data(), TokenSep); word != nullptr; word = ::strtok(nullptr, TokenSep))
             {
                 const auto val = (uint32_t)::atoi(word) != 0 ? 0 : 255;
-                if (x == desc.width)
+                if (x == chunk.width)
                 {
                     y++;
                     x = 0;
                 }
-                const size_t idx = y * desc.pitch + x++;
+                const size_t idx = y * chunk.pitch + x++;
                 out[idx] = val;
             }
         }
@@ -118,21 +119,21 @@ namespace
         return true;
     }
 
-    bool readRaw1(cFile& file, sBitmapDescription& desc)
+    bool readRaw1(cFile& file, sChunkData& chunk, sImageInfo& info)
     {
-        desc.bppImage = 1;
-        desc.allocate(desc.width, desc.height, 8, ePixelFormat::Luminance);
-        const uint32_t width = (uint32_t)::ceilf(desc.width / 8.0f) * 8;
+        info.bppImage = 1;
+        chunk.allocate(chunk.width, chunk.height, 8, ePixelFormat::Luminance);
+        const uint32_t width = (uint32_t)::ceilf(chunk.width / 8.0f) * 8;
         std::vector<uint8_t> buffer(width / 8);
 
-        for (uint32_t row = 0; row < desc.height; row++)
+        for (uint32_t row = 0; row < chunk.height; row++)
         {
             if (buffer.size() != file.read(buffer.data(), buffer.size()))
             {
                 return false;
             }
 
-            auto out = desc.bitmap.data() + row * desc.pitch;
+            auto out = chunk.bitmap.data() + row * chunk.pitch;
             size_t idx = 0;
             for (uint32_t i = 0; i < buffer.size(); i++)
             {
@@ -149,10 +150,10 @@ namespace
         return true;
     }
 
-    bool readAscii8(cFile& file, sBitmapDescription& desc, uint32_t maxValue)
+    bool readAscii8(cFile& file, sChunkData& chunk, sImageInfo& info, uint32_t maxValue)
     {
-        desc.bppImage = 8;
-        desc.allocate(desc.width, desc.height, 8, ePixelFormat::Luminance);
+        info.bppImage = 8;
+        chunk.allocate(chunk.width, chunk.height, 8, ePixelFormat::Luminance);
 
         Line line;
 
@@ -162,40 +163,40 @@ namespace
         uint32_t x = 0;
         uint32_t y = 0;
 
-        auto out = desc.bitmap.data();
+        auto out = chunk.bitmap.data();
         while (getline(line, file))
         {
             for (auto word = ::strtok(line.data(), TokenSep); word != nullptr; word = ::strtok(nullptr, TokenSep))
             {
                 count++;
                 const auto val = (uint32_t)(::atoi(word) * norm);
-                if (x == desc.width)
+                if (x == chunk.width)
                 {
                     y++;
                     x = 0;
                 }
-                const size_t idx = y * desc.pitch + x++;
+                const size_t idx = y * chunk.pitch + x++;
                 out[idx] = val;
             }
         }
 
-        return count == desc.width * desc.height;
+        return count == chunk.width * chunk.height;
     }
 
-    bool readRaw8(cFile& file, sBitmapDescription& desc, uint32_t maxValue)
+    bool readRaw8(cFile& file, sChunkData& chunk, sImageInfo& info, uint32_t maxValue)
     {
-        desc.bppImage = 8;
-        desc.allocate(desc.width, desc.height, 8, ePixelFormat::Luminance);
-        std::vector<uint8_t> buffer(desc.width);
+        info.bppImage = 8;
+        chunk.allocate(chunk.width, chunk.height, 8, ePixelFormat::Luminance);
+        std::vector<uint8_t> buffer(chunk.width);
 
         const float norm = 255.0f / maxValue;
 
-        for (uint32_t row = 0; row < desc.height; row++)
+        for (uint32_t row = 0; row < chunk.height; row++)
         {
             file.read(buffer.data(), buffer.size());
 
-            auto out = desc.bitmap.data() + row * desc.pitch;
-            for (uint32_t i = 0; i < desc.width; i++)
+            auto out = chunk.bitmap.data() + row * chunk.pitch;
+            for (uint32_t i = 0; i < chunk.width; i++)
             {
                 const auto val = (uint8_t)(buffer[i] * norm);
                 out[i] = val;
@@ -205,11 +206,11 @@ namespace
         return true;
     }
 
-    bool readAscii24(cFile& file, sBitmapDescription& desc, uint32_t maxValue)
+    bool readAscii24(cFile& file, sChunkData& chunk, sImageInfo& info, uint32_t maxValue)
     {
-        desc.bpp = desc.bppImage = 24;
-        desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-        desc.resizeBitmap(desc.pitch, desc.height);
+        chunk.bpp = info.bppImage = 24;
+        chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+        chunk.resizeBitmap(chunk.pitch, chunk.height);
 
         Line line;
 
@@ -219,37 +220,37 @@ namespace
         uint32_t x = 0;
         uint32_t y = 0;
 
-        auto out = desc.bitmap.data();
+        auto out = chunk.bitmap.data();
         while (getline(line, file))
         {
             for (auto word = ::strtok(line.data(), TokenSep); word != nullptr; word = ::strtok(nullptr, TokenSep))
             {
                 count++;
                 const auto val = (uint32_t)(::atoi(word) * norm);
-                if (x == desc.width * 3)
+                if (x == chunk.width * 3)
                 {
                     y++;
                     x = 0;
                 }
-                const size_t idx = y * desc.pitch + x++;
+                const size_t idx = y * chunk.pitch + x++;
                 out[idx] = val;
             }
         }
 
-        return count == desc.width * desc.height * 3;
+        return count == chunk.width * chunk.height * 3;
     }
 
-    bool readRaw24(cFile& file, sBitmapDescription& desc, uint32_t maxValue)
+    bool readRaw24(cFile& file, sChunkData& chunk, sImageInfo& info, uint32_t maxValue)
     {
-        desc.bpp = desc.bppImage = 24;
-        desc.pitch = helpers::calculatePitch(desc.width, desc.bpp);
-        desc.resizeBitmap(desc.pitch, desc.height);
+        chunk.bpp = info.bppImage = 24;
+        chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+        chunk.resizeBitmap(chunk.pitch, chunk.height);
 
-        auto out = desc.bitmap.data();
+        auto out = chunk.bitmap.data();
         const float norm = 255.0f / maxValue;
 
-        std::vector<uint8_t> buffer(desc.width * 3);
-        for (uint32_t y = 0; y < desc.height; y++)
+        std::vector<uint8_t> buffer(chunk.width * 3);
+        for (uint32_t y = 0; y < chunk.height; y++)
         {
             if (buffer.size() != file.read(buffer.data(), buffer.size()))
             {
@@ -264,7 +265,7 @@ namespace
                 }
             }
 
-            ::memcpy(out + desc.pitch * y, buffer.data(), buffer.size());
+            ::memcpy(out + chunk.pitch * y, buffer.data(), buffer.size());
         }
 
         return true;
@@ -282,10 +283,10 @@ bool cFormatPnm::isSupported(cFile& file, Buffer& buffer) const
     return h[0] == 'P' && h[1] >= '1' && h[1] <= '6' && file.getSize() >= 8;
 }
 
-bool cFormatPnm::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatPnm::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -339,12 +340,12 @@ bool cFormatPnm::LoadImpl(const char* filename, sBitmapDescription& desc)
 
                 case Token::Width:
                     token = Token::Height;
-                    desc.width = (uint32_t)::atoi(word);
+                    chunk.width = (uint32_t)::atoi(word);
                     break;
 
                 case Token::Height:
                     token = (format != 4 && format != 1) ? Token::MaxValue : Token::Data;
-                    desc.height = (uint32_t)::atoi(word);
+                    chunk.height = (uint32_t)::atoi(word);
                     break;
 
                 case Token::MaxValue:
@@ -364,33 +365,33 @@ bool cFormatPnm::LoadImpl(const char* filename, sBitmapDescription& desc)
     switch (format)
     {
     case 1: // 1-ascii
-        desc.formatName = "pnm/1-acii";
-        result = readAscii1(file, desc);
+        info.formatName = "pnm/1-acii";
+        result = readAscii1(file, chunk, info);
         break;
 
     case 4: // 1-raw
-        desc.formatName = "pnm/1-raw";
-        result = readRaw1(file, desc);
+        info.formatName = "pnm/1-raw";
+        result = readRaw1(file, chunk, info);
         break;
 
     case 2: // 8-ascii
-        desc.formatName = "pnm/8-acii";
-        result = readAscii8(file, desc, maxValue);
+        info.formatName = "pnm/8-acii";
+        result = readAscii8(file, chunk, info, maxValue);
         break;
 
     case 5: // 8-raw
-        desc.formatName = "pnm/8-raw";
-        result = readRaw8(file, desc, maxValue);
+        info.formatName = "pnm/8-raw";
+        result = readRaw8(file, chunk, info, maxValue);
         break;
 
     case 3: // 24-ascii
-        desc.formatName = "pnm/24-acii";
-        result = readAscii24(file, desc, maxValue);
+        info.formatName = "pnm/24-acii";
+        result = readAscii24(file, chunk, info, maxValue);
         break;
 
     case 6: // 24-raw
-        desc.formatName = "pnm/24-raw";
-        result = readRaw24(file, desc, maxValue);
+        info.formatName = "pnm/24-raw";
+        result = readRaw24(file, chunk, info, maxValue);
         break;
     }
 

@@ -8,9 +8,11 @@
 \**********************************************/
 
 #include "FormatJpeg.h"
-#include "Common/BitmapDescription.h"
+#include "Common/Callbacks.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -22,9 +24,9 @@
 namespace
 {
 #if defined(EXIF_SUPPORT)
-    using eCategory = sBitmapDescription::ExifCategory;
+    using eCategory = sImageInfo::ExifCategory;
 
-    void AddExifTag(ExifData* d, ExifIfd ifd, ExifTag tag, eCategory category, sBitmapDescription::ExifList& exifList)
+    void AddExifTag(ExifData* d, ExifIfd ifd, ExifTag tag, eCategory category, sImageInfo::ExifList& exifList)
     {
         ExifEntry* entry = exif_content_get_entry(d->ifd[ifd], tag);
         if (entry != nullptr)
@@ -76,10 +78,10 @@ bool cFormatJpeg::isSupported(cFile& file, Buffer& buffer) const
     return false;
 }
 
-bool cFormatJpeg::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatJpeg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (openFile(file, filename, desc) == false)
+    if (openFile(file, filename, info) == false)
     {
         return false;
     }
@@ -91,16 +93,25 @@ bool cFormatJpeg::LoadImpl(const char* filename, sBitmapDescription& desc)
     auto progressCb = [this](float p) { updateProgress(p); };
     auto allocatedCb = [this]() { signalBitmapAllocated(); };
     auto imageInfoCb = [this]() { signalImageInfo(); };
-    auto result = m_decoder.decodeJpeg(in.data(), static_cast<uint32_t>(size), desc, progressCb, allocatedCb, imageInfoCb, m_stop);
+    auto previewCb = [this, &chunk](cJpegDecoder::Bitmap&& thumb) {
+        sPreviewData preview;
+        preview.bitmap = std::move(thumb.data);
+        preview.width = thumb.width;
+        preview.height = thumb.height;
+        preview.pitch = thumb.pitch;
+        preview.bpp = thumb.bpp;
+        preview.format = thumb.format;
+        preview.fullImageWidth = chunk.width;
+        preview.fullImageHeight = chunk.height;
+        signalPreviewReady(std::move(preview));
+    };
+    auto result = m_decoder.decodeJpeg(in.data(), static_cast<uint32_t>(size), chunk, info, progressCb, allocatedCb, imageInfoCb, previewCb, m_stop);
     if (result.success == false)
     {
         return false;
     }
 
-    if (applyIccProfile(desc, result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size())))
-    {
-        desc.formatName = "jpeg/icc";
-    }
+    // ICC is applied per-scanline inside decodeJpeg() — no post-processing needed.
 
 #if defined(EXIF_SUPPORT)
     ExifData* ed = nullptr;
@@ -110,7 +121,7 @@ bool cFormatJpeg::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
     if (ed != nullptr)
     {
-        auto& exifList = desc.exifList;
+        auto& exifList = info.exifList;
 
         // Camera
         AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_MAKE, eCategory::Camera, exifList);
@@ -149,7 +160,7 @@ bool cFormatJpeg::LoadImpl(const char* filename, sBitmapDescription& desc)
         if (orientEntry != nullptr)
         {
             auto byteOrder = exif_data_get_byte_order(ed);
-            desc.exifOrientation = exif_get_short(orientEntry->data, byteOrder);
+            info.exifOrientation = exif_get_short(orientEntry->data, byteOrder);
         }
 
         exif_data_unref(ed);

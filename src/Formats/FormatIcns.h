@@ -19,11 +19,11 @@ public:
     bool isSupported(cFile& file, Buffer& buffer) const override;
 
 private:
-    virtual bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
-    virtual bool LoadSubImageImpl(unsigned current, sBitmapDescription& desc) override;
+    bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
+    bool LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInfo& info) override;
 
 private:
-    bool load(uint32_t current, sBitmapDescription& desc);
+    bool load(uint32_t current, sChunkData& chunk, sImageInfo& info);
 
     void iterateContent(const uint8_t* icon, uint32_t offset, uint32_t size);
     void unpackBits(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;

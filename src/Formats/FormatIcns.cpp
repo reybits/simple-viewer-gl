@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "FormatIcns.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
+#include "Common/ImageInfo.h"
 #include "Libs/PngReader.h"
 #include "Log/Log.h"
 
@@ -64,10 +65,10 @@ bool cFormatIcns::isSupported(cFile& file, Buffer& buffer) const
     return fileLen == file.getSize() && ::memcmp(&h->magic, magic, sizeof(magic)) == 0;
 }
 
-bool cFormatIcns::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatIcns::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         return false;
     }
@@ -86,9 +87,9 @@ bool cFormatIcns::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     iterateContent(icon, sizeof(Header), size);
 
-    desc.images = (uint32_t)m_entries.size();
+    info.images = (uint32_t)m_entries.size();
 
-    return desc.images > 0 && load(0, desc);
+    return info.images > 0 && load(0, chunk, info);
 }
 
 void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t size)
@@ -137,39 +138,39 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
     }
 }
 
-bool cFormatIcns::LoadSubImageImpl(uint32_t current, sBitmapDescription& desc)
+bool cFormatIcns::LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
-    return load(current, desc);
+    return load(current, chunk, info);
 }
 
-bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
+bool cFormatIcns::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
     current = std::max<uint32_t>(current, 0);
-    current = std::min<uint32_t>(current, desc.images - 1);
+    current = std::min<uint32_t>(current, info.images - 1);
 
-    desc.current = current;
+    info.current = current;
 
     const auto& entry = m_entries[current];
     auto data = m_icon.data() + entry.offset;
 
-    desc.format = entry.dstBpp == 32 ? ePixelFormat::RGBA : (entry.dstBpp == 24 ? ePixelFormat::RGB : ePixelFormat::Luminance);
-    desc.bpp = entry.dstBpp;
-    desc.pitch = entry.dstBpp * entry.iconSize / 8;
-    desc.width = entry.iconSize;
-    desc.height = entry.iconSize;
+    chunk.format = entry.dstBpp == 32 ? ePixelFormat::RGBA : (entry.dstBpp == 24 ? ePixelFormat::RGB : ePixelFormat::Luminance);
+    chunk.bpp = entry.dstBpp;
+    chunk.pitch = entry.dstBpp * entry.iconSize / 8;
+    chunk.width = entry.iconSize;
+    chunk.height = entry.iconSize;
 
-    desc.bppImage = entry.srcBpp;
+    info.bppImage = entry.srcBpp;
 
-    desc.formatName = "icns";
+    info.formatName = "icns";
 
-    desc.resizeBitmap(desc.pitch, desc.height);
-    auto buffer = desc.bitmap.data();
+    chunk.resizeBitmap(chunk.pitch, chunk.height);
+    auto buffer = chunk.bitmap.data();
 
     cLog::Debug(" Decoding: {}", CompressionToName(entry.compression));
 
     if (entry.compression == Compression::PngJ)
     {
-        desc.formatName = "icns/png";
+        info.formatName = "icns/png";
 
         cPngReader reader;
         reader.setProgressCallback([this](float percent) {
@@ -178,13 +179,10 @@ bool cFormatIcns::load(uint32_t current, sBitmapDescription& desc)
 
         // auto data = icon + sizeof(Chunk);
         // auto size = chunk.chunkSize - sizeof(Chunk);
-        if (reader.loadPng(desc, data, entry.size))
+        if (reader.loadPng(chunk, info, data, entry.size))
         {
-            auto& iccProfile = reader.getIccProfile();
-            if (applyIccProfile(desc, iccProfile.data(), static_cast<uint32_t>(iccProfile.size())))
-            {
-                desc.formatName = "icns/png/icc";
-            }
+            // ICC is applied per-scanline inside loadPng()
+            info.formatName = reader.getIccProfile().empty() ? "icns/png" : "icns/png/icc";
         }
         else
         {

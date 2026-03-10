@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "FormatSvg.h"
-#include "Common/BitmapDescription.h"
+#include "Common/ChunkData.h"
 #include "Common/Config.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cfloat>
@@ -50,7 +51,7 @@ bool cFormatSvg::isSupported(cFile& file, Buffer& buffer) const
     return ::strstr(magic, "<svg") != nullptr;
 }
 
-bool cFormatSvg::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     if (m_rasterizer == nullptr)
     {
@@ -59,7 +60,7 @@ bool cFormatSvg::LoadImpl(const char* filename, sBitmapDescription& desc)
     }
 
     cFile file;
-    if (!openFile(file, filename, desc))
+    if (!openFile(file, filename, info))
     {
         cLog::Error("Can't open SVG file.");
         return false;
@@ -95,19 +96,19 @@ bool cFormatSvg::LoadImpl(const char* filename, sBitmapDescription& desc)
 
     // ::printf("Selected scale: %.1f\n", scale);
 
-    desc.images = 1;
-    desc.format = ePixelFormat::RGBA;
-    desc.bpp = 32;
-    desc.bppImage = 32;
-    desc.width = image->width * scale;
-    desc.height = image->height * scale;
-    desc.allocate(desc.width, desc.height, 32, ePixelFormat::RGBA);
-    auto pix = desc.bitmap.data();
-    // std::fill(desc.bitmap.begin(), desc.bitmap.end(), 0);
+    info.images = 1;
+    chunk.format = ePixelFormat::RGBA;
+    chunk.bpp = 32;
+    info.bppImage = 32;
+    chunk.width = image->width * scale;
+    chunk.height = image->height * scale;
+    chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::RGBA);
+    auto pix = chunk.bitmap.data();
+    // std::fill(chunk.bitmap.begin(), chunk.bitmap.end(), 0);
 
-    desc.formatName = "svg";
+    info.formatName = "svg";
 
-    nsvgRasterize(m_rasterizer, image, 0.0f, 0.0f, scale, pix, desc.width, desc.height, desc.pitch);
+    nsvgRasterize(m_rasterizer, image, 0.0f, 0.0f, scale, pix, chunk.width, chunk.height, chunk.pitch);
     nsvgDelete(image);
 
     return true;

@@ -10,9 +10,10 @@
 #if defined(TIFF_SUPPORT)
 
 #include "FormatTiff.h"
-#include "Common/BitmapDescription.h"
 #include "Common/Callbacks.h"
+#include "Common/ChunkData.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -46,15 +47,15 @@ bool cFormatTiff::isSupported(cFile& file, Buffer& buffer) const
     return !::memcmp(h, le, sizeof(le)) || !::memcmp(h, be, sizeof(be));
 }
 
-bool cFormatTiff::LoadImpl(const char* filename, sBitmapDescription& desc)
+bool cFormatTiff::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     m_filename = filename;
-    return load(0, desc);
+    return load(0, chunk, info);
 }
 
-bool cFormatTiff::LoadSubImageImpl(unsigned current, sBitmapDescription& desc)
+bool cFormatTiff::LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
-    return load(current, desc);
+    return load(current, chunk, info);
 }
 
 void cFormatTiff::decodePreview(void* handle, uint32_t fullWidth, uint32_t fullHeight, unsigned current)
@@ -128,10 +129,10 @@ void cFormatTiff::decodePreview(void* handle, uint32_t fullWidth, uint32_t fullH
     TIFFSetDirectory(tif, current);
 }
 
-bool cFormatTiff::load(unsigned current, sBitmapDescription& desc)
+bool cFormatTiff::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, m_filename.c_str(), desc))
+    if (!openFile(file, m_filename.c_str(), info))
     {
         return false;
     }
@@ -147,88 +148,76 @@ bool cFormatTiff::load(unsigned current, sBitmapDescription& desc)
     if (tif != nullptr)
     {
         // read count of pages in image
-        desc.images = TIFFNumberOfDirectories(tif);
-        desc.current = std::min(current, desc.images - 1);
+        info.images = TIFFNumberOfDirectories(tif);
+        info.current = std::min(current, info.images - 1);
 
         // set desired page
-        if (TIFFSetDirectory(tif, desc.current) != 0)
+        if (TIFFSetDirectory(tif, info.current) != 0)
         {
-            struct Icc
-            {
-                bool hasEmbeded() const
-                {
-                    return profileSize && profile != nullptr;
-                }
-
-                uint32_t profileSize = 0;
-                void* profile = nullptr;
-
-                bool hasTables() const
-                {
-                    return chr != nullptr && wp != nullptr && gmr != nullptr && gmg != nullptr && gmb != nullptr;
-                }
-
-                float* chr = nullptr;
-                float* wp = nullptr;
-                uint16_t* gmr = nullptr;
-                uint16_t* gmg = nullptr;
-                uint16_t* gmb = nullptr;
-            };
-
-            Icc icc;
-
-            if (TIFFGetField(tif, TIFFTAG_ICCPROFILE, &icc.profileSize, &icc.profile) == 0)
-            {
-                if (TIFFGetField(tif, TIFFTAG_PRIMARYCHROMATICITIES, &icc.chr))
-                {
-                    if (TIFFGetField(tif, TIFFTAG_WHITEPOINT, &icc.wp))
-                    {
-                        TIFFGetFieldDefaulted(tif, TIFFTAG_TRANSFERFUNCTION, &icc.gmr, &icc.gmg, &icc.gmb);
-                    }
-                }
-            }
-
             TIFFRGBAImage img;
             char emsg[1024];
             if (TIFFRGBAImageBegin(&img, tif, 0, emsg) != 0)
             {
-                desc.width = img.width;
-                desc.height = img.height;
-                desc.bppImage = img.bitspersample * img.samplesperpixel;
+                chunk.width = img.width;
+                chunk.height = img.height;
+                info.bppImage = img.bitspersample * img.samplesperpixel;
 
                 TIFFRGBAImageEnd(&img);
-                decodePreview(tif, desc.width, desc.height, desc.current);
+                decodePreview(tif, chunk.width, chunk.height, info.current);
 
                 // Re-open the image after preview scan may have changed directory
-                if (TIFFSetDirectory(tif, desc.current) == 0
+                if (TIFFSetDirectory(tif, info.current) == 0
                     || TIFFRGBAImageBegin(&img, tif, 0, emsg) == 0)
                 {
                     TIFFClose(tif);
                     return false;
                 }
 
-                setupBitmap(desc, desc.width, desc.height, 32, ePixelFormat::RGBA, "tiff");
+                // Read ICC data after directory is restored — TIFFGetField
+                // returns pointers into TIFF's internal memory that are only
+                // valid for the current directory.
+                uint32_t iccProfileSize = 0;
+                void* iccProfile = nullptr;
+                bool hasIccProfile = TIFFGetField(tif, TIFFTAG_ICCPROFILE, &iccProfileSize, &iccProfile) != 0
+                    && iccProfileSize > 0 && iccProfile != nullptr;
 
-                // set desired orientation
+                float* chr = nullptr;
+                float* wp = nullptr;
+                uint16_t* gmr = nullptr;
+                uint16_t* gmg = nullptr;
+                uint16_t* gmb = nullptr;
+                bool hasIccTables = false;
+                if (hasIccProfile == false)
+                {
+                    if (TIFFGetField(tif, TIFFTAG_PRIMARYCHROMATICITIES, &chr) && chr != nullptr
+                        && TIFFGetField(tif, TIFFTAG_WHITEPOINT, &wp) && wp != nullptr)
+                    {
+                        TIFFGetFieldDefaulted(tif, TIFFTAG_TRANSFERFUNCTION, &gmr, &gmg, &gmb);
+                        hasIccTables = true;
+                    }
+                }
+
+                setupBitmap(chunk, info, 32, ePixelFormat::RGBA, "tiff");
+
                 img.req_orientation = ORIENTATION_TOPLEFT;
 
-                auto bitmap = desc.bitmap.data();
-                result = TIFFRGBAImageGet(&img, (uint32_t*)bitmap, desc.width, desc.height) != 0;
+                auto bitmap = chunk.bitmap.data();
+                result = TIFFRGBAImageGet(&img, reinterpret_cast<uint32_t*>(bitmap), chunk.width, chunk.height) != 0;
 
                 if (result)
                 {
                     bool iccApplied = false;
-                    if (icc.hasEmbeded())
+                    if (hasIccProfile)
                     {
-                        iccApplied = applyIccProfile(desc, icc.profile, icc.profileSize);
+                        iccApplied = applyIccProfile(chunk, iccProfile, iccProfileSize);
                     }
-                    else if (icc.hasTables())
+                    else if (hasIccTables)
                     {
-                        iccApplied = applyIccProfile(desc, icc.chr, icc.wp, icc.gmr, icc.gmg, icc.gmb);
+                        iccApplied = applyIccProfile(chunk, chr, wp, gmr, gmg, gmb);
                     }
                     if (iccApplied)
                     {
-                        desc.formatName = "tiff/icc";
+                        info.formatName = "tiff/icc";
                     }
                 }
 

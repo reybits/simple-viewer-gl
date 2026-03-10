@@ -25,10 +25,10 @@ public:
     bool isSupported(cFile& file, Buffer& buffer) const override;
 
 private:
-    bool LoadImpl(const char* filename, sBitmapDescription& desc) override;
-    bool LoadSubImageImpl(uint32_t current, sBitmapDescription& desc) override;
+    bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
+    bool LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInfo& info) override;
 
-    bool load(uint32_t current, sBitmapDescription& desc);
+    bool load(uint32_t current, sChunkData& chunk, sImageInfo& info);
 
 private:
     std::string m_filename;
