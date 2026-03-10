@@ -27,6 +27,7 @@ public:
 private:
     bool m_visible = false;
     double m_showTime = 0.0;
+    double m_lastTime = 0.0;
 
     std::unique_ptr<cQuad> m_back;
     std::unique_ptr<cQuad> m_dot;

@@ -34,7 +34,9 @@ void cProgress::show()
     m_visible = true;
 
     constexpr auto WaitTime = 2.0;
-    m_showTime = timing::seconds() + WaitTime;
+    auto now = timing::seconds();
+    m_showTime = now + WaitTime;
+    m_lastTime = now + WaitTime;
 }
 
 void cProgress::hide()
@@ -46,7 +48,6 @@ void cProgress::render()
 {
     if (m_visible)
     {
-        static auto lastTime = timing::seconds();
         auto currentTime = timing::seconds();
 
         if (m_showTime > currentTime)
@@ -54,9 +55,9 @@ void cProgress::render()
             return;
         }
 
-        auto dt = static_cast<float>(currentTime - lastTime);
+        auto dt = static_cast<float>(currentTime - m_lastTime);
         m_time -= dt;
-        lastTime = currentTime;
+        m_lastTime = currentTime;
 
         if (m_time <= 0.0f)
         {
