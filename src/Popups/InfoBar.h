@@ -11,6 +11,7 @@
 
 #include "Popup.h"
 
+#include <cstddef>
 #include <string>
 
 struct sConfig;
@@ -22,31 +23,26 @@ public:
 
     void render() override;
 
-    struct sInfo
-    {
-        const char* path = nullptr;
-        const char* type = nullptr;
-        unsigned index = 0;
-        unsigned width = 0;
-        unsigned height = 0;
-        unsigned bpp = 0;
-        float scale = 0.0f;
-        unsigned images = 0;
-        unsigned current = 0;
-        long file_size = 0;
-        size_t mem_size = 0;
-        unsigned files_count = 0;
-    };
-
-    void setInfo(const sInfo& p);
+    void setFileName(const char* path);
+    void setFormat(const char* type);
+    void setDimensions(unsigned width, unsigned height, unsigned bpp);
+    void setScale(float scale);
+    void setFileIndex(unsigned index, unsigned count);
+    void setSubImage(unsigned current, unsigned images);
+    void setMemory(long fileSize, size_t memSize);
 
 private:
-    const char* getHumanSize(float& size);
-    const std::string getFilename(const char* path) const;
-    const std::string shortenFilename(const std::string& path) const;
+    std::string getFilename(const char* path) const;
+    std::string shortenFilename(const std::string& path) const;
 
 private:
     const sConfig& m_config;
 
-    std::string m_bottominfo;
+    std::string m_fileName;
+    std::string m_format = "unknown";
+    std::string m_dimensions;
+    std::string m_scale;
+    std::string m_fileIndex;
+    std::string m_subImage;
+    std::string m_memory;
 };

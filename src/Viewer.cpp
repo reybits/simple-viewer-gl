@@ -1235,44 +1235,41 @@ void cViewer::loadSubImage(int subStep)
 
 void cViewer::updateInfobar()
 {
-    cInfoBar::sInfo s;
-    s.path = m_filesList->getName();
-    s.scale = m_scale.getScale();
-    s.index = m_filesList->getIndex();
-    s.files_count = m_filesList->getCount();
+    const auto* path = m_filesList->getName();
+
+    m_infoBar->setFileName(path);
+    m_infoBar->setScale(m_scale.getScale());
+    m_infoBar->setFileIndex(m_filesList->getIndex(), m_filesList->getCount());
 
     if (m_loader->isLoaded())
     {
         const auto& chunk = m_loader->getChunkData();
         const auto& info = m_loader->getImageInfo();
-        s.width = chunk.width;
-        s.height = chunk.height;
-        s.bpp = info.bppImage;
-        s.images = info.images;
-        s.current = info.current;
-        s.file_size = info.fileSize;
-        s.mem_size = chunk.bitmap.size() + m_image->getGpuMemory();
-        s.type = m_loader->getImageType();
+        m_infoBar->setFormat(m_loader->getImageType());
+        m_infoBar->setDimensions(chunk.width, chunk.height, info.bppImage);
+        m_infoBar->setSubImage(info.current, info.images);
+        m_infoBar->setMemory(info.fileSize, chunk.bitmap.size() + m_image->getGpuMemory());
     }
     else if (m_imageInfo.formatName != nullptr)
     {
-        s.width = m_imageInfo.width;
-        s.height = m_imageInfo.height;
-        s.bpp = m_imageInfo.bpp;
-        s.file_size = m_imageInfo.size;
-        s.type = m_imageInfo.formatName;
+        m_infoBar->setFormat(m_imageInfo.formatName);
+        m_infoBar->setDimensions(m_imageInfo.width, m_imageInfo.height, m_imageInfo.bpp);
+        m_infoBar->setSubImage(0, 0);
+        m_infoBar->setMemory(m_imageInfo.size, 0);
     }
     else
     {
-        s.type = "unknown";
+        m_infoBar->setFormat("unknown");
+        m_infoBar->setDimensions(0, 0, 0);
+        m_infoBar->setSubImage(0, 0);
+        m_infoBar->setMemory(0, 0);
     }
-    m_infoBar->setInfo(s);
 
     // Set window title to current filename
-    if (s.path != nullptr)
+    if (path != nullptr)
     {
-        const char* name = s.path;
-        const char* p = std::strrchr(s.path, '/');
+        const char* name = path;
+        const char* p = std::strrchr(path, '/');
         if (p != nullptr)
         {
             name = p + 1;

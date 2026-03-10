@@ -18,8 +18,27 @@
 
 namespace
 {
+    constexpr ImVec4 ColorActive = { 1.0f, 1.0f, 0.0f, 1.0f };
     constexpr ImVec4 ColorCenter = { 0.1f, 1.0f, 0.1f, 1.0f };
-    constexpr ImVec4 ColorYellow = { 1.0f, 1.0f, 0.0f, 1.0f };
+    constexpr ImVec4 ColorDim = { 0.5f, 0.5f, 0.5f, 1.0f };
+
+    const char* getHumanSize(float& size)
+    {
+        static const char* s[] = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB" };
+        int idx = 0;
+        for (; size > 1024.0f; size /= 1024.0f)
+        {
+            idx++;
+        }
+        return s[idx];
+    }
+
+    void separator()
+    {
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::TextColored(ColorDim, " | ");
+        ImGui::SameLine(0.0f, 0.0f);
+    }
 
 } // namespace
 
@@ -51,8 +70,49 @@ void cInfoBar::render()
     {
         auto color = m_config.centerWindow
             ? ColorCenter
-            : ColorYellow;
-        ImGui::TextColored(color, "%s", m_bottominfo.c_str());
+            : ColorActive;
+
+        if (m_fileIndex.empty() == false)
+        {
+            ImGui::TextColored(color, "%s", m_fileIndex.c_str());
+            separator();
+        }
+
+        if (m_fileName.empty() == false)
+        {
+            ImGui::SameLine(0.0f, 0.0f);
+            ImGui::TextColored(color, "%s", m_fileName.c_str());
+        }
+
+        if (m_subImage.empty() == false)
+        {
+            separator();
+            ImGui::TextColored(color, "%s", m_subImage.c_str());
+        }
+
+        if (m_format.empty() == false)
+        {
+            separator();
+            ImGui::TextColored(color, "%s", m_format.c_str());
+        }
+
+        if (m_dimensions.empty() == false)
+        {
+            separator();
+            ImGui::TextColored(color, "%s", m_dimensions.c_str());
+        }
+
+        if (m_scale.empty() == false)
+        {
+            separator();
+            ImGui::TextColored(color, "%s", m_scale.c_str());
+        }
+
+        if (m_memory.empty() == false)
+        {
+            separator();
+            ImGui::TextColored(color, "%s", m_memory.c_str());
+        }
     }
     ImGui::End();
 
@@ -78,54 +138,58 @@ void cInfoBar::render()
         ImGui::SetNextWindowPos({ 0.0f, 0.0f }, ImGuiCond_Always);
         if (ImGui::Begin("debug", nullptr, debugFlags))
         {
-            ImGui::TextColored(ColorYellow, "fps: %.1f", fps);
+            ImGui::TextColored(ColorActive, "fps: %.1f", fps);
         }
         ImGui::End();
     }
 }
 
-void cInfoBar::setInfo(const sInfo& p)
+void cInfoBar::setFileName(const char* path)
 {
-    const auto fileName = getFilename(p.path);
-    const auto shortName = shortenFilename(fileName);
-
-    std::string idxImg;
-    if (p.files_count > 1)
-    {
-        idxImg = fmt::format("{} out {} | ", p.index + 1, p.files_count);
-    }
-
-    std::string subImage;
-    if (p.images > 1)
-    {
-        subImage = fmt::format(" | {} / {}", p.current + 1, p.images);
-    }
-
-    auto file_size = static_cast<float>(p.file_size);
-    auto file_s = getHumanSize(file_size);
-    auto mem_size = static_cast<float>(p.mem_size);
-    auto mem_s = getHumanSize(mem_size);
-
-    const char* type = p.type != nullptr ? p.type : "unknown";
-    m_bottominfo = fmt::format("{}{}{} | {} | {} x {} x {} bpp | {:.1f}% | {:.1f} {} ({:.1f} {})",
-                               idxImg, shortName, subImage,
-                               type, p.width, p.height, p.bpp, p.scale * 100.0f,
-                               file_size, file_s, mem_size, mem_s);
+    m_fileName = shortenFilename(getFilename(path));
 }
 
-const char* cInfoBar::getHumanSize(float& size)
+void cInfoBar::setFormat(const char* type)
 {
-    static const char* s[] = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB" };
-    int idx = 0;
-    for (; size > 1024.0f; size /= 1024.0f)
-    {
-        idx++;
-    }
-
-    return s[idx];
+    m_format = (type != nullptr) ? type : "unknown";
 }
 
-const std::string cInfoBar::getFilename(const char* path) const
+void cInfoBar::setDimensions(unsigned width, unsigned height, unsigned bpp)
+{
+    m_dimensions = (width > 0)
+        ? fmt::format("{} x {} x {} bpp", width, height, bpp)
+        : "";
+}
+
+void cInfoBar::setScale(float scale)
+{
+    m_scale = fmt::format("{:.1f}%", scale * 100.0f);
+}
+
+void cInfoBar::setFileIndex(unsigned index, unsigned count)
+{
+    m_fileIndex = (count > 1)
+        ? fmt::format("{} / {}", index + 1, count)
+        : "";
+}
+
+void cInfoBar::setSubImage(unsigned current, unsigned images)
+{
+    m_subImage = (images > 1)
+        ? fmt::format("{} / {}", current + 1, images)
+        : "";
+}
+
+void cInfoBar::setMemory(long fileSize, size_t memSize)
+{
+    auto fs = static_cast<float>(fileSize);
+    auto fsu = getHumanSize(fs);
+    auto ms = static_cast<float>(memSize);
+    auto msu = getHumanSize(ms);
+    m_memory = fmt::format("{:.1f} {} ({:.1f} {})", fs, fsu, ms, msu);
+}
+
+std::string cInfoBar::getFilename(const char* path) const
 {
     std::string filename = "n/a";
 
@@ -143,11 +207,9 @@ const std::string cInfoBar::getFilename(const char* path) const
     return filename;
 }
 
-const std::string cInfoBar::shortenFilename(const std::string& path) const
+std::string cInfoBar::shortenFilename(const std::string& path) const
 {
     std::string filename = path;
-
-    // ::printf("'%s' -> ", path);
 
     const auto* s = reinterpret_cast<const uint8_t*>(path.c_str());
     const uint32_t count = countCodePoints(s);
@@ -181,7 +243,6 @@ const std::string cInfoBar::shortenFilename(const std::string& path) const
         }
 
         filename += reinterpret_cast<const char*>(s);
-        // ::printf("'%s'\n", filename.c_str());
     }
 
     return filename;
