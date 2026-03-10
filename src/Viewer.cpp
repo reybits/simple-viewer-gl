@@ -1204,6 +1204,7 @@ void cViewer::loadImage(const char* path)
 
     m_subImageForced = false;
     m_animation = false;
+    m_imageInfo = {};
     m_image->reset();
     m_preview.reset();
     m_previewData = {};
@@ -1217,6 +1218,7 @@ void cViewer::loadSubImage(int subStep)
     assert(subStep == -1 || subStep == 1);
 
     m_animation = false;
+    m_imageInfo = {};
     m_image->reset();
 
     const auto& subInfo = m_loader->getImageInfo();
@@ -1341,7 +1343,6 @@ void cViewer::startLoading()
     // and data read by the render thread (m_previewData) must only be
     // freed on the main thread — see upload-complete in onUpdate().
     m_imageInfoReady.store(false, std::memory_order_relaxed);
-    m_imageInfo = {};
     m_bitmapAllocated.store(false, std::memory_order_relaxed);
     m_imagePrepared.store(false, std::memory_order_relaxed);
     m_uploadFinal = false;
