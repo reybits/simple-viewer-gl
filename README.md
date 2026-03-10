@@ -10,7 +10,7 @@
 
 The primary goal of **Simple Viewer GL** is to provide a fast, efficient image viewer with only the essential features required for quick image browsing. It includes *vi*-like key bindings and integrates seamlessly with tiling window managers such as *ion3*/*notion*, *i3wm*, *dwm*, *xmonad*, *hyprland*, *sway*, and others.
 
-Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photoshop), **AI** (Adobe Illustrator), **EPS**, **XCF** (GIMP), **GIF**, **SVG**, **TIFF**, **DNG**, **TARGA**, **ICO**, **ICNS** (Apple Icon Image), **BMP**, **PNM**, **DDS**, **XWD**, **SCR** (ZX-Spectrum screen), **XPM**, **WebP**, **OpenEXR**, **AGE**, and many more.
+Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD/PSB** (Adobe Photoshop), **AI** (Adobe Illustrator), **EPS**, **XCF** (GIMP), **GIF**, **SVG**, **TIFF**, **DNG**, **TARGA**, **ICO**, **ICNS** (Apple Icon Image), **BMP**, **PNM**, **DDS**, **XWD**, **SCR** (ZX-Spectrum screen), **XPM**, **WebP**, **OpenEXR**, **HEIF/HEIC**, **AVIF**, **AGE**, and many more.
 
 ---
 
@@ -24,12 +24,13 @@ Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photo
 ## Features
 
 - Lightweight and fast: hardware-accelerated rendering via OpenGL
-- ICC color management via GPU 3D LUT (PNG, JPEG, JPEG 2000, TIFF, WebP, BMP, PSD, EPS, ICO, ICNS)
+- ICC color management via GPU 3D LUT (PNG, JPEG, JPEG 2000, TIFF, WebP, BMP, PSD/PSB, EPS, ICO, ICNS, HEIF/HEIC, AVIF)
 - Automatic EXIF orientation correction
 - Image rotation and flip (rendered via projection matrix, no bitmap transform)
 - GIF animation support
 - GIMP XCF support
-- Adobe PSD format support
+- Adobe PSD/PSB format support (RGB, CMYK, Grayscale, LAB, Duotone, Indexed; RAW, RLE, ZIP compression)
+- HEIF/HEIC and AVIF format support with EXIF and ICC profiles
 - Adobe AI, EPS formats preview support
 - SVG format support
 - EXIF metadata display
@@ -108,6 +109,7 @@ Supported formats include **PNG**, **JPEG**, **JPEG 2000**, **PSD** (Adobe Photo
 | libtiff  | libtiff-dev          | libtiff-devel        |          | TIFF format                     |
 | libwebp  | libwebp-dev          | libwebp-devel        |          | WebP format                     |
 | OpenEXR  | libopenexr-dev       | openexr-devel        |          | OpenEXR format                  |
+| libheif  | libheif-dev          | libheif-devel        |          | HEIF/HEIC/AVIF formats          |
 | curl     | libcurl4-openssl-dev | libcurl-devel        |          | HTTP/HTTPS/FTP loading          |
 
 ### Build
@@ -141,7 +143,7 @@ Install build dependencies and build the .deb package:
 sudo apt-get install build-essential debhelper cmake pkg-config \
     libgl1-mesa-dev libglfw3-dev zlib1g-dev libpng-dev libjpeg-dev \
     libexif-dev liblcms2-dev libopenjp2-7-dev libgif-dev libtiff-dev \
-    libwebp-dev libopenexr-dev libcurl4-openssl-dev
+    libwebp-dev libopenexr-dev libheif-dev libcurl4-openssl-dev
 
 git clone https://github.com/reybits/simple-viewer-gl.git
 cd simple-viewer-gl
@@ -156,7 +158,7 @@ Install build dependencies and build the RPM package:
 sudo dnf install gcc-c++ make cmake pkgconfig mesa-libGL-devel glfw-devel \
     libpng-devel libjpeg-turbo-devel zlib-devel libexif-devel lcms2-devel \
     openjpeg2-devel giflib-devel libtiff-devel libwebp-devel openexr-devel \
-    libcurl-devel
+    libheif-devel libcurl-devel
 
 git clone https://github.com/reybits/simple-viewer-gl.git
 cd simple-viewer-gl
