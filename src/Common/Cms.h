@@ -12,21 +12,19 @@
 #include "PixelFormat.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace cms
 {
-    bool transformBitmap(const void* iccProfile, uint32_t iccProfileSize,
-                         uint8_t* bitmap, uint32_t width, uint32_t height,
-                         uint32_t pitch, ePixelFormat format);
+    constexpr uint32_t LutGridSize = 33;
 
-    bool transformBitmap(const float* chr, const float* wp,
-                         const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
-                         uint8_t* bitmap, uint32_t width, uint32_t height,
-                         uint32_t pitch, ePixelFormat format);
+    // Generate a 3D LUT (LutGridSize³ × 3 RGB bytes) from an ICC profile.
+    // Returns empty vector if the profile is incompatible.
+    std::vector<uint8_t> generateLut3D(const void* iccProfile, uint32_t iccProfileSize, ePixelFormat format);
 
-    // Per-scanline ICC transform: create once, apply per row, destroy when done.
-    void* createTransform(const void* iccProfile, uint32_t iccProfileSize, ePixelFormat format);
-    void transformRow(void* transform, uint8_t* row, uint32_t width);
-    void destroyTransform(void* transform);
+    // Generate a 3D LUT from TIFF chromaticity/whitepoint/transfer-function tables.
+    std::vector<uint8_t> generateLut3D(const float* chr, const float* wp,
+                                        const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
+                                        ePixelFormat format);
 
 } // namespace cms

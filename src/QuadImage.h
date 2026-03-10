@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Common/PixelFormat.h"
+#include "Renderer.h"
 #include "Types/Color.h"
 #include "Types/Vector.h"
 
@@ -27,7 +28,8 @@ public:
 
     void clear();
     void setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePixelFormat format, uint32_t bpp, const uint8_t* image, uint32_t bandHeight = 0);
-    void refreshData(const uint8_t* image);
+    void setLutData(const std::vector<uint8_t>& data, uint32_t gridSize);
+    bool hasLut() const { return m_lutTexture != 0; }
     void setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image);
     bool upload(uint32_t readyHeight);
 
@@ -123,6 +125,12 @@ private:
 
     size_t m_gpuMemory = 0;
     std::vector<uint8_t> m_buffer;
+
+    // GPU ICC: 3D LUT texture + CPU-side data for getPixel()
+    GLuint m_lutTexture = 0;
+    std::vector<uint8_t> m_lutData;
+    uint32_t m_lutSize = 0;
+    uint32_t m_ppFlags = 0; // render::PostProcess flags
 
     // Pixel readback cache: stores the last-read pixel
     mutable struct PixelCache

@@ -29,205 +29,129 @@ namespace
         return profile;
     }
 
-    cmsUInt32Number toLcmsPixelType(ePixelFormat format)
-    {
-        switch (format)
-        {
-        case ePixelFormat::RGBA:
-            return TYPE_RGBA_8;
-        case ePixelFormat::BGRA:
-            return TYPE_BGRA_8;
-        case ePixelFormat::RGB:
-            return TYPE_RGB_8;
-        case ePixelFormat::BGR:
-            return TYPE_BGR_8;
-        case ePixelFormat::Luminance:
-            return TYPE_GRAY_8;
-        case ePixelFormat::LuminanceAlpha:
-            return TYPE_GRAYA_8;
-        default:
-            return 0;
-        }
-    }
-
-    bool applyTransform(void* transform, uint8_t* bitmap, uint32_t width,
-                        uint32_t height, uint32_t pitch)
-    {
-        if (transform == nullptr)
-        {
-            return false;
-        }
-
-        for (uint32_t y = 0; y < height; y++)
-        {
-            cmsDoTransform(transform, bitmap, bitmap, width);
-            bitmap += pitch;
-        }
-
-        cmsDeleteTransform(transform);
-        return true;
-    }
-
-    bool transformWithProfile(void* inProfile, uint8_t* bitmap, uint32_t width,
-                              uint32_t height, uint32_t pitch, ePixelFormat format)
+    std::vector<uint8_t> sampleLutFromProfile(cmsHPROFILE inProfile, ePixelFormat format)
     {
         if (inProfile == nullptr)
         {
-            return false;
+            return {};
         }
 
-        auto pixelType = toLcmsPixelType(format);
-        if (pixelType == 0)
-        {
-            cmsCloseProfile(inProfile);
-            return false;
-        }
+        auto profileSpace = cmsGetColorSpace(inProfile);
+        bool isGray = false;
 
-        // Skip transform if profile color space doesn't match bitmap format.
-        // E.g. CMYK ICC profile with already-converted RGB bitmap.
-        auto profileSpace = cmsGetColorSpace(static_cast<cmsHPROFILE>(inProfile));
-        bool compatible = false;
         switch (profileSpace)
         {
         case cmsSigRgbData:
-            compatible = (format == ePixelFormat::RGB || format == ePixelFormat::RGBA
-                          || format == ePixelFormat::BGR || format == ePixelFormat::BGRA);
+            switch (format)
+            {
+            case ePixelFormat::RGB:
+            case ePixelFormat::RGBA:
+            case ePixelFormat::BGR:
+            case ePixelFormat::BGRA:
+            case ePixelFormat::CMYK:
+                break;
+            default:
+                cmsCloseProfile(inProfile);
+                return {};
+            }
             break;
         case cmsSigGrayData:
-            compatible = (format == ePixelFormat::Luminance || format == ePixelFormat::LuminanceAlpha);
+            switch (format)
+            {
+            case ePixelFormat::Luminance:
+            case ePixelFormat::LuminanceAlpha:
+                isGray = true;
+                break;
+            default:
+                cmsCloseProfile(inProfile);
+                return {};
+            }
             break;
         default:
-            break;
-        }
-
-        if (compatible == false)
-        {
             cmsCloseProfile(inProfile);
-            return false;
+            return {};
         }
 
-        auto transform = cmsCreateTransform(inProfile, pixelType, getSrgbProfile(), pixelType, INTENT_PERCEPTUAL, 0);
+        // Create transform: input profile → sRGB, always sampling as RGB
+        cmsHTRANSFORM transform = nullptr;
+        if (isGray)
+        {
+            transform = cmsCreateTransform(inProfile, TYPE_GRAY_8, getSrgbProfile(), TYPE_RGB_8, INTENT_PERCEPTUAL, 0);
+        }
+        else
+        {
+            transform = cmsCreateTransform(inProfile, TYPE_RGB_8, getSrgbProfile(), TYPE_RGB_8, INTENT_PERCEPTUAL, 0);
+        }
         cmsCloseProfile(inProfile);
 
-        return applyTransform(transform, bitmap, width, height, pitch);
+        if (transform == nullptr)
+        {
+            return {};
+        }
+
+        constexpr uint32_t N = cms::LutGridSize;
+        std::vector<uint8_t> lut(N * N * N * 3);
+        auto out = lut.data();
+
+        for (uint32_t b = 0; b < N; b++)
+        {
+            for (uint32_t g = 0; g < N; g++)
+            {
+                for (uint32_t r = 0; r < N; r++)
+                {
+                    const auto rv = static_cast<uint8_t>(r * 255 / (N - 1));
+                    const auto gv = static_cast<uint8_t>(g * 255 / (N - 1));
+                    const auto bv = static_cast<uint8_t>(b * 255 / (N - 1));
+
+                    if (isGray)
+                    {
+                        // Grayscale profile: use R coordinate as gray input
+                        cmsDoTransform(transform, &rv, out, 1);
+                    }
+                    else
+                    {
+                        uint8_t rgb[3] = { rv, gv, bv };
+                        cmsDoTransform(transform, rgb, out, 1);
+                    }
+                    out += 3;
+                }
+            }
+        }
+
+        cmsDeleteTransform(transform);
+        return lut;
     }
 
 } // namespace
 
 #endif
 
-bool cms::transformBitmap(const void* iccProfile, uint32_t iccProfileSize,
-                          uint8_t* bitmap, uint32_t width, uint32_t height,
-                          uint32_t pitch, ePixelFormat format)
+std::vector<uint8_t> cms::generateLut3D(const void* iccProfile, uint32_t iccProfileSize, ePixelFormat format)
 {
 #if defined(LCMS2_SUPPORT)
     if (iccProfile == nullptr || iccProfileSize == 0)
     {
-        return false;
+        return {};
     }
 
     auto inProfile = cmsOpenProfileFromMem(iccProfile, iccProfileSize);
-    return transformWithProfile(inProfile, bitmap, width, height, pitch, format);
-#else
-    (void)iccProfile;
-    (void)iccProfileSize;
-    (void)bitmap;
-    (void)width;
-    (void)height;
-    (void)pitch;
-    (void)format;
-    return false;
-#endif
-}
-
-void* cms::createTransform(const void* iccProfile, uint32_t iccProfileSize, ePixelFormat format)
-{
-#if defined(LCMS2_SUPPORT)
-    if (iccProfile == nullptr || iccProfileSize == 0)
-    {
-        return nullptr;
-    }
-
-    auto inProfile = cmsOpenProfileFromMem(iccProfile, iccProfileSize);
-    if (inProfile == nullptr)
-    {
-        return nullptr;
-    }
-
-    auto pixelType = toLcmsPixelType(format);
-    if (pixelType == 0)
-    {
-        cmsCloseProfile(inProfile);
-        return nullptr;
-    }
-
-    auto profileSpace = cmsGetColorSpace(static_cast<cmsHPROFILE>(inProfile));
-    bool compatible = false;
-    switch (profileSpace)
-    {
-    case cmsSigRgbData:
-        compatible = (format == ePixelFormat::RGB || format == ePixelFormat::RGBA
-                      || format == ePixelFormat::BGR || format == ePixelFormat::BGRA);
-        break;
-    case cmsSigGrayData:
-        compatible = (format == ePixelFormat::Luminance || format == ePixelFormat::LuminanceAlpha);
-        break;
-    default:
-        break;
-    }
-
-    if (compatible == false)
-    {
-        cmsCloseProfile(inProfile);
-        return nullptr;
-    }
-
-    auto transform = cmsCreateTransform(inProfile, pixelType, getSrgbProfile(), pixelType, INTENT_PERCEPTUAL, 0);
-    cmsCloseProfile(inProfile);
-    return transform;
+    return sampleLutFromProfile(inProfile, format);
 #else
     (void)iccProfile;
     (void)iccProfileSize;
     (void)format;
-    return nullptr;
+    return {};
 #endif
 }
 
-void cms::transformRow(void* transform, uint8_t* row, uint32_t width)
-{
-#if defined(LCMS2_SUPPORT)
-    if (transform != nullptr)
-    {
-        cmsDoTransform(transform, row, row, width);
-    }
-#else
-    (void)transform;
-    (void)row;
-    (void)width;
-#endif
-}
-
-void cms::destroyTransform(void* transform)
-{
-#if defined(LCMS2_SUPPORT)
-    if (transform != nullptr)
-    {
-        cmsDeleteTransform(transform);
-    }
-#else
-    (void)transform;
-#endif
-}
-
-bool cms::transformBitmap(const float* chr, const float* wp,
-                          const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
-                          uint8_t* bitmap, uint32_t width, uint32_t height,
-                          uint32_t pitch, ePixelFormat format)
+std::vector<uint8_t> cms::generateLut3D(const float* chr, const float* wp,
+                                         const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
+                                         ePixelFormat format)
 {
 #if defined(LCMS2_SUPPORT)
     if (chr == nullptr || wp == nullptr)
     {
-        return false;
+        return {};
     }
 
     cmsCIExyYTRIPLE primaries;
@@ -256,18 +180,14 @@ bool cms::transformBitmap(const float* chr, const float* wp,
         cmsFreeToneCurve(curve[i]);
     }
 
-    return transformWithProfile(inProfile, bitmap, width, height, pitch, format);
+    return sampleLutFromProfile(inProfile, format);
 #else
     (void)chr;
     (void)wp;
     (void)gmr;
     (void)gmg;
     (void)gmb;
-    (void)bitmap;
-    (void)width;
-    (void)height;
-    (void)pitch;
     (void)format;
-    return false;
+    return {};
 #endif
 }

@@ -10,7 +10,6 @@
 #include "JpegDecoder.h"
 #include "Common/ChunkData.h"
 #include "Common/Cms.h"
-#include "Common/Helpers.h"
 #include "Common/ImageInfo.h"
 
 #include <cstring>
@@ -50,14 +49,9 @@ namespace
         }
     }
 
-    void emitRow(sChunkData& chunk, uint32_t row, void* iccTransform,
+    void emitRow(sChunkData& chunk, uint32_t row,
                  const cJpegDecoder::ProgressCallback& onProgress, float progressBase, float progressScale)
     {
-        if (iccTransform != nullptr)
-        {
-            cms::transformRow(iccTransform, chunk.rowPtr(row), chunk.width);
-        }
-
         chunk.readyHeight.store(row + 1, std::memory_order_release);
 
         if (onProgress)
@@ -67,47 +61,9 @@ namespace
         }
     }
 
-    void readScanlinesCmyk(jpeg_decompress_struct& cinfo, sChunkData& chunk, uint32_t bppImage,
-                           void* iccTransform, const bool& stop,
-                           const cJpegDecoder::ProgressCallback& onProgress, float progressBase, float progressScale)
-    {
-        Buffer buffer(helpers::calculatePitch(chunk.width, bppImage));
-        auto input = buffer.data();
-
-        while (cinfo.output_scanline < cinfo.output_height && stop == false)
-        {
-            const uint32_t row = cinfo.output_scanline;
-            waitForRoom(chunk, row, stop);
-            if (stop)
-            {
-                break;
-            }
-
-            jpeg_read_scanlines(&cinfo, &input, 1);
-
-            auto out = chunk.rowPtr(row);
-            for (uint32_t x = 0; x < chunk.width; x++)
-            {
-                const uint32_t src = x * 4;
-                const float c = 1.0f - input[src + 0] / 255.0f;
-                const float m = 1.0f - input[src + 1] / 255.0f;
-                const float y = 1.0f - input[src + 2] / 255.0f;
-                const float k = 1.0f - input[src + 3] / 255.0f;
-                const float kInv = 1.0f - k;
-
-                const uint32_t dst = x * 3;
-                out[dst + 0] = static_cast<uint8_t>((1.0f - (c * kInv + k)) * 255.0f);
-                out[dst + 1] = static_cast<uint8_t>((1.0f - (m * kInv + k)) * 255.0f);
-                out[dst + 2] = static_cast<uint8_t>((1.0f - (y * kInv + k)) * 255.0f);
-            }
-
-            emitRow(chunk, row, iccTransform, onProgress, progressBase, progressScale);
-        }
-    }
-
-    void readScanlinesRgb(jpeg_decompress_struct& cinfo, sChunkData& chunk,
-                          void* iccTransform, const bool& stop,
-                          const cJpegDecoder::ProgressCallback& onProgress, float progressBase, float progressScale)
+    void readScanlines(jpeg_decompress_struct& cinfo, sChunkData& chunk,
+                       const bool& stop,
+                       const cJpegDecoder::ProgressCallback& onProgress, float progressBase, float progressScale)
     {
         if (cinfo.data_precision == 12)
         {
@@ -130,7 +86,7 @@ namespace
                     out[i] = static_cast<uint8_t>(scanline[i] >> 4);
                 }
 
-                emitRow(chunk, row, iccTransform, onProgress, progressBase, progressScale);
+                emitRow(chunk, row, onProgress, progressBase, progressScale);
             }
 #endif
         }
@@ -155,7 +111,7 @@ namespace
                     out[i] = static_cast<uint8_t>(scanline[i] >> 8);
                 }
 
-                emitRow(chunk, row, iccTransform, onProgress, progressBase, progressScale);
+                emitRow(chunk, row, onProgress, progressBase, progressScale);
             }
 #endif
         }
@@ -173,7 +129,7 @@ namespace
                 auto out = chunk.rowPtr(row);
                 jpeg_read_scanlines(&cinfo, &out, 1);
 
-                emitRow(chunk, row, iccTransform, onProgress, progressBase, progressScale);
+                emitRow(chunk, row, onProgress, progressBase, progressScale);
             }
         }
     }
@@ -263,8 +219,9 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     ePixelFormat fmt;
     if (isCMYK)
     {
-        fmt = ePixelFormat::RGB;
-        chunk.allocate(chunk.width, chunk.height, 24, fmt, BandRows);
+        // Upload raw CMYK bytes — GPU shader converts to RGB
+        fmt = ePixelFormat::CMYK;
+        chunk.allocate(chunk.width, chunk.height, 32, fmt, BandRows);
     }
     else
     {
@@ -274,26 +231,29 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
         chunk.allocate(chunk.width, chunk.height, cinfo.output_components * 8, fmt, BandRows);
     }
 
+    // Step 7: generate 3D LUT from ICC profile (applied on GPU during rendering)
+    if (result.iccProfile.empty() == false)
+    {
+        // For CMYK, the ICC profile is typically RGB — it applies after CMYK→RGB
+        // conversion in the shader. Pass the post-conversion format for LUT generation.
+        auto lutFormat = isCMYK
+            ? ePixelFormat::CMYK
+            : fmt;
+        chunk.lutData = cms::generateLut3D(
+            result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size()), lutFormat);
+        if (chunk.lutData.empty() == false)
+        {
+            chunk.lutSize = cms::LutGridSize;
+        }
+    }
+
     if (onAllocated)
     {
         onAllocated();
     }
 
-    // Step 7: create per-scanline ICC transform (applied during decode)
-    void* iccTransform = cms::createTransform(
-        result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size()), fmt);
-
-    // Step 8: read scanlines with ring buffer + inline ICC
-    if (isCMYK)
-    {
-        readScanlinesCmyk(cinfo, chunk, info.bppImage, iccTransform, stop, onProgress, 0.0f, 1.0f);
-    }
-    else
-    {
-        readScanlinesRgb(cinfo, chunk, iccTransform, stop, onProgress, 0.0f, 1.0f);
-    }
-
-    cms::destroyTransform(iccTransform);
+    // Step 8: read scanlines into ring buffer (no CPU transforms)
+    readScanlines(cinfo, chunk, stop, onProgress, 0.0f, 1.0f);
 
     // Step 9: Finish decompression
     jpeg_finish_decompress(&cinfo);

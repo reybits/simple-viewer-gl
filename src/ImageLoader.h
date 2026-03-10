@@ -94,9 +94,6 @@ public:
         Buffer().swap(m_chunk.bitmap);
     }
 
-    bool wasBitmapModified() const;
-    void clearBitmapModified();
-
     const Metrics& getMetrics() const
     {
         return m_metrics;

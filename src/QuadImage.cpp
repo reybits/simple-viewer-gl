@@ -49,6 +49,15 @@ void cQuadImage::clear()
 
     m_buffer = {};
 
+    if (m_lutTexture != 0)
+    {
+        render::deleteLutTexture(m_lutTexture);
+        m_lutTexture = 0;
+    }
+    m_lutData.clear();
+    m_lutSize = 0;
+    m_ppFlags = 0;
+
     m_pixelCache.x = std::numeric_limits<uint32_t>::max();
     m_pixelCache.y = std::numeric_limits<uint32_t>::max();
 }
@@ -92,25 +101,31 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePix
 
     m_buffer.resize(m_texPitch * m_texHeight);
 
+    m_ppFlags = (format == ePixelFormat::CMYK)
+        ? render::PP_Cmyk
+        : render::PP_None;
+
     m_pixelCache.x = std::numeric_limits<uint32_t>::max();
     m_pixelCache.y = std::numeric_limits<uint32_t>::max();
 
     m_started = true;
 }
 
-void cQuadImage::refreshData(const uint8_t* image)
+void cQuadImage::setLutData(const std::vector<uint8_t>& data, uint32_t gridSize)
 {
-    m_image = image;
+    if (m_lutTexture != 0)
+    {
+        render::deleteLutTexture(m_lutTexture);
+        m_lutTexture = 0;
+    }
 
-    // Keep existing chunks visible as background while re-uploading
-    moveToOld();
-
-    m_buffer.resize(m_texPitch * m_texHeight);
+    m_lutData = data;
+    m_lutSize = gridSize;
+    m_lutTexture = render::createLutTexture(data.data(), gridSize);
+    m_ppFlags |= render::PP_Lut;
 
     m_pixelCache.x = std::numeric_limits<uint32_t>::max();
     m_pixelCache.y = std::numeric_limits<uint32_t>::max();
-
-    m_started = true;
 }
 
 void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image)
@@ -400,28 +415,33 @@ void cQuadImage::render()
 
     bool isInside = render::getAngle() != 0;
 
-    for (const auto& chunk : m_chunksOld)
-    {
+    auto renderChunk = [&](const Chunk& chunk) {
         const Vectorf pos{
             chunk.col * texWidth - halfWidth,
             chunk.row * texHeight - halfHeight
         };
         if (isInside || isInsideViewport(chunk, pos))
         {
-            chunk.quad->render(pos);
+            if (m_ppFlags != render::PP_None)
+            {
+                chunk.quad->setupVertices(pos);
+                render::renderPostProcessed(chunk.quad->getQuad(), m_lutTexture, m_ppFlags);
+            }
+            else
+            {
+                chunk.quad->render(pos);
+            }
         }
+    };
+
+    for (const auto& chunk : m_chunksOld)
+    {
+        renderChunk(chunk);
     }
 
     for (const auto& chunk : m_chunks)
     {
-        const Vectorf pos{
-            chunk.col * texWidth - halfWidth,
-            chunk.row * texHeight - halfHeight
-        };
-        if (isInside || isInsideViewport(chunk, pos))
-        {
-            chunk.quad->render(pos);
-        }
+        renderChunk(chunk);
     }
 }
 
@@ -467,39 +487,97 @@ bool cQuadImage::getPixel(uint32_t x, uint32_t y, cColor& color) const
     uint8_t rgba[4] = {};
     render::readTexPixel(quad->getQuad().tex, lx, ly, rgba);
 
-    // FBO readback returns raw stored channels without applying texture swizzle.
-    // Apply the same swizzle logic as render::setData() to get correct RGBA.
+    // FBO readback returns raw stored channels without applying texture swizzle
+    // or shader post-processing. Apply the same transformations as the shader.
+    float r, g, b;
+    float alpha;
+
     if (m_format == ePixelFormat::Luminance)
     {
-        // GL_R8 with swizzle {R,R,R,1}
-        color.r = rgba[0];
-        color.g = rgba[0];
-        color.b = rgba[0];
-        color.a = 255;
+        r = g = b = rgba[0] / 255.0f;
+        alpha = 1.0f;
     }
     else if (m_format == ePixelFormat::LuminanceAlpha)
     {
-        // GL_RG8 with swizzle {R,R,R,G}
-        color.r = rgba[0];
-        color.g = rgba[0];
-        color.b = rgba[0];
-        color.a = rgba[1];
+        r = g = b = rgba[0] / 255.0f;
+        alpha = rgba[1] / 255.0f;
     }
     else if (m_format == ePixelFormat::Alpha)
     {
-        // GL_R8 with swizzle {0,0,0,R}
-        color.r = 0;
-        color.g = 0;
-        color.b = 0;
-        color.a = rgba[0];
+        r = g = b = 0.0f;
+        alpha = rgba[0] / 255.0f;
+    }
+    else if (m_format == ePixelFormat::CMYK)
+    {
+        r = (rgba[0] / 255.0f) * (rgba[3] / 255.0f);
+        g = (rgba[1] / 255.0f) * (rgba[3] / 255.0f);
+        b = (rgba[2] / 255.0f) * (rgba[3] / 255.0f);
+        alpha = 1.0f;
     }
     else
     {
-        color.r = rgba[0];
-        color.g = rgba[1];
-        color.b = rgba[2];
-        color.a = rgba[3];
+        r = rgba[0] / 255.0f;
+        g = rgba[1] / 255.0f;
+        b = rgba[2] / 255.0f;
+        alpha = rgba[3] / 255.0f;
     }
+
+    // Apply 3D LUT (trilinear interpolation matching GPU shader)
+    if (m_lutData.empty() == false && m_lutSize > 1)
+    {
+        auto lookupLut = [this](float coord) -> std::pair<uint32_t, float> {
+            float scaled = coord * static_cast<float>(m_lutSize - 1);
+            auto idx = static_cast<uint32_t>(scaled);
+            if (idx >= m_lutSize - 1)
+            {
+                idx = m_lutSize - 2;
+            }
+            return { idx, scaled - idx };
+        };
+
+        auto [ri, rf] = lookupLut(r);
+        auto [gi, gf] = lookupLut(g);
+        auto [bi, bf] = lookupLut(b);
+
+        auto sample = [this](uint32_t ri, uint32_t gi, uint32_t bi) -> const uint8_t* {
+            return &m_lutData[(static_cast<size_t>(bi) * m_lutSize * m_lutSize + gi * m_lutSize + ri) * 3];
+        };
+
+        // Trilinear interpolation
+        auto lerp = [](float a, float b, float t) { return a + (b - a) * t; };
+
+        float result[3];
+        for (int c = 0; c < 3; c++)
+        {
+            float c000 = sample(ri, gi, bi)[c] / 255.0f;
+            float c100 = sample(ri + 1, gi, bi)[c] / 255.0f;
+            float c010 = sample(ri, gi + 1, bi)[c] / 255.0f;
+            float c110 = sample(ri + 1, gi + 1, bi)[c] / 255.0f;
+            float c001 = sample(ri, gi, bi + 1)[c] / 255.0f;
+            float c101 = sample(ri + 1, gi, bi + 1)[c] / 255.0f;
+            float c011 = sample(ri, gi + 1, bi + 1)[c] / 255.0f;
+            float c111 = sample(ri + 1, gi + 1, bi + 1)[c] / 255.0f;
+
+            float c00 = lerp(c000, c100, rf);
+            float c10 = lerp(c010, c110, rf);
+            float c01 = lerp(c001, c101, rf);
+            float c11 = lerp(c011, c111, rf);
+
+            float c0 = lerp(c00, c10, gf);
+            float c1 = lerp(c01, c11, gf);
+
+            result[c] = lerp(c0, c1, bf);
+        }
+
+        r = result[0];
+        g = result[1];
+        b = result[2];
+    }
+
+    color.r = static_cast<uint8_t>(r * 255.0f + 0.5f);
+    color.g = static_cast<uint8_t>(g * 255.0f + 0.5f);
+    color.b = static_cast<uint8_t>(b * 255.0f + 0.5f);
+    color.a = static_cast<uint8_t>(alpha * 255.0f + 0.5f);
 
     // Cache this pixel
     m_pixelCache.x = x;

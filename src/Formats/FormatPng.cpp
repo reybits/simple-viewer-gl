@@ -42,7 +42,7 @@ bool cFormatPng::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     });
     reader.setStopFlag(&m_stop);
 
-    // ICC is applied per-scanline inside loadPng()
+    // ICC LUT generated inside loadPng() — applied on GPU during rendering
     auto result = reader.loadPng(chunk, info, file);
     if (result)
     {

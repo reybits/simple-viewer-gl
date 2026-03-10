@@ -30,12 +30,18 @@ namespace
     uint32_t TextureSizeLimit = 1024;
 
     // Shader programs
-    GLuint TexturedProgram = 0;
-    GLuint ColoredProgram = 0;
+    constexpr uint32_t PostProcessVariants = 4;
 
-    // Uniform locations
-    GLint TexturedProjLoc = -1;
-    GLint TexturedTexLoc = -1;
+    struct PostProcessProgram
+    {
+        GLuint program = 0;
+        GLint projLoc = -1;
+        GLint texLoc = -1;
+        GLint lutLoc = -1;
+    };
+
+    PostProcessProgram PPPrograms[PostProcessVariants];
+    GLuint ColoredProgram = 0;
     GLint ColoredProjLoc = -1;
 
     // VAO/VBO/IBO
@@ -80,15 +86,30 @@ void main()
 }
 )glsl";
 
-    constexpr const char* TexturedFragSource = R"glsl(
-#version 330 core
+    // Mega-shader body (without #version — defines are prepended before it)
+    constexpr const char* PostProcessFragBody = R"glsl(
 in vec2 vTexCoord;
 in vec4 vColor;
 uniform sampler2D uTexture;
+#ifdef HAS_LUT
+uniform sampler3D uLut;
+#endif
 out vec4 FragColor;
 void main()
 {
-    FragColor = texture(uTexture, vTexCoord) * vColor;
+    vec4 texel = texture(uTexture, vTexCoord);
+    vec3 rgb = texel.rgb;
+    float alpha = texel.a;
+#ifdef CMYK
+    rgb = texel.rgb * texel.a;
+    alpha = 1.0;
+#endif
+#ifdef HAS_LUT
+    const float s = 32.0 / 33.0;
+    const float o = 0.5 / 33.0;
+    rgb = texture(uLut, rgb * s + o).rgb;
+#endif
+    FragColor = vec4(rgb, alpha) * vColor;
 }
 )glsl";
 
@@ -102,6 +123,21 @@ void main()
     FragColor = vColor;
 }
 )glsl";
+
+    std::string buildPostProcessFrag(uint32_t flags)
+    {
+        std::string src = "#version 330 core\n";
+        if (flags & render::PP_Lut)
+        {
+            src += "#define HAS_LUT\n";
+        }
+        if (flags & render::PP_Cmyk)
+        {
+            src += "#define CMYK\n";
+        }
+        src += PostProcessFragBody;
+        return src;
+    }
 
     GLuint compileShader(GLenum type, const char* source)
     {
@@ -155,10 +191,16 @@ void render::init()
     constexpr uint32_t MaxChunkSize = 4096;
     TextureSizeLimit = std::min<uint32_t>(static_cast<uint32_t>(maxSize), MaxChunkSize);
 
-    // Create shader programs
-    TexturedProgram = createProgram(VertexShaderSource, TexturedFragSource);
-    TexturedProjLoc = glGetUniformLocation(TexturedProgram, "uProjection");
-    TexturedTexLoc = glGetUniformLocation(TexturedProgram, "uTexture");
+    // Create post-process shader variants (mega-shader)
+    for (uint32_t flags = 0; flags < PostProcessVariants; flags++)
+    {
+        auto fragSrc = buildPostProcessFrag(flags);
+        auto& pp = PPPrograms[flags];
+        pp.program = createProgram(VertexShaderSource, fragSrc.c_str());
+        pp.projLoc = glGetUniformLocation(pp.program, "uProjection");
+        pp.texLoc = glGetUniformLocation(pp.program, "uTexture");
+        pp.lutLoc = glGetUniformLocation(pp.program, "uLut");
+    }
 
     ColoredProgram = createProgram(VertexShaderSource, ColoredFragSource);
     ColoredProjLoc = glGetUniformLocation(ColoredProgram, "uProjection");
@@ -210,10 +252,13 @@ void render::shutdown()
         glDeleteBuffers(1, &Ibo);
         Ibo = 0;
     }
-    if (TexturedProgram)
+    for (auto& pp : PPPrograms)
     {
-        glDeleteProgram(TexturedProgram);
-        TexturedProgram = 0;
+        if (pp.program)
+        {
+            glDeleteProgram(pp.program);
+            pp = {};
+        }
     }
     if (ColoredProgram)
     {
@@ -353,6 +398,7 @@ namespace
         { ePixelFormat::RGB565, GL_RGB8, GL_RGB, GL_UNSIGNED_SHORT_5_6_5 },
         { ePixelFormat::RGBA5551, GL_RGB5_A1, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1 },
         { ePixelFormat::RGBA4444, GL_RGBA4, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4 },
+        { ePixelFormat::CMYK, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE },
     };
 
     const FormatMapping* getFormatMapping(ePixelFormat format)
@@ -462,6 +508,27 @@ void render::deleteTexture(GLuint tex)
     GL(glDeleteTextures(1, &tex));
 }
 
+GLuint render::createLutTexture(const uint8_t* data, uint32_t gridSize)
+{
+    GLuint tex = 0;
+    GL(glGenTextures(1, &tex));
+    GL(glBindTexture(GL_TEXTURE_3D, tex));
+    GL(glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    GL(glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    GL(glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    GL(glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+    GL(glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE));
+    GL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
+    GL(glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB8, gridSize, gridSize, gridSize, 0, GL_RGB, GL_UNSIGNED_BYTE, data));
+    GL(glBindTexture(GL_TEXTURE_3D, 0));
+    return tex;
+}
+
+void render::deleteLutTexture(GLuint tex)
+{
+    GL(glDeleteTextures(1, &tex));
+}
+
 GLuint render::getCurrentTexture()
 {
     return CurrentTextureId;
@@ -501,14 +568,15 @@ void render::render(const Line& line)
 {
     bindTexture(line.tex);
 
-    GLuint program = (line.tex != 0) ? TexturedProgram : ColoredProgram;
-    GLint projLoc = (line.tex != 0) ? TexturedProjLoc : ColoredProjLoc;
+    auto& pp = PPPrograms[PP_None];
+    GLuint program = (line.tex != 0) ? pp.program : ColoredProgram;
+    GLint projLoc = (line.tex != 0) ? pp.projLoc : ColoredProjLoc;
 
     GL(glUseProgram(program));
     GL(glUniformMatrix4fv(projLoc, 1, GL_FALSE, Projection.m));
     if (line.tex != 0)
     {
-        GL(glUniform1i(TexturedTexLoc, 0));
+        GL(glUniform1i(pp.texLoc, 0));
     }
 
     GL(glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 2, line.v, GL_STREAM_DRAW));
@@ -519,14 +587,36 @@ void render::render(const Quad& quad)
 {
     bindTexture(quad.tex);
 
-    GLuint program = (quad.tex != 0) ? TexturedProgram : ColoredProgram;
-    GLint projLoc = (quad.tex != 0) ? TexturedProjLoc : ColoredProjLoc;
+    auto& pp = PPPrograms[PP_None];
+    GLuint program = (quad.tex != 0) ? pp.program : ColoredProgram;
+    GLint projLoc = (quad.tex != 0) ? pp.projLoc : ColoredProjLoc;
 
     GL(glUseProgram(program));
     GL(glUniformMatrix4fv(projLoc, 1, GL_FALSE, Projection.m));
     if (quad.tex != 0)
     {
-        GL(glUniform1i(TexturedTexLoc, 0));
+        GL(glUniform1i(pp.texLoc, 0));
+    }
+
+    GL(glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 4, quad.v, GL_STREAM_DRAW));
+    GL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr));
+}
+
+void render::renderPostProcessed(const Quad& quad, GLuint lutTex, uint32_t flags)
+{
+    bindTexture(quad.tex);
+
+    auto& pp = PPPrograms[flags & (PostProcessVariants - 1)];
+    GL(glUseProgram(pp.program));
+    GL(glUniformMatrix4fv(pp.projLoc, 1, GL_FALSE, Projection.m));
+    GL(glUniform1i(pp.texLoc, 0));
+
+    if ((flags & PP_Lut) && lutTex != 0)
+    {
+        GL(glActiveTexture(GL_TEXTURE1));
+        GL(glBindTexture(GL_TEXTURE_3D, lutTex));
+        GL(glActiveTexture(GL_TEXTURE0));
+        GL(glUniform1i(pp.lutLoc, 1));
     }
 
     GL(glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 4, quad.v, GL_STREAM_DRAW));

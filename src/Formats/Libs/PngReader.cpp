@@ -11,6 +11,7 @@
 #include "Common/ChunkData.h"
 #include "Common/Cms.h"
 #include "Common/File.h"
+
 #include "Common/Helpers.h"
 #include "Common/ImageInfo.h"
 #include "Log/Log.h"
@@ -314,20 +315,26 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImage
     chunk.bandHeight = (BandRows < chunk.height) ? BandRows : chunk.height;
     chunk.resizeBitmap(chunk.pitch, chunk.bandHeight);
 
+    // Generate 3D LUT from ICC profile (applied on GPU during rendering)
+    if (m_iccProfile.empty() == false)
+    {
+        chunk.lutData = cms::generateLut3D(
+            m_iccProfile.data(), static_cast<uint32_t>(m_iccProfile.size()), chunk.format);
+        if (chunk.lutData.empty() == false)
+        {
+            chunk.lutSize = cms::LutGridSize;
+        }
+    }
+
     if (m_allocated != nullptr)
     {
         m_allocated();
     }
 
-    // Create per-scanline ICC transform
-    void* iccTransform = cms::createTransform(
-        m_iccProfile.data(), static_cast<uint32_t>(m_iccProfile.size()), chunk.format);
-
     for (uint32_t y = 0; y < chunk.height; y++)
     {
         if (m_stop != nullptr && *m_stop)
         {
-            cms::destroyTransform(iccTransform);
             return false;
         }
 
@@ -345,16 +352,9 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImage
         auto row = chunk.rowPtr(y);
         png_read_row(png, row, nullptr);
 
-        if (iccTransform != nullptr)
-        {
-            cms::transformRow(iccTransform, row, chunk.width);
-        }
-
         chunk.readyHeight.store(y + 1, std::memory_order_release);
         updateProgress(static_cast<float>(y + 1) / chunk.height);
     }
-
-    cms::destroyTransform(iccTransform);
 
     return true;
 }

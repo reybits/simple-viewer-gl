@@ -25,6 +25,7 @@ public:
     virtual void setSpriteSize(const Vectorf& size);
     virtual void render(const Vectorf& pos);
     virtual void renderEx(const Vectorf& pos, const Vectorf& size, int rot = 0);
+    void setupVertices(const Vectorf& pos);
 
     const Quad& getQuad() const;
 
