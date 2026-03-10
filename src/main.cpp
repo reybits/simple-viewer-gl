@@ -17,7 +17,6 @@
 #include "Window.h"
 
 #include <clocale>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -30,14 +29,15 @@ namespace
 
     void showVersion()
     {
-        printf("%s %d.%d.%d\n\n",
-               version::getTitle(),
-               version::getMajor(),
-               version::getMinor(),
-               version::getRelease());
-        printf("Copyright © 2008-2026 Andrey A. Ugolnik. All Rights Reserved.\n");
-        printf("https://github.com/reybits\n");
-        printf("and@reybits.dev\n");
+        cLog::Info("{} {}.{}.{}",
+                   version::getTitle(),
+                   version::getMajor(),
+                   version::getMinor(),
+                   version::getRelease());
+        cLog::Info("");
+        cLog::Info("Copyright © 2008-2026 Andrey A. Ugolnik. All Rights Reserved.");
+        cLog::Info("https://github.com/reybits");
+        cLog::Info("and@reybits.dev");
     }
 
     const char* getValue(bool enabled)
@@ -49,53 +49,64 @@ namespace
     {
         const char* p = strrchr(name, '/');
 
-        printf("\nUsage:\n");
-        printf("  %s [OPTION]... FILE\n", (p != nullptr ? p + 1 : name));
-        printf("  -h, --help     show this help;\n");
-        printf("  -v, --version  show viewer version;\n");
-        printf("  --class VALUE  class name (default: %s);\n", config.className.c_str());
-        printf("  -s             enable scale to window (default: %s);\n", getValue(config.fitImage));
-        printf("  -cw            center window (default: %s);\n", getValue(config.centerWindow));
-        printf("  -a             do not filter by file extension;\n");
-        printf("  -c             user defined background color (default #%.2x%.2x%.2x);\n", (uint32_t)config.bgColor.r, (uint32_t)config.bgColor.g, (uint32_t)config.bgColor.b);
-        printf("  -i             disable on-screen info (default: %s);\n", getValue(!config.hideInfobar));
-        printf("  -p             show pixel info (pixel color and coordinates, default: %s);\n", getValue(config.showPixelInfo));
-        printf("  -e             show exif info (default: %s);\n", getValue(config.showExif));
-        printf("  -b             show border around image (default: %s);\n", getValue(config.showImageBorder));
-        printf("  -g             show image grid (default: %s);\n", getValue(config.showImageGrid));
-        printf("  -f             start in fullscreen mode (default: %s);\n", getValue(config.fullScreen));
-        printf("  -r             recursive directory scan (default: %s);\n", getValue(config.recursiveScan));
-        printf("  -wz            enable wheel zoom (default: %s);\n", getValue(config.wheelZoom));
-        printf("  -svg SIZE      min SVG size (default: %g px);\n", config.minSvgSize);
-        printf("  -C RRGGBB      background color in hex format (default: %.2X%.2X%.2X);\n",
-               (uint32_t)config.bgColor.r,
-               (uint32_t)config.bgColor.g,
-               (uint32_t)config.bgColor.b);
-        printf("  --             read null terminated files list from stdin.\n");
-        printf("                 Usage:\n");
-        printf("                   find /path -name *.psd -print0 | sviewgl --\n");
+        cLog::Info("");
+        cLog::Info("Usage:");
+        cLog::Info("  {} [OPTION]... FILE", (p != nullptr ? p + 1 : name));
+        cLog::Info("");
+        cLog::Info("Options:");
+        cLog::Info("  -h, --help     show this help");
+        cLog::Info("  -v, --version  show viewer version");
+        cLog::Info("  --class VALUE  window class name (default: {})", config.className);
+        cLog::Info("  -s             fit image to window (default: {})", getValue(config.fitImage));
+        cLog::Info("  -cw            center window (default: {})", getValue(config.centerWindow));
+        cLog::Info("  -a             do not filter by file extension");
+        cLog::Info("  -c             use custom background color");
+        cLog::Info("  -C RRGGBB      background color in hex (default: {:02X}{:02X}{:02X})",
+                   static_cast<uint32_t>(config.bgColor.r),
+                   static_cast<uint32_t>(config.bgColor.g),
+                   static_cast<uint32_t>(config.bgColor.b));
+        cLog::Info("  -i             disable on-screen info (default: {})", getValue(!config.hideInfobar));
+        cLog::Info("  -p             show pixel info (default: {})", getValue(config.showPixelInfo));
+        cLog::Info("  -e             show exif info (default: {})", getValue(config.showExif));
+        cLog::Info("  -b             show border around image (default: {})", getValue(config.showImageBorder));
+        cLog::Info("  -g             show image grid (default: {})", getValue(config.showImageGrid));
+        cLog::Info("  -f             start in fullscreen mode (default: {})", getValue(config.fullScreen));
+        cLog::Info("  -r             recursive directory scan (default: {})", getValue(config.recursiveScan));
+        cLog::Info("  -wz            enable wheel zoom (default: {})", getValue(config.wheelZoom));
+        cLog::Info("  -svg SIZE      min SVG rasterization size (default: {} px)", config.minSvgSize);
+        cLog::Info("  --             read null-terminated file list from stdin");
+        cLog::Info("                 e.g. find /path -name '*.psd' -print0 | sviewgl --");
 
-        printf("\nAvailable keys:\n");
-        printf("  <esc> or <q>  exit;\n");
-        printf("  <space>       next image;\n");
-        printf("  <backspace>   previous image;\n");
-        printf("  <+> / <->     scale image;\n");
-        printf("  <1>...<0>     set scale from 100%% to 1000%%;\n");
-        printf("  <pgdn>        next image in multi-page image;\n");
-        printf("  <pgup>        previous image in multi-page image;\n");
-        printf("  <enter>       switch fullscreen / windowed mode;\n");
-        printf("  <del>         toggle deletion mark;\n");
-        printf("  <ctrl>+<del>  delete marked images from disk;\n");
-        printf("  <s>           fit image to window;\n");
-        printf("  <r>           rotate clockwise;\n");
-        printf("  <shift>+<r>   rotate counterclockwise;\n");
-        printf("  <c>           change background index;\n");
-        printf("  <i>           hide / show on-screen info;\n");
-        printf("  <e>           hide / show exif popup;\n");
-        printf("  <p>           hide / show pixel info;\n");
-        printf("  <b>           hide / show border around image;\n");
-        printf("  <g>           hide / show image grid;\n");
-        printf("\n");
+        cLog::Info("");
+        cLog::Info("Key bindings:");
+        cLog::Info("  <esc> or <q>       exit");
+        cLog::Info("  <space>            next image");
+        cLog::Info("  <backspace>        previous image");
+        cLog::Info("  <home>             first image");
+        cLog::Info("  <end>              last image");
+        cLog::Info("  <o>                open file dialog");
+        cLog::Info("  <+> / <->          scale image");
+        cLog::Info("  <1>...<0>          set scale 100% to 1000%");
+        cLog::Info("  <enter>            toggle fullscreen");
+        cLog::Info("  <arrows> / <hjkl>  pan image by pixel");
+        cLog::Info("  <shift>+<arrows>   pan image by step");
+        cLog::Info("  <del>              toggle deletion mark");
+        cLog::Info("  <ctrl>+<del>       delete marked images from disk");
+        cLog::Info("  <pgup> / <pgdn>    previous / next subimage");
+        cLog::Info("  <s>                fit image to window");
+        cLog::Info("  <shift>+<s>        toggle keep scale on load");
+        cLog::Info("  <r>                rotate clockwise");
+        cLog::Info("  <shift>+<r>        rotate counterclockwise");
+        cLog::Info("  <f>                flip horizontal");
+        cLog::Info("  <shift>+<f>        flip vertical");
+        cLog::Info("  <c>                cycle background");
+        cLog::Info("  <shift>+<c>        toggle center window mode");
+        cLog::Info("  <i>                toggle on-screen info");
+        cLog::Info("  <e>                toggle exif popup");
+        cLog::Info("  <p>                toggle pixel info");
+        cLog::Info("  <b>                toggle image border");
+        cLog::Info("  <g>                toggle pixel grid");
+        cLog::Info("  <?>                toggle keybindings popup");
     }
 
 } // namespace
