@@ -176,7 +176,8 @@ void cQuadImage::createChunk(uint32_t col, uint32_t row, uint32_t readyHeight)
     const uint32_t w = getChunkWidth(col);
     const uint32_t available = std::min(readyHeight - chunkTop, chunkH);
 
-    const uint32_t sx = col * m_texPitch;
+    const uint32_t bytesPerPixel = m_bitsPerPixel / 8;
+    const uint32_t sx = col * m_texWidth * bytesPerPixel;
     const uint32_t dstPitch = helpers::calculatePitch(w, m_bitsPerPixel);
 
     // Zero-fill for the full chunk, then copy available rows
@@ -228,7 +229,8 @@ void cQuadImage::updateChunkSubData(Chunk& chunk, uint32_t available)
 {
     const uint32_t w = getChunkWidth(chunk.col);
     const uint32_t newRows = available - chunk.uploadedHeight;
-    const uint32_t sx = chunk.col * m_texPitch;
+    const uint32_t bytesPerPixel = m_bitsPerPixel / 8;
+    const uint32_t sx = chunk.col * m_texWidth * bytesPerPixel;
     const uint32_t sy = chunk.row * m_texHeight + chunk.uploadedHeight;
     const uint32_t dstPitch = helpers::calculatePitch(w, m_bitsPerPixel);
 
@@ -335,6 +337,15 @@ void cQuadImage::reset()
     m_gpuMemory = 0;
     m_width = 0;
     m_height = 0;
+
+    if (m_lutTexture != 0)
+    {
+        render::deleteLutTexture(m_lutTexture);
+        m_lutTexture = 0;
+    }
+    m_lutData.clear();
+    m_lutSize = 0;
+    m_ppFlags = 0;
 }
 
 bool cQuadImage::isUploading() const
