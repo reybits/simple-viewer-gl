@@ -81,7 +81,7 @@ namespace
         }
     }
 
-    void ReadHeader(const Imf::Header& header, sChunkData& chunk, sImageInfo& info)
+    void ReadHeader(const Imf::Header& header, sChunkData& /*chunk*/, sImageInfo& info)
     {
         auto& exifList = info.exifList;
 
