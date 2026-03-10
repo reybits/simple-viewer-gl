@@ -9,7 +9,8 @@
 
 #include "Gui.h"
 #include "Common/Timing.h"
-#include "DroidSans.h"
+#include "Assets/FontAwesomeSolid.h"
+#include "Assets/InterRegular.h"
 #include "Log/Log.h"
 #include "Renderer.h"
 #include "Types/Matrix.h"
@@ -490,8 +491,15 @@ void cGui::init(cWindow& window)
 
     io.ClipboardUserData = m_window;
 
-    const ImWchar range[] = { 0x0020, 0xFFFF, 0 };
-    io.Fonts->AddFontFromMemoryCompressedTTF(DroidSans_compressed_data, DroidSans_compressed_size, 16, nullptr, range);
+    const ImWchar textRange[] = { 0x0020, 0xFFFF, 0 };
+    io.Fonts->AddFontFromMemoryCompressedTTF(InterRegular_compressed_data, InterRegular_compressed_size, 16, nullptr, textRange);
+
+    // Merge Font Awesome icons into the same font atlas
+    ImFontConfig iconConfig;
+    iconConfig.MergeMode = true;
+    iconConfig.PixelSnapH = true;
+    const ImWchar iconRange[] = { 0xE000, 0xF8FF, 0 }; // Private Use Area (Font Awesome icons)
+    io.Fonts->AddFontFromMemoryCompressedTTF(FontAwesomeSolid_compressed_data, FontAwesomeSolid_compressed_size, 16, &iconConfig, iconRange);
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;

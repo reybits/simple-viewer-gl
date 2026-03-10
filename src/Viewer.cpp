@@ -100,7 +100,6 @@ void cViewer::onContextRecreated()
     m_imgui.init(m_window);
 
     m_checkerBoard->init();
-    m_deletionMark->init();
     m_pixelPopup->init();
     m_selection->init();
 
