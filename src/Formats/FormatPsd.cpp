@@ -466,7 +466,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     const auto colorMode = static_cast<ColorMode>(helpers::read_uint16(reinterpret_cast<uint8_t*>(&header.colorMode)));
     if (colorMode != ColorMode::RGB && colorMode != ColorMode::CMYK
         && colorMode != ColorMode::GRAYSCALE && colorMode != ColorMode::LAB
-        && colorMode != ColorMode::DUOTONE)
+        && colorMode != ColorMode::DUOTONE && colorMode != ColorMode::INDEXED)
     {
         cLog::Error("Unsupported color mode: {}.", modeToString(colorMode));
         return false;
@@ -482,11 +482,31 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     const uint32_t channels = helpers::read_uint16(reinterpret_cast<uint8_t*>(&header.channels));
 
-    // skip Color Mode Data Block
-    if (skipNextBlock(file) == false)
+    // Color Mode Data Block: contains palette for Indexed mode (768 bytes: 256R + 256G + 256B)
+    std::vector<uint8_t> palette;
     {
-        cLog::Error("Can't read color mode data block.");
-        return false;
+        uint32_t colorDataSize;
+        if (sizeof(uint32_t) != file.read(&colorDataSize, sizeof(uint32_t)))
+        {
+            cLog::Error("Can't read color mode data block.");
+            return false;
+        }
+        colorDataSize = helpers::read_uint32(reinterpret_cast<uint8_t*>(&colorDataSize));
+
+        if (colorMode == ColorMode::INDEXED && colorDataSize >= 768)
+        {
+            palette.resize(768);
+            if (768 != file.read(palette.data(), 768))
+            {
+                cLog::Error("Can't read indexed color palette.");
+                return false;
+            }
+            file.seek(colorDataSize - 768, SEEK_CUR);
+        }
+        else
+        {
+            file.seek(colorDataSize, SEEK_CUR);
+        }
     }
 
     // read Image Resources Block (extract ICC profile, thumbnail, and EXIF)
@@ -685,6 +705,13 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 : ePixelFormat::RGB;
         }
     }
+    else if (colorMode == ColorMode::INDEXED)
+    {
+        // 1 channel of palette indices → expand to RGB during interleave
+        outBpp = 24;
+        outChannels = 3;
+        outFormat = ePixelFormat::RGB;
+    }
 
     if (outBpp == 0)
     {
@@ -850,31 +877,48 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 ? row * rowBytes
                 : (row - batchStart) * rowBytes;
             auto& srcBufs = isZip ? zipChannelBufs : batchBufs;
-            for (uint32_t x = 0; x < chunk.width; x++)
+
+            if (colorMode == ColorMode::INDEXED)
             {
-                const uint32_t idx = rowOff + x * bytesPerComponent;
-                for (uint32_t ch = 0; ch < outChannels; ch++)
+                // Palette lookup: 1 index channel → 3-byte RGB
+                // PSD palette: 256 R values, 256 G values, 256 B values
+                for (uint32_t x = 0; x < chunk.width; x++)
                 {
-                    if (bytesPerComponent == 4)
-                    {
-                        // 32-bit: IEEE 754 float (big-endian) → uint8_t
-                        const auto* p = srcBufs[ch].data() + idx;
-                        const uint32_t bits = helpers::read_uint32(p);
-                        float val;
-                        std::memcpy(&val, &bits, sizeof(float));
-                        out[ch] = static_cast<uint8_t>(std::clamp(val, 0.0f, 1.0f) * 255.0f + 0.5f);
-                    }
-                    else if (bytesPerComponent == 2)
-                    {
-                        // 16-bit: take MSB of big-endian uint16
-                        out[ch] = srcBufs[ch][idx];
-                    }
-                    else
-                    {
-                        out[ch] = srcBufs[ch][idx];
-                    }
+                    const uint8_t idx = srcBufs[0][rowOff + x];
+                    out[0] = palette[idx];
+                    out[1] = palette[256 + idx];
+                    out[2] = palette[512 + idx];
+                    out += 3;
                 }
-                out += outChannels;
+            }
+            else
+            {
+                for (uint32_t x = 0; x < chunk.width; x++)
+                {
+                    const uint32_t idx = rowOff + x * bytesPerComponent;
+                    for (uint32_t ch = 0; ch < outChannels; ch++)
+                    {
+                        if (bytesPerComponent == 4)
+                        {
+                            // 32-bit: IEEE 754 float (big-endian) → uint8_t
+                            const auto* p = srcBufs[ch].data() + idx;
+                            const uint32_t bits = helpers::read_uint32(p);
+                            float val;
+                            std::memcpy(&val, &bits, sizeof(float));
+                            out[ch] = static_cast<uint8_t>(std::clamp(val, 0.0f, 1.0f) * 255.0f + 0.5f);
+                        }
+                        else if (bytesPerComponent == 2)
+                        {
+                            // 16-bit: take MSB of big-endian uint16
+                            out[ch] = srcBufs[ch][idx];
+                        }
+                        else
+                        {
+                            out[ch] = srcBufs[ch][idx];
+                        }
+                    }
+                    out += outChannels;
+                }
             }
         }
 
