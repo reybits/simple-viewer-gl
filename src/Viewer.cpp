@@ -951,6 +951,12 @@ void cViewer::clampCamera()
     const float halfImgW = m_image->getWidth() * 0.5f;
     const float halfImgH = m_image->getHeight() * 0.5f;
 
+    if (m_config.fitImage)
+    {
+        m_camera = Vectorf();
+        return;
+    }
+
     // Image larger than viewport: pan until edge reaches ~25% from viewport center
     // Image smaller than viewport: allow nudging off-center by ~25% of viewport
     const float limitX = std::max(halfImgW - halfVpW, 0.0f) + halfVpW * 0.25f;
