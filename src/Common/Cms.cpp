@@ -34,6 +34,7 @@ namespace
         Rgb,
         Gray,
         Cmyk,
+        Lab,
     };
 
     std::vector<uint8_t> sampleLutFromProfile(cmsHPROFILE inProfile, ePixelFormat format)
@@ -82,6 +83,18 @@ namespace
             }
             profileType = ProfileType::Cmyk;
             break;
+        case cmsSigLabData:
+            switch (format)
+            {
+            case ePixelFormat::RGB:
+            case ePixelFormat::RGBA:
+                profileType = ProfileType::Lab;
+                break;
+            default:
+                cmsCloseProfile(inProfile);
+                return {};
+            }
+            break;
         default:
             cmsCloseProfile(inProfile);
             return {};
@@ -99,6 +112,9 @@ namespace
             break;
         case ProfileType::Rgb:
             transform = cmsCreateTransform(inProfile, TYPE_RGB_8, getSrgbProfile(), TYPE_RGB_8, INTENT_PERCEPTUAL, 0);
+            break;
+        case ProfileType::Lab:
+            transform = cmsCreateTransform(inProfile, TYPE_Lab_8, getSrgbProfile(), TYPE_RGB_8, INTENT_PERCEPTUAL, 0);
             break;
         }
         cmsCloseProfile(inProfile);
@@ -139,6 +155,13 @@ namespace
                             0 // K=0 (no black); K is applied by GPU shader
                         };
                         cmsDoTransform(transform, cmyk, out, 1);
+                    }
+                    else if (profileType == ProfileType::Lab)
+                    {
+                        // Grid (r,g,b) = (L,a,b) in ICC Lab8 encoding:
+                        // L: 0-255 maps to 0-100, a/b: 0-255 maps to -128..+127
+                        uint8_t lab[3] = { rv, gv, bv };
+                        cmsDoTransform(transform, lab, out, 1);
                     }
                     else
                     {
@@ -220,6 +243,16 @@ std::vector<uint8_t> cms::generateLut3D(const float* chr, const float* wp,
     (void)gmg;
     (void)gmb;
     (void)format;
+    return {};
+#endif
+}
+
+std::vector<uint8_t> cms::generateLabLut3D()
+{
+#if defined(LCMS2_SUPPORT)
+    auto inProfile = cmsCreateLab4Profile(nullptr); // D50 whitepoint
+    return sampleLutFromProfile(inProfile, ePixelFormat::RGB);
+#else
     return {};
 #endif
 }

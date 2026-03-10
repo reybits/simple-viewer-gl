@@ -10,6 +10,7 @@
 #include "FormatPsd.h"
 #include "Common/Callbacks.h"
 #include "Common/ChunkData.h"
+#include "Common/Cms.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
 #include "Common/ImageInfo.h"
@@ -463,7 +464,8 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         : "psd";
 
     const auto colorMode = static_cast<ColorMode>(helpers::read_uint16(reinterpret_cast<uint8_t*>(&header.colorMode)));
-    if (colorMode != ColorMode::RGB && colorMode != ColorMode::CMYK && colorMode != ColorMode::GRAYSCALE)
+    if (colorMode != ColorMode::RGB && colorMode != ColorMode::CMYK
+        && colorMode != ColorMode::GRAYSCALE && colorMode != ColorMode::LAB)
     {
         cLog::Error("Unsupported color mode: {}.", modeToString(colorMode));
         return false;
@@ -665,6 +667,22 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
             outFormat = ePixelFormat::Luminance;
         }
     }
+    else if (colorMode == ColorMode::LAB)
+    {
+        if (channels >= 3)
+        {
+            // Upload L,a,b as RGB; LAB→sRGB conversion via 3D LUT on GPU
+            outBpp = channels >= 4
+                ? 32
+                : 24;
+            outChannels = channels >= 4
+                ? 4
+                : 3;
+            outFormat = channels >= 4
+                ? ePixelFormat::RGBA
+                : ePixelFormat::RGB;
+        }
+    }
 
     if (outBpp == 0)
     {
@@ -681,6 +699,15 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         info.formatName = isPsb
             ? "psb/icc"
             : "psd/icc";
+    }
+    else if (colorMode == ColorMode::LAB)
+    {
+        // LAB without ICC: generate default D50 LAB→sRGB LUT
+        chunk.lutData = cms::generateLabLut3D();
+        if (chunk.lutData.empty() == false)
+        {
+            chunk.lutSize = cms::LutGridSize;
+        }
     }
 
     signalImageInfo();

@@ -27,4 +27,8 @@ namespace cms
                                         const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
                                         ePixelFormat format);
 
+    // Generate a 3D LUT for LAB→sRGB conversion (default D50 whitepoint).
+    // Used when LAB image has no embedded ICC profile.
+    std::vector<uint8_t> generateLabLut3D();
+
 } // namespace cms
