@@ -241,8 +241,9 @@ namespace
         MakeExt(".bmp"),
         // X Pixmap
         MakeExt(".xpm"),
-        // Adobe PSD
+        // Adobe PSD/PSB
         MakeExt(".psd"),
+        MakeExt(".psb"),
         // Adobe Illustrator
         MakeExt(".ai"),
         // Encapsulated PostScript

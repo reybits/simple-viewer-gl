@@ -45,7 +45,7 @@ namespace
     struct PSD_HEADER
     {
         uint8_t signature[4]; // file ID, always "8BPS"
-        uint16_t version;     // version number, always 1
+        uint16_t version;     // version number, 1 = PSD, 2 = PSB
         uint8_t reserved[6];
         uint16_t channels;   // number of color channels (1-56)
         uint32_t rows;       // height of image in pixels (1-30000)
@@ -92,15 +92,29 @@ namespace
         ZIP_PREDICT = 3 // ZIP with prediction
     };
 
-    bool skipNextBlock(cFile& file)
+    bool skipNextBlock(cFile& file, bool isPsb = false)
     {
-        uint32_t size;
-        if (sizeof(uint32_t) != file.read(&size, sizeof(uint32_t)))
+        if (isPsb)
         {
-            return false;
+            // PSB uses 8-byte block size for Layer and Mask Information
+            uint8_t buf[8];
+            if (8 != file.read(buf, 8))
+            {
+                return false;
+            }
+            const auto size = helpers::read_uint64(buf);
+            file.seek(static_cast<long>(size), SEEK_CUR);
         }
-        size = helpers::read_uint32(reinterpret_cast<uint8_t*>(&size));
-        file.seek(size, SEEK_CUR);
+        else
+        {
+            uint32_t size;
+            if (sizeof(uint32_t) != file.read(&size, sizeof(uint32_t)))
+            {
+                return false;
+            }
+            size = helpers::read_uint32(reinterpret_cast<uint8_t*>(&size));
+            file.seek(size, SEEK_CUR);
+        }
 
         return true;
     }
@@ -288,7 +302,7 @@ namespace
     bool isValidFormat(const PSD_HEADER& header)
     {
         const uint16_t version = helpers::read_uint16(reinterpret_cast<const uint8_t*>(&header.version));
-        return version == 1
+        return (version == 1 || version == 2)
             && header.signature[0] == '8'
             && header.signature[1] == 'B'
             && header.signature[2] == 'P'
@@ -372,11 +386,16 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     if (isValidFormat(header) == false)
     {
-        cLog::Error("Not valid PSD file.");
+        cLog::Error("Not valid PSD/PSB file.");
         return false;
     }
 
-    info.formatName = "psd";
+    const uint16_t version = helpers::read_uint16(reinterpret_cast<uint8_t*>(&header.version));
+    const bool isPsb = (version == 2);
+
+    info.formatName = isPsb
+        ? "psb"
+        : "psd";
 
     const auto colorMode = static_cast<ColorMode>(helpers::read_uint16(reinterpret_cast<uint8_t*>(&header.colorMode)));
     if (colorMode != ColorMode::RGB && colorMode != ColorMode::CMYK && colorMode != ColorMode::GRAYSCALE)
@@ -469,8 +488,8 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     }
 #endif
 
-    // skip Layer and Mask Information Block
-    if (skipNextBlock(file) == false)
+    // skip Layer and Mask Information Block (PSB uses 8-byte size)
+    if (skipNextBlock(file, isPsb) == false)
     {
         cLog::Error("Can't read layer and mask information block.");
         return false;
@@ -494,25 +513,40 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     chunk.height = fullHeight;
 
     // this will be needed for RLE decompression
-    std::vector<uint16_t> linesLengths;
+    // PSB uses uint32_t line lengths, PSD uses uint16_t
+    std::vector<uint32_t> linesLengths;
     if (compression == CompressionMethod::RLE)
     {
-        linesLengths.resize(channels * chunk.height);
-        for (uint32_t ch = 0; ch < channels; ch++)
-        {
-            const uint32_t pos = chunk.height * ch;
+        const uint32_t totalLines = channels * chunk.height;
+        linesLengths.resize(totalLines);
 
-            if (chunk.height * sizeof(uint16_t) != file.read(&linesLengths[pos], chunk.height * sizeof(uint16_t)))
+        if (isPsb)
+        {
+            // PSB: 4 bytes per line length (big-endian)
+            for (uint32_t i = 0; i < totalLines; i++)
             {
-                cLog::Error("Can't read length of lines");
-                return false;
+                uint32_t len;
+                if (sizeof(uint32_t) != file.read(&len, sizeof(uint32_t)))
+                {
+                    cLog::Error("Can't read length of lines");
+                    return false;
+                }
+                linesLengths[i] = helpers::read_uint32(reinterpret_cast<uint8_t*>(&len));
             }
         }
-
-        // convert from big-endian
-        for (uint32_t i = 0; i < chunk.height * channels; i++)
+        else
         {
-            linesLengths[i] = helpers::read_uint16(reinterpret_cast<uint8_t*>(&linesLengths[i]));
+            // PSD: 2 bytes per line length (big-endian)
+            for (uint32_t i = 0; i < totalLines; i++)
+            {
+                uint16_t len;
+                if (sizeof(uint16_t) != file.read(&len, sizeof(uint16_t)))
+                {
+                    cLog::Error("Can't read length of lines");
+                    return false;
+                }
+                linesLengths[i] = helpers::read_uint16(reinterpret_cast<uint8_t*>(&len));
+            }
         }
     }
 
@@ -576,7 +610,9 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     if (applyIccProfile(chunk, iccProfile.data(), static_cast<uint32_t>(iccProfile.size())))
     {
-        info.formatName = "psd/icc";
+        info.formatName = isPsb
+            ? "psb/icc"
+            : "psd/icc";
     }
 
     signalImageInfo();
@@ -624,7 +660,9 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     // RLE worst case: each literal byte needs a count byte, so ~2x expansion
     const uint32_t maxLineLength = chunk.width * 2 * bytesPerComponent;
-    std::vector<uint8_t> rleBuffer(compression == CompressionMethod::RLE ? maxLineLength : 0);
+    std::vector<uint8_t> rleBuffer(compression == CompressionMethod::RLE
+                                       ? maxLineLength
+                                       : 0);
 
     signalBitmapAllocated();
 

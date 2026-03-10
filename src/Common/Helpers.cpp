@@ -50,6 +50,11 @@ namespace helpers
         return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | (uint32_t)p[3];
     }
 
+    uint64_t read_uint64(const uint8_t* p)
+    {
+        return (static_cast<uint64_t>(read_uint32(p)) << 32) | static_cast<uint64_t>(read_uint32(p + 4));
+    }
+
     void swap_uint32s(uint8_t* p, uint32_t size)
     {
         const uint32_t items = size / 4;
