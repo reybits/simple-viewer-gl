@@ -18,7 +18,7 @@
 # in the FIND_PATH() and FIND_LIBRARY() calls
 if(NOT WIN32)
    find_package(PkgConfig)
-   pkg_check_modules(PC_LCMS2 lcms2)
+   pkg_check_modules(PC_LCMS2 QUIET lcms2)
    set(LCMS2_DEFINITIONS ${PC_LCMS2_CFLAGS_OTHER})
 endif(NOT WIN32)
 
