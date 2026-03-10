@@ -29,6 +29,13 @@ namespace
         return profile;
     }
 
+    enum class ProfileType
+    {
+        Rgb,
+        Gray,
+        Cmyk,
+    };
+
     std::vector<uint8_t> sampleLutFromProfile(cmsHPROFILE inProfile, ePixelFormat format)
     {
         if (inProfile == nullptr)
@@ -37,7 +44,7 @@ namespace
         }
 
         auto profileSpace = cmsGetColorSpace(inProfile);
-        bool isGray = false;
+        auto profileType = ProfileType::Rgb;
 
         switch (profileSpace)
         {
@@ -60,27 +67,39 @@ namespace
             {
             case ePixelFormat::Luminance:
             case ePixelFormat::LuminanceAlpha:
-                isGray = true;
+                profileType = ProfileType::Gray;
                 break;
             default:
                 cmsCloseProfile(inProfile);
                 return {};
             }
             break;
+        case cmsSigCmykData:
+            if (format != ePixelFormat::CMYK)
+            {
+                cmsCloseProfile(inProfile);
+                return {};
+            }
+            profileType = ProfileType::Cmyk;
+            break;
         default:
             cmsCloseProfile(inProfile);
             return {};
         }
 
-        // Create transform: input profile → sRGB, always sampling as RGB
+        // Create transform: input profile → sRGB
         cmsHTRANSFORM transform = nullptr;
-        if (isGray)
+        switch (profileType)
         {
+        case ProfileType::Gray:
             transform = cmsCreateTransform(inProfile, TYPE_GRAY_8, getSrgbProfile(), TYPE_RGB_8, INTENT_PERCEPTUAL, 0);
-        }
-        else
-        {
+            break;
+        case ProfileType::Cmyk:
+            transform = cmsCreateTransform(inProfile, TYPE_CMYK_8, getSrgbProfile(), TYPE_RGB_8, INTENT_PERCEPTUAL, 0);
+            break;
+        case ProfileType::Rgb:
             transform = cmsCreateTransform(inProfile, TYPE_RGB_8, getSrgbProfile(), TYPE_RGB_8, INTENT_PERCEPTUAL, 0);
+            break;
         }
         cmsCloseProfile(inProfile);
 
@@ -103,10 +122,23 @@ namespace
                     const auto gv = static_cast<uint8_t>(g * 255 / (N - 1));
                     const auto bv = static_cast<uint8_t>(b * 255 / (N - 1));
 
-                    if (isGray)
+                    if (profileType == ProfileType::Gray)
                     {
-                        // Grayscale profile: use R coordinate as gray input
                         cmsDoTransform(transform, &rv, out, 1);
+                    }
+                    else if (profileType == ProfileType::Cmyk)
+                    {
+                        // LUT maps raw (C,M,Y) → ICC-correct RGB with K=0.
+                        // GPU shader applies K separately: rgb = LUT(C,M,Y) * K.
+                        // Grid coordinates (rv,gv,bv) are raw PSD values (0=full ink, 255=no ink).
+                        // lcms2 CMYK convention: 0=no ink, 100=full ink (percentage).
+                        uint8_t cmyk[4] = {
+                            static_cast<uint8_t>(255 - rv),
+                            static_cast<uint8_t>(255 - gv),
+                            static_cast<uint8_t>(255 - bv),
+                            0 // K=0 (no black); K is applied by GPU shader
+                        };
+                        cmsDoTransform(transform, cmyk, out, 1);
                     }
                     else
                     {

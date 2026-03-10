@@ -101,13 +101,21 @@ void main()
     vec3 rgb = texel.rgb;
     float alpha = texel.a;
 #ifdef CMYK
+#ifdef HAS_LUT
+    // ICC path: LUT maps raw (C,M,Y) → ICC-correct RGB, then darken by K
+    const float s = 32.0 / 33.0;
+    const float o = 0.5 / 33.0;
+    rgb = texture(uLut, texel.rgb * s + o).rgb * texel.a;
+#else
     rgb = texel.rgb * texel.a;
-    alpha = 1.0;
 #endif
+    alpha = 1.0;
+#else
 #ifdef HAS_LUT
     const float s = 32.0 / 33.0;
     const float o = 0.5 / 33.0;
     rgb = texture(uLut, rgb * s + o).rgb;
+#endif
 #endif
     FragColor = vec4(rgb, alpha) * vColor;
 }
