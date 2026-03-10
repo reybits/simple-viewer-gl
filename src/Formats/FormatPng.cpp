@@ -37,17 +37,12 @@ bool cFormatPng::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     reader.setProgressCallback([this](float progress) {
         updateProgress(progress);
     });
-    reader.setBitmapAllocatedCallback([this]() {
+    reader.setBitmapAllocatedCallback([this, &reader, &info]() {
+        info.formatName = reader.getIccProfile().empty() ? "png" : "png/icc";
         signalBitmapAllocated();
     });
     reader.setStopFlag(&m_stop);
 
     // ICC LUT generated inside loadPng() — applied on GPU during rendering
-    auto result = reader.loadPng(chunk, info, file);
-    if (result)
-    {
-        info.formatName = reader.getIccProfile().empty() ? "png" : "png/icc";
-    }
-
-    return result;
+    return reader.loadPng(chunk, info, file);
 }
