@@ -67,7 +67,7 @@ namespace
     {
         if (cinfo.data_precision == 12)
         {
-#if defined(jpeg12_read_scanlines) || defined(HAVE_JPEG12)
+#if defined(HAVE_JPEG12)
             std::vector<uint16_t> scanline(chunk.pitch);
             while (cinfo.output_scanline < cinfo.output_height && stop == false)
             {
@@ -92,7 +92,7 @@ namespace
         }
         else if (cinfo.data_precision == 16)
         {
-#if defined(jpeg16_read_scanlines) || defined(HAVE_JPEG16)
+#if defined(HAVE_JPEG16)
             std::vector<uint16_t> scanline(chunk.pitch);
             while (cinfo.output_scanline < cinfo.output_height && stop == false)
             {
