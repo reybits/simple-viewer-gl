@@ -18,6 +18,7 @@
 #include "FormatEps.h"
 #include "FormatExr.h"
 #include "FormatGif.h"
+#include "FormatHeif.h"
 #include "FormatIcns.h"
 #include "FormatIco.h"
 #include "FormatJp2k.h"
@@ -298,6 +299,14 @@ namespace
         return reader.isSupported(file, buffer);
     }
 
+#if defined(HEIF_SUPPORT)
+    bool probeHeif(cFile& file, Buffer& buffer, const uint8_t* /*data*/, uint32_t /*dataSize*/, uint64_t /*fileSize*/)
+    {
+        cFormatHeif reader(nullptr);
+        return reader.isSupported(file, buffer);
+    }
+#endif
+
     // --- Factory functions ---
 
     template <typename T>
@@ -337,6 +346,9 @@ const std::vector<sFormatEntry>& FormatRegistry::getRegistry()
         { "icns", nullptr, 0, 0, probeIcns, makeFormat<cFormatIcns>, 8 },
 #if defined(WEBP_SUPPORT)
         { "webp", nullptr, 0, 0, probeWebp, makeFormat<cFormatWebP>, 12 },
+#endif
+#if defined(HEIF_SUPPORT)
+        { "heif", nullptr, 0, 0, probeHeif, makeFormat<cFormatHeif>, 12 },
 #endif
 #if defined(JPEG2000_SUPPORT)
         { "jp2k", MagicJp2, sizeof(MagicJp2), 0, nullptr, makeFormat<cFormatJp2k>, 12 },

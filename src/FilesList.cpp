@@ -260,6 +260,10 @@ namespace
         MakeExt(".dds"),
         // SVG
         MakeExt(".svg"),
+        // HEIF/HEIC/AVIF
+        MakeExt(".heif"),
+        MakeExt(".heic"),
+        MakeExt(".avif"),
         // Truevision Advanced Raster Graphics Adapter
         MakeExt(".tga"),
         MakeExt(".targa"),
