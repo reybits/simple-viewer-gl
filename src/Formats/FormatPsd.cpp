@@ -20,6 +20,10 @@
 #include <iterator>
 #include <vector>
 
+#if defined(EXIF_SUPPORT)
+#include <libexif/exif-data.h>
+#endif
+
 namespace
 {
     // http://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
@@ -103,6 +107,7 @@ namespace
 
     constexpr uint16_t PSD_THUMBNAIL_RESOURCE = 0x040C;
     constexpr uint16_t PSD_ICC_PROFILE_RESOURCE = 0x040F;
+    constexpr uint16_t PSD_EXIF_DATA_RESOURCE = 0x0422;
 
     // PSD thumbnail resource header (28 bytes before JPEG data)
     struct ThumbnailHeader
@@ -117,9 +122,9 @@ namespace
         uint16_t numPlanes;
     };
 
-    // Read Image Resources Block and extract ICC profile and thumbnail if present.
+    // Read Image Resources Block and extract ICC profile, thumbnail, and EXIF data.
     // Returns false on read error.
-    bool readImageResources(cFile& file, Buffer& iccProfile, Buffer& thumbnailJpeg)
+    bool readImageResources(cFile& file, Buffer& iccProfile, Buffer& thumbnailJpeg, Buffer& exifData)
     {
         uint32_t blockSize;
         if (sizeof(uint32_t) != file.read(&blockSize, sizeof(uint32_t)))
@@ -182,6 +187,14 @@ namespace
                     iccProfile.clear();
                 }
             }
+            else if (resourceId == PSD_EXIF_DATA_RESOURCE && dataSize > 0)
+            {
+                exifData.resize(dataSize);
+                if (dataSize != file.read(exifData.data(), dataSize))
+                {
+                    exifData.clear();
+                }
+            }
             else if (resourceId == PSD_THUMBNAIL_RESOURCE && dataSize > sizeof(ThumbnailHeader))
             {
                 ThumbnailHeader th;
@@ -234,7 +247,7 @@ namespace
 
     void decodeRle(uint8_t* dst, const uint8_t* src, uint32_t lineLength)
     {
-        uint16_t bytesRead = 0;
+        uint32_t bytesRead = 0;
         while (bytesRead < lineLength)
         {
             const auto byte = static_cast<signed char>(src[bytesRead]);
@@ -281,6 +294,27 @@ namespace
             && header.signature[2] == 'P'
             && header.signature[3] == 'S';
     }
+
+#if defined(EXIF_SUPPORT)
+    using eCategory = sImageInfo::ExifCategory;
+
+    void AddExifTag(ExifData* d, ExifIfd ifd, ExifTag tag, eCategory category, sImageInfo::ExifList& exifList)
+    {
+        ExifEntry* entry = exif_content_get_entry(d->ifd[ifd], tag);
+        if (entry != nullptr)
+        {
+            char buf[1024];
+            exif_entry_get_value(entry, buf, sizeof(buf));
+
+            helpers::trimRightSpaces(buf);
+            if (*buf)
+            {
+                exifList.push_back({ category, exif_tag_get_title_in_ifd(tag, ifd), buf });
+            }
+        }
+    }
+#endif
+
 } // namespace
 
 bool cFormatPsd::isSupported(cFile& file, Buffer& buffer) const
@@ -368,10 +402,11 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
 
-    // read Image Resources Block (extract ICC profile and thumbnail)
+    // read Image Resources Block (extract ICC profile, thumbnail, and EXIF)
     Buffer iccProfile;
     Buffer thumbnailJpeg;
-    if (readImageResources(file, iccProfile, thumbnailJpeg) == false)
+    Buffer exifData;
+    if (readImageResources(file, iccProfile, thumbnailJpeg, exifData) == false)
     {
         cLog::Error("Can't read image resources block.");
         return false;
@@ -380,6 +415,59 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     const uint32_t fullWidth = helpers::read_uint32(reinterpret_cast<uint8_t*>(&header.columns));
     const uint32_t fullHeight = helpers::read_uint32(reinterpret_cast<uint8_t*>(&header.rows));
     decodePreview(thumbnailJpeg, fullWidth, fullHeight);
+
+#if defined(EXIF_SUPPORT)
+    if (exifData.empty() == false)
+    {
+        auto* ed = exif_data_new_from_data(exifData.data(), static_cast<unsigned>(exifData.size()));
+        if (ed != nullptr)
+        {
+            auto& exifList = info.exifList;
+
+            // Camera
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_MAKE, eCategory::Camera, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_MODEL, eCategory::Camera, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_SOFTWARE, eCategory::Camera, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_ORIENTATION, eCategory::Camera, exifList);
+
+            // Exposure
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_TIME, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FNUMBER, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_MAX_APERTURE_VALUE, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FOCAL_LENGTH, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_MODE, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_PROGRAM, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, eCategory::Exposure, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FLASH, eCategory::Exposure, exifList);
+
+            // Image
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_X_DIMENSION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_Y_DIMENSION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_X_RESOLUTION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_Y_RESOLUTION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_COLOR_SPACE, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_CONTRAST, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SATURATION, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SHARPNESS, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SCENE_CAPTURE_TYPE, eCategory::Image, exifList);
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_DIGITAL_ZOOM_RATIO, eCategory::Image, exifList);
+
+            // Date
+            AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_ORIGINAL, eCategory::Date, exifList);
+
+            // Store EXIF orientation for renderer
+            ExifEntry* orientEntry = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_ORIENTATION);
+            if (orientEntry != nullptr)
+            {
+                auto byteOrder = exif_data_get_byte_order(ed);
+                info.exifOrientation = exif_get_short(orientEntry->data, byteOrder);
+            }
+
+            exif_data_unref(ed);
+        }
+    }
+#endif
 
     // skip Layer and Mask Information Block
     if (skipNextBlock(file) == false)
