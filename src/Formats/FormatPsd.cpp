@@ -19,7 +19,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <iterator>
 #include <vector>
 #include <zlib.h>
 
@@ -51,8 +50,8 @@ namespace
         uint16_t version;     // version number, 1 = PSD, 2 = PSB
         uint8_t reserved[6];
         uint16_t channels;   // number of color channels (1-56)
-        uint32_t rows;       // height of image in pixels (1-30000)
-        uint32_t columns;    // width of image in pixels (1-30000)
+        uint32_t rows;       // height in pixels (1-30000 PSD, 1-300000 PSB)
+        uint32_t columns;    // width in pixels (1-30000 PSD, 1-300000 PSB)
         uint16_t depth;      // number of bits per channel (1, 8, 16, 32)
         ColorMode colorMode; // color mode as defined below
     };
@@ -274,7 +273,8 @@ namespace
         }
     }
 
-    // Decompress all channel data from a single zlib stream.
+    // Decompress all channel data from the image data section.
+    // Each channel is a separate zlib stream in PSD/PSB.
     // Returns per-channel buffers, each containing (height × rowBytes) decompressed bytes.
     bool decompressZip(cFile& file, uint32_t channels, uint32_t height, uint32_t rowBytes,
                        std::vector<std::vector<uint8_t>>& channelBufs)
@@ -296,38 +296,48 @@ namespace
             return false;
         }
 
-        z_stream strm = {};
-        if (inflateInit(&strm) != Z_OK)
-        {
-            return false;
-        }
-
-        strm.next_in = compressed.data();
-        strm.avail_in = static_cast<uInt>(bytesRead);
+        auto* inPtr = compressed.data();
+        auto inRemaining = static_cast<uInt>(bytesRead);
 
         channelBufs.resize(channels);
         for (uint32_t ch = 0; ch < channels; ch++)
         {
+            z_stream strm = {};
+            strm.next_in = inPtr;
+            strm.avail_in = inRemaining;
+
+            if (inflateInit(&strm) != Z_OK)
+            {
+                cLog::Error("ZIP init failed for channel {}.", ch);
+                return false;
+            }
+
             channelBufs[ch].resize(channelSize);
             strm.next_out = channelBufs[ch].data();
             strm.avail_out = channelSize;
 
-            auto ret = inflate(&strm, Z_SYNC_FLUSH);
-            if (ret != Z_OK && ret != Z_STREAM_END)
+            auto ret = inflate(&strm, Z_FINISH);
+            if (ret != Z_STREAM_END)
             {
                 cLog::Error("ZIP decompression failed for channel {} (zlib error: {}).", ch, ret);
                 inflateEnd(&strm);
                 return false;
             }
+
+            // Advance past consumed compressed data for next channel's stream
+            inPtr = const_cast<uint8_t*>(strm.next_in);
+            inRemaining = strm.avail_in;
+
+            inflateEnd(&strm);
         }
 
-        inflateEnd(&strm);
         return true;
     }
 
-    void decodeRle(uint8_t* dst, const uint8_t* src, uint32_t lineLength)
+    void decodeRle(uint8_t* dst, uint32_t dstSize, const uint8_t* src, uint32_t lineLength)
     {
         uint32_t bytesRead = 0;
+        uint32_t bytesWritten = 0;
         while (bytesRead < lineLength)
         {
             const auto byte = static_cast<signed char>(src[bytesRead]);
@@ -339,27 +349,31 @@ namespace
             }
             else if (byte > -1)
             {
-                const int count = byte + 1;
+                const auto count = static_cast<uint32_t>(byte + 1);
 
                 // copy next count bytes
-                for (int i = 0; i < count; i++)
+                for (uint32_t i = 0; i < count && bytesRead < lineLength && bytesWritten < dstSize; i++)
                 {
-                    *dst = src[bytesRead];
-                    dst++;
+                    dst[bytesWritten] = src[bytesRead];
+                    bytesWritten++;
                     bytesRead++;
                 }
             }
             else
             {
-                const int count = -byte + 1;
+                const auto count = static_cast<uint32_t>(-byte + 1);
 
                 // copy next byte count times
+                if (bytesRead >= lineLength)
+                {
+                    break;
+                }
                 const uint8_t next_byte = src[bytesRead];
                 bytesRead++;
-                for (int i = 0; i < count; i++)
+                for (uint32_t i = 0; i < count && bytesWritten < dstSize; i++)
                 {
-                    *dst = next_byte;
-                    dst++;
+                    dst[bytesWritten] = next_byte;
+                    bytesWritten++;
                 }
             }
         }
@@ -676,13 +690,14 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     else if (colorMode == ColorMode::GRAYSCALE || colorMode == ColorMode::DUOTONE)
     {
         // Duotone stores a single grayscale channel (ink curves are ignored)
-        if (channels == 2)
+        // Extra channels beyond 2 (spot colors etc.) are ignored
+        if (channels >= 2)
         {
             outBpp = 16;
             outChannels = 2;
             outFormat = ePixelFormat::LuminanceAlpha;
         }
-        else if (channels == 1)
+        else
         {
             outBpp = 8;
             outChannels = 1;
@@ -708,9 +723,12 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     else if (colorMode == ColorMode::INDEXED)
     {
         // 1 channel of palette indices → expand to RGB during interleave
-        outBpp = 24;
-        outChannels = 3;
-        outFormat = ePixelFormat::RGB;
+        // 2 channels = index + alpha → RGBA
+        outBpp = channels >= 2 ? 32 : 24;
+        outChannels = channels >= 2 ? 4 : 3;
+        outFormat = channels >= 2
+            ? ePixelFormat::RGBA
+            : ePixelFormat::RGB;
     }
 
     if (outBpp == 0)
@@ -854,7 +872,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                             cLog::Warning("Can't read image data block.");
                         }
 
-                        decodeRle(dst, rleBuffer.data(), lineLength);
+                        decodeRle(dst, rowBytes, rleBuffer.data(), lineLength);
                     }
                     else
                     {
@@ -880,15 +898,20 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
             if (colorMode == ColorMode::INDEXED)
             {
-                // Palette lookup: 1 index channel → 3-byte RGB
+                // Palette lookup: index channel → RGB, optional alpha from channel 1
                 // PSD palette: 256 R values, 256 G values, 256 B values
+                const bool hasAlpha = (channels >= 2);
                 for (uint32_t x = 0; x < chunk.width; x++)
                 {
                     const uint8_t idx = srcBufs[0][rowOff + x];
                     out[0] = palette[idx];
                     out[1] = palette[256 + idx];
                     out[2] = palette[512 + idx];
-                    out += 3;
+                    if (hasAlpha)
+                    {
+                        out[3] = srcBufs[1][rowOff + x];
+                    }
+                    out += outChannels;
                 }
             }
             else
