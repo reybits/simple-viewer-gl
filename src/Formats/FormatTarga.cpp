@@ -137,9 +137,7 @@ namespace
                 uint32_t dp = getIndex(0, y, chunk, origin);
                 for (uint32_t x = 0; x < header.width; x++)
                 {
-                    out[dp + 0] = cmdData[tga[sp] * cmtWidth + 2];
-                    out[dp + 1] = cmdData[tga[sp] * cmtWidth + 1];
-                    out[dp + 2] = cmdData[tga[sp] * cmtWidth + 0];
+                    ::memcpy(&out[dp], &cmdData[tga[sp] * cmtWidth], 3);
                     dp += 3;
                     sp++;
                 }
@@ -163,9 +161,9 @@ namespace
 
                 if (isPacked)
                 {
-                    const uint8_t b = cmdData[tga[sp] * cmtWidth + 0];
-                    const uint8_t g = cmdData[tga[sp] * cmtWidth + 1];
-                    const uint8_t r = cmdData[tga[sp] * cmtWidth + 2];
+                    const uint8_t c0 = cmdData[tga[sp] * cmtWidth + 0];
+                    const uint8_t c1 = cmdData[tga[sp] * cmtWidth + 1];
+                    const uint8_t c2 = cmdData[tga[sp] * cmtWidth + 2];
                     sp++;
 
                     for (uint32_t i = 0; i < count; i++)
@@ -180,9 +178,9 @@ namespace
                             }
                         }
                         const uint32_t dp = getIndex(x, y, chunk, origin);
-                        out[dp + 0] = r;
-                        out[dp + 1] = g;
-                        out[dp + 2] = b;
+                        out[dp + 0] = c0;
+                        out[dp + 1] = c1;
+                        out[dp + 2] = c2;
                         x++;
                     }
                 }
@@ -200,9 +198,7 @@ namespace
                             }
                         }
                         const uint32_t dp = getIndex(x, y, chunk, origin);
-                        out[dp + 0] = cmdData[tga[sp] * cmtWidth + 2];
-                        out[dp + 1] = cmdData[tga[sp] * cmtWidth + 1];
-                        out[dp + 2] = cmdData[tga[sp] * cmtWidth + 0];
+                        ::memcpy(&out[dp], &cmdData[tga[sp] * cmtWidth], 3);
                         sp++;
                         x++;
                     }
@@ -239,10 +235,10 @@ namespace
                 uint32_t dp = getIndex(0, y, chunk, origin);
                 for (uint32_t x = 0; x < header.width; x++)
                 {
-                    auto c = *(uint16_t*)&tga[sp];
-                    out[dp + 0] = (((c >> 10) & 31) * 255) / 31;
+                    auto c = *reinterpret_cast<const uint16_t*>(&tga[sp]);
+                    out[dp + 0] = (((c >> 0) & 31) * 255) / 31;
                     out[dp + 1] = (((c >> 5) & 31) * 255) / 31;
-                    out[dp + 2] = (((c >> 0) & 31) * 255) / 31;
+                    out[dp + 2] = (((c >> 10) & 31) * 255) / 31;
                     dp += 3;
                     sp += 2;
                 }
@@ -256,17 +252,11 @@ namespace
             chunk.resizeBitmap(chunk.pitch, chunk.height);
             auto out = chunk.bitmap.data();
 
+            const uint32_t rowBytes = header.width * 3;
             for (uint32_t y = 0; y < header.height; y++)
             {
-                uint32_t dp = getIndex(0, y, chunk, origin);
-                for (uint32_t x = 0; x < header.width; x++)
-                {
-                    out[dp + 0] = tga[sp + 2];
-                    out[dp + 1] = tga[sp + 1];
-                    out[dp + 2] = tga[sp + 0];
-                    dp += 3;
-                    sp += 3;
-                }
+                ::memcpy(&out[getIndex(0, y, chunk, origin)], &tga[sp], rowBytes);
+                sp += rowBytes;
             }
         }
         else if (header.pixelDepth == 32)
@@ -277,18 +267,11 @@ namespace
             chunk.resizeBitmap(chunk.pitch, chunk.height);
             auto out = chunk.bitmap.data();
 
+            const uint32_t rowBytes = header.width * 4;
             for (uint32_t y = 0; y < header.height; y++)
             {
-                uint32_t dp = getIndex(0, y, chunk, origin);
-                for (uint32_t x = 0; x < header.width; x++)
-                {
-                    out[dp + 0] = tga[sp + 2];
-                    out[dp + 1] = tga[sp + 1];
-                    out[dp + 2] = tga[sp + 0];
-                    out[dp + 3] = tga[sp + 3];
-                    dp += 4;
-                    sp += 4;
-                }
+                ::memcpy(&out[getIndex(0, y, chunk, origin)], &tga[sp], rowBytes);
+                sp += rowBytes;
             }
         }
         else
@@ -340,21 +323,21 @@ namespace
                                 break;
                             }
                         }
-                        auto c = *(uint16_t*)&tga[sp];
+                        auto c = *reinterpret_cast<const uint16_t*>(&tga[sp]);
                         const uint32_t dp = getIndex(x, y, chunk, origin);
-                        out[dp + 0] = (uint8_t)(((c >> 0) & 31) * 255) / 31;
-                        out[dp + 1] = (uint8_t)(((c >> 5) & 31) * 255) / 31;
-                        out[dp + 2] = (uint8_t)(((c >> 10) & 31) * 255) / 31;
+                        out[dp + 0] = static_cast<uint8_t>(((c >> 0) & 31) * 255 / 31);
+                        out[dp + 1] = static_cast<uint8_t>(((c >> 5) & 31) * 255 / 31);
+                        out[dp + 2] = static_cast<uint8_t>(((c >> 10) & 31) * 255 / 31);
                         sp += 2;
                         x++;
                     }
                 }
                 else
                 {
-                    const auto c = *(uint16_t*)&tga[sp];
-                    const auto r = (uint8_t)(((c >> 0) & 31) * 255) / 31;
-                    const auto g = (uint8_t)(((c >> 5) & 31) * 255) / 31;
-                    const auto b = (uint8_t)(((c >> 10) & 31) * 255) / 31;
+                    const auto c = *reinterpret_cast<const uint16_t*>(&tga[sp]);
+                    const auto b = static_cast<uint8_t>(((c >> 0) & 31) * 255 / 31);
+                    const auto g = static_cast<uint8_t>(((c >> 5) & 31) * 255 / 31);
+                    const auto r = static_cast<uint8_t>(((c >> 10) & 31) * 255 / 31);
                     sp += 2;
 
                     for (uint32_t i = 0; i < count; i++)
@@ -405,18 +388,16 @@ namespace
                             }
                         }
                         const uint32_t dp = getIndex(x, y, chunk, origin);
-                        out[dp + 0] = tga[sp + 2];
-                        out[dp + 1] = tga[sp + 1];
-                        out[dp + 2] = tga[sp + 0];
+                        ::memcpy(&out[dp], &tga[sp], 3);
                         sp += 3;
                         x++;
                     }
                 }
                 else
                 {
-                    const uint8_t b = tga[sp + 0];
-                    const uint8_t g = tga[sp + 1];
-                    const uint8_t r = tga[sp + 2];
+                    const uint8_t c0 = tga[sp + 0];
+                    const uint8_t c1 = tga[sp + 1];
+                    const uint8_t c2 = tga[sp + 2];
                     sp += 3;
                     for (uint32_t i = 0; i < count; i++)
                     {
@@ -430,9 +411,9 @@ namespace
                             }
                         }
                         const uint32_t dp = getIndex(x, y, chunk, origin);
-                        out[dp + 0] = r;
-                        out[dp + 1] = g;
-                        out[dp + 2] = b;
+                        out[dp + 0] = c0;
+                        out[dp + 1] = c1;
+                        out[dp + 2] = c2;
                         x++;
                     }
                 }
@@ -466,20 +447,17 @@ namespace
                             }
                         }
                         const uint32_t dp = getIndex(x, y, chunk, origin);
-                        out[dp + 0] = tga[sp + 2];
-                        out[dp + 1] = tga[sp + 1];
-                        out[dp + 2] = tga[sp + 0];
-                        out[dp + 3] = tga[sp + 3];
+                        ::memcpy(&out[dp], &tga[sp], 4);
                         sp += 4;
                         x++;
                     }
                 }
                 else
                 {
-                    const uint8_t b = tga[sp + 0];
-                    const uint8_t g = tga[sp + 1];
-                    const uint8_t r = tga[sp + 2];
-                    const uint8_t a = tga[sp + 3];
+                    const uint8_t c0 = tga[sp + 0];
+                    const uint8_t c1 = tga[sp + 1];
+                    const uint8_t c2 = tga[sp + 2];
+                    const uint8_t c3 = tga[sp + 3];
                     sp += 4;
 
                     for (uint32_t i = 0; i < count; i++)
@@ -494,10 +472,10 @@ namespace
                             }
                         }
                         const uint32_t dp = getIndex(x, y, chunk, origin);
-                        out[dp + 0] = r;
-                        out[dp + 1] = g;
-                        out[dp + 2] = b;
-                        out[dp + 3] = a;
+                        out[dp + 0] = c0;
+                        out[dp + 1] = c1;
+                        out[dp + 2] = c2;
+                        out[dp + 3] = c3;
                         x++;
                     }
                 }
@@ -602,7 +580,7 @@ bool cFormatTarga::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo&
         ? "targa/rle"
         : "targa";
 
-    chunk.format = chunk.bpp == 32 ? ePixelFormat::RGBA : ePixelFormat::RGB;
+    chunk.format = chunk.bpp == 32 ? ePixelFormat::BGRA : ePixelFormat::BGR;
 
     return true;
 }
