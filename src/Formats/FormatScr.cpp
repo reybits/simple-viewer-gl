@@ -13,13 +13,11 @@
 #include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
-#include <cstdio>
 #include <cstring>
-#include <iterator>
 
 namespace
 {
-    struct sColor
+    struct Color
     {
         uint8_t r;
         uint8_t g;
@@ -27,7 +25,7 @@ namespace
     };
 
     // palette PULSAR (0xcd)
-    static constexpr sColor Palette[] = {
+    constexpr Color Palette[] = {
         // normal
         { 0x00, 0x00, 0x00 },
         { 0x00, 0x00, 0xcd },
@@ -49,11 +47,11 @@ namespace
         { 0xff, 0xff, 0xff },
     };
 
-    struct sPixelRGB
+    struct PixelRGB
     {
         void set(bool isSet, uint8_t attribute)
         {
-            const uint32_t bright = (attribute & 0x40) >> 3;
+            const auto bright = (attribute & 0x40) >> 3;
             if (isSet == false)
             {
                 attribute >>= 3;
@@ -61,12 +59,7 @@ namespace
             color = Palette[bright + (attribute & 0x07)];
         }
 
-        void operator=(const sColor& other)
-        {
-            color = other;
-        }
-
-        sColor color;
+        Color color;
     };
 
     struct ZXProperty
@@ -105,12 +98,11 @@ namespace
 
     ZXProperty GetType(uint32_t fileSize, const uint8_t* buffer)
     {
-        struct ZXPropertyInternal
+        static constexpr struct
         {
             uint32_t size;
             ZXProperty prop;
-        };
-        static const ZXPropertyInternal sizesList[] = {
+        } SizeList[] = {
             { 6912, { 256, 192, 256, 192, 0, 0, ZXProperty::Type::Scr, "zx-scr" } },
             { 6929, { 256, 192, 256, 192, 0, 0, ZXProperty::Type::ScS, "zx-scr$" } },
             { 11136, { 384, 304, 256, 192, 64, 64, ZXProperty::Type::Bsc, "zx-bsc" } },
@@ -123,9 +115,8 @@ namespace
             // { 41479, { 256, 192, 256, 192, 0, 0, ZXProperty::Type::Chr, "zx-chr$" } },
         };
 
-        for (size_t i = 0; i < std::size(sizesList); i++)
+        for (const auto& s : SizeList)
         {
-            auto& s = sizesList[i];
             if (s.size == fileSize)
             {
                 return s.prop;
@@ -134,20 +125,21 @@ namespace
 
         if (buffer[0] == 'M' && buffer[1] == 'G')
         {
-            static char formatName[20];
-            const uint32_t blockHeight = buffer[4];
+            const auto blockHeight = buffer[4];
             if (buffer[2] == 'H' && (fileSize == 19456 || fileSize == 18688 || fileSize == 15616 || fileSize == 14080))
             {
                 // 19456 - mg1
                 // 18688 - mg2
                 // 15616 - mg4
                 // 14080 - mg8
+                static char formatName[20];
                 ::snprintf(formatName, sizeof(formatName), "zx-mgh%u", blockHeight);
                 return { 320, 240, 256, 192, 32, 24, ZXProperty::Type::Mgh, formatName };
             }
             else if (buffer[2] == 'S' && fileSize == 36871)
             {
                 // 36871 - mgs
+                static char formatName[20];
                 ::snprintf(formatName, sizeof(formatName), "zx-mgs%u", blockHeight);
                 return { 320, 240, 256, 192, 32, 24, ZXProperty::Type::Mgs, formatName };
             }
@@ -156,16 +148,16 @@ namespace
         return { 0, 0, 0, 0, 0, 0, ZXProperty::Type::Unknown, "" };
     }
 
-    void PutSixteenPixels(sPixelRGB* out, uint8_t color)
+    void PutSixteenPixels(PixelRGB* out, uint8_t color)
     {
-        const uint8_t left = color & 0x07;
+        const auto left = static_cast<uint8_t>(color & 0x07);
         for (uint32_t i = 0; i < 8; i++)
         {
             out->set(true, left);
             out++;
         }
 
-        const uint8_t right = (color >> 3) & 0x07;
+        const auto right = static_cast<uint8_t>((color >> 3) & 0x07);
         for (uint32_t i = 0; i < 8; i++)
         {
             out->set(true, right);
@@ -173,18 +165,16 @@ namespace
         }
     }
 
-    sColor GetColorIntensity(uint8_t attr)
+    Color GetColorIntensity(uint8_t attr)
     {
-        // uint8_t i = attr & 8 ? 1 : 0;
-
-        uint8_t b = attr & 1 ? 1 : 0;
-        uint8_t r = attr & 2 ? 1 : 0;
-        uint8_t g = attr & 4 ? 1 : 0;
+        auto b = static_cast<uint8_t>((attr & 1) ? 1 : 0);
+        auto r = static_cast<uint8_t>((attr & 2) ? 1 : 0);
+        auto g = static_cast<uint8_t>((attr & 4) ? 1 : 0);
 
         return { r, g, b };
     }
 
-    sColor MergeColors(uint8_t attr0, uint8_t attr1)
+    Color MergeColors(uint8_t attr0, uint8_t attr1)
     {
         const auto c0 = GetColorIntensity(attr0);
         const auto c1 = GetColorIntensity(attr1);
@@ -195,8 +185,8 @@ namespace
         const bool z0 = (attr0 & 0x07) == 0;
         const bool z1 = (attr1 & 0x07) == 0;
 
-        const bool n0 = !z0 && !b0;
-        const bool n1 = !z1 && !b1;
+        const bool n0 = z0 == false && b0 == false;
+        const bool n1 = z1 == false && b1 == false;
 
         uint8_t idx = 0;
         if (z0 && z1)
@@ -225,7 +215,7 @@ namespace
         }
 
         // pulsar
-        constexpr uint8_t intensity[] = { 0x00, 0x76, 0xcd, 0xe9, 0xff, 0x9f };
+        static constexpr uint8_t Intensity[] = { 0x00, 0x76, 0xcd, 0xe9, 0xff, 0x9f };
         // 0x00 - ZZ - zero + zero
         // 0x76 - NN - normal + normal
         // 0xcd - BB - bright + bright
@@ -233,35 +223,35 @@ namespace
         // 0xff - NB - normal + bright
         // 0x9f - ZB - zero + bright
 
-        const uint32_t i = intensity[idx];
+        const auto i = Intensity[idx];
 
-        const float v0 = 0.5f;
-        const float v1 = 1.0f - v0;
+        constexpr float V0 = 0.5f;
+        constexpr float V1 = 1.0f - V0;
         return {
-            (uint8_t)(v0 * i * c0.r + v1 * i * c1.r),
-            (uint8_t)(v0 * i * c0.g + v1 * i * c1.g),
-            (uint8_t)(v0 * i * c0.b + v1 * i * c1.b),
+            static_cast<uint8_t>(V0 * i * c0.r + V1 * i * c1.r),
+            static_cast<uint8_t>(V0 * i * c0.g + V1 * i * c1.g),
+            static_cast<uint8_t>(V0 * i * c0.b + V1 * i * c1.b),
         };
     }
 
-    sColor MergeColors(const sColor& c0, const sColor& c1)
+    Color MergeColors(const Color& c0, const Color& c1)
     {
-        const float a = 0.5f;
-        const float b = 1.0f - a;
-        return sColor{
-            (uint8_t)(c0.r * a + c1.r * b),
-            (uint8_t)(c0.g * a + c1.g * b),
-            (uint8_t)(c0.b * a + c1.b * b),
+        constexpr float A = 0.5f;
+        constexpr float B = 1.0f - A;
+        return {
+            static_cast<uint8_t>(c0.r * A + c1.r * B),
+            static_cast<uint8_t>(c0.g * A + c1.g * B),
+            static_cast<uint8_t>(c0.b * A + c1.b * B),
         };
     }
 
-    void MakeBorder(sChunkData& chunk, const sColor& color)
+    void MakeBorder(sChunkData& chunk, const Color& color)
     {
-        auto pixel = (sPixelRGB*)chunk.bitmap.data();
+        auto pixel = reinterpret_cast<PixelRGB*>(chunk.bitmap.data());
 
         for (uint32_t i = 0, size = chunk.width * chunk.height; i < size; i++)
         {
-            pixel[i] = color;
+            pixel[i].color = color;
         }
     }
 
@@ -270,10 +260,10 @@ namespace
         // top
         for (uint32_t y = 0; y < 64; y++)
         {
-            auto out = (sPixelRGB*)(chunk.bitmap.data() + y * chunk.pitch);
+            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + y * chunk.pitch);
             for (uint32_t x = 0; x < 24; x++)
             {
-                const uint8_t color = *zxBorder++;
+                const auto color = *zxBorder++;
                 PutSixteenPixels(out, color);
                 out += 16;
             }
@@ -282,10 +272,10 @@ namespace
         // left / right
         for (uint32_t y = 0; y < 192; y++)
         {
-            auto out = (sPixelRGB*)(chunk.bitmap.data() + (y + 64) * chunk.pitch);
+            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + (y + 64) * chunk.pitch);
             for (uint32_t x = 0; x < 4; x++)
             {
-                const uint8_t color = *zxBorder++;
+                const auto color = *zxBorder++;
                 PutSixteenPixels(out, color);
                 out += 16;
             }
@@ -293,7 +283,7 @@ namespace
             out += 256;
             for (uint32_t x = 0; x < 4; x++)
             {
-                const uint8_t color = *zxBorder++;
+                const auto color = *zxBorder++;
                 PutSixteenPixels(out, color);
                 out += 16;
             }
@@ -302,58 +292,58 @@ namespace
         // bottom
         for (uint32_t y = 0; y < 48; y++)
         {
-            auto out = (sPixelRGB*)(chunk.bitmap.data() + (y + 64 + 192) * chunk.pitch);
+            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + (y + 64 + 192) * chunk.pitch);
             for (uint32_t x = 0; x < 24; x++)
             {
-                const uint8_t color = *zxBorder++;
+                const auto color = *zxBorder++;
                 PutSixteenPixels(out, color);
                 out += 16;
             }
         }
     }
 
-    void PutEightPixels(sPixelRGB* out, const uint8_t pixels, const uint8_t attribute)
+    void PutEightPixels(PixelRGB* out, const uint8_t pixels, const uint8_t attribute)
     {
         for (uint32_t i = 0; i < 8; i++)
         {
-            const uint32_t bit = 0x80 >> i;
+            const auto bit = 0x80 >> i;
             const bool isSet = pixels & bit;
             out->set(isSet, attribute);
             out++;
         }
     }
 
-    void PutEightPixels(sPixelRGB* out, const uint8_t pixels[2], const uint8_t attributes[2])
+    void PutEightPixels(PixelRGB* out, const uint8_t pixels[2], const uint8_t attributes[2])
     {
         for (uint32_t i = 0; i < 8; i++)
         {
-            const uint32_t bit = 0x80 >> i;
+            const auto bit = 0x80 >> i;
 
-            sPixelRGB pixel0;
+            PixelRGB pixel0;
             pixel0.set(pixels[0] & bit, attributes[0]);
 
-            sPixelRGB pixel1;
+            PixelRGB pixel1;
             pixel1.set(pixels[1] & bit, attributes[1]);
 
-            *out = MergeColors(pixel0.color, pixel1.color);
+            out->color = MergeColors(pixel0.color, pixel1.color);
             out++;
         }
     }
 
     void FillThird(uint32_t layer, const uint8_t* zxPixels, const uint8_t* zxColors,
-                   sChunkData& chunk, uint32_t blockHeight, sPixelRGB* out)
+                   sChunkData& chunk, uint32_t blockHeight, PixelRGB* out)
     {
         zxPixels += 2048 * layer;
         zxColors += 2048 / blockHeight * layer;
 
         for (uint32_t y = 0; y < 64; y++)
         {
-            const uint32_t line = (y * 8) % 64 + (y * 8) / 64;
+            const auto line = (y * 8) % 64 + (y * 8) / 64;
             auto startLine = &out[line * chunk.width];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
-                const uint8_t pixels = *zxPixels++;
-                const uint8_t attribute = zxColors[(line / blockHeight) * 32 + x];
+                const auto pixels = *zxPixels++;
+                const auto attribute = zxColors[(line / blockHeight) * 32 + x];
                 PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
         }
@@ -361,7 +351,7 @@ namespace
 
     void FillThird(uint32_t layer, const uint8_t* zxPixels0, const uint8_t* zxPixels1,
                    const uint8_t* zxColors0, const uint8_t* zxColors1,
-                   sChunkData& chunk, uint32_t blockHeight, sPixelRGB* out)
+                   sChunkData& chunk, uint32_t blockHeight, PixelRGB* out)
     {
         zxPixels0 += 2048 * layer;
         zxPixels1 += 2048 * layer;
@@ -371,28 +361,28 @@ namespace
 
         for (uint32_t y = 0; y < 64; y++)
         {
-            const uint32_t line = (y * 8) % 64 + (y * 8) / 64;
+            const auto line = (y * 8) % 64 + (y * 8) / 64;
             auto startLine = &out[line * chunk.width];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
                 const uint8_t pixels[2] = { *zxPixels0++, *zxPixels1++ };
 
-                const uint32_t idx = (line / blockHeight) * 32 + x;
+                const auto idx = (line / blockHeight) * 32 + x;
                 const uint8_t attributes[2] = { zxColors0[idx], zxColors1[idx] };
                 PutEightPixels(&startLine[x * 8], pixels, attributes);
             }
         }
     }
 
-    void FillLinear(const uint8_t* zxPixels, const uint8_t* zxColors, uint32_t blockHeight, uint32_t outWidth, sPixelRGB* out)
+    void FillLinear(const uint8_t* zxPixels, const uint8_t* zxColors, uint32_t blockHeight, uint32_t outWidth, PixelRGB* out)
     {
         for (uint32_t y = 0; y < 192; y++)
         {
             auto startLine = &out[y * outWidth];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
-                const uint8_t pixels = *zxPixels++;
-                const uint8_t attribute = zxColors[(y / blockHeight) * 32 + x];
+                const auto pixels = *zxPixels++;
+                const auto attribute = zxColors[(y / blockHeight) * 32 + x];
                 PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
         }
@@ -402,48 +392,48 @@ namespace
     {
         if (prop.type == ZXProperty::Type::ScS)
         {
-            info.exifList.push_back({ sImageInfo::ExifCategory::Info, "Comment", (const char*)buffer });
+            info.exifList.push_back({ sImageInfo::ExifCategory::Info, "Comment", reinterpret_cast<const char*>(buffer) });
             buffer += 17;
         }
-        const uint8_t* zxPixels = buffer;
-        const uint8_t* zxColors = buffer + 6144;
+        const auto zxPixels = buffer;
+        const auto zxColors = buffer + 6144;
 
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
+            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + (prop.dy + 64 * i) * chunk.pitch) + prop.dx;
             FillThird(i, zxPixels, zxColors, chunk, 8, out);
         }
     }
 
     void LoadBsc(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
-        const uint8_t* zxPixels = buffer;
-        const uint8_t* zxColors = buffer + 6144;
+        const auto zxPixels = buffer;
+        const auto zxColors = buffer + 6144;
 
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
+            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + (prop.dy + 64 * i) * chunk.pitch) + prop.dx;
             FillThird(i, zxPixels, zxColors, chunk, 8, out);
         }
 
-        const uint8_t* zxBorder = buffer + 6144 + 768;
+        const auto zxBorder = buffer + 6144 + 768;
         MakeBorder(chunk, zxBorder);
     }
 
     void LoadAtr(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
-        const uint8_t px[2] = { 0x55, 0xaa }; // { 0b01010101, 0b10101010 };
+        const uint8_t px[2] = { 0x55, 0xaa };
 
-        const uint8_t* zxColors = buffer;
-        auto out = (sPixelRGB*)(chunk.bitmap.data() + prop.dy * chunk.pitch) + prop.dx;
+        const auto zxColors = buffer;
+        auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + prop.dy * chunk.pitch) + prop.dx;
 
         for (uint32_t y = 0; y < 192; y++)
         {
             auto startLine = &out[y * 256];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
-                const uint8_t pixels = px[y % 2];
-                const uint8_t attribute = zxColors[(y / 8) * 32 + x];
+                const auto pixels = px[y % 2];
+                const auto attribute = zxColors[(y / 8) * 32 + x];
                 PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
         }
@@ -451,23 +441,23 @@ namespace
 
     void LoadMcX(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
-        const uint8_t* zxPixels = buffer;
-        const uint8_t* zxColors = buffer + 6144;
+        const auto zxPixels = buffer;
+        const auto zxColors = buffer + 6144;
 
         if (prop.type == ZXProperty::Type::Mc1)
         {
-            const uint32_t blockHeight = 1;
+            constexpr uint32_t BlockHeight = 1;
 
-            auto out = (sPixelRGB*)chunk.bitmap.data();
-            FillLinear(zxPixels, zxColors, blockHeight, chunk.width, out);
+            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data());
+            FillLinear(zxPixels, zxColors, BlockHeight, chunk.width, out);
         }
         else
         {
-            const uint32_t blockHeight = prop.type == ZXProperty::Type::Mc2 ? 2 : 4;
+            const auto blockHeight = prop.type == ZXProperty::Type::Mc2 ? 2u : 4u;
 
             for (uint32_t i = 0; i < 3; i++)
             {
-                auto out = (sPixelRGB*)(chunk.bitmap.data() + chunk.pitch * 64 * i);
+                auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + chunk.pitch * 64 * i);
                 FillThird(i, zxPixels, zxColors, chunk, blockHeight, out);
             }
         }
@@ -477,7 +467,7 @@ namespace
     {
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
+            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + (prop.dy + 64 * i) * chunk.pitch) + prop.dx;
             auto zxPixels = buffer + 2048 * i;
 
             auto zxColors0 = buffer + 6144 + (768 / 3) * i;
@@ -485,32 +475,32 @@ namespace
 
             for (uint32_t y = 0; y < 64; y++)
             {
-                const uint32_t line = (y * 8) % 64 + (y * 8) / 64;
+                const auto line = (y * 8) % 64 + (y * 8) / 64;
                 auto startLine = &out[line * chunk.width];
                 auto zxColors = ((line % 8) < 4 ? zxColors0 : zxColors1) + (line / 8) * 32;
                 for (uint32_t x = 0; x < 256 / 8; x++)
                 {
-                    const uint8_t pixels = *zxPixels++;
-                    const uint8_t attribute = *zxColors++;
+                    const auto pixels = *zxPixels++;
+                    const auto attribute = *zxColors++;
                     PutEightPixels(&startLine[x * 8], pixels, attribute);
                 }
             }
         }
 
-        const uint8_t* zxBorder = buffer + 6144 + 768 * 2;
+        const auto zxBorder = buffer + 6144 + 768 * 2;
         MakeBorder(chunk, zxBorder);
     }
 
     void LoadImg(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
-        const uint32_t blockHeight = 8;
-        const uint8_t* zxPixels = buffer;
-        const uint8_t* zxColors = buffer + 6144;
+        constexpr uint32_t BlockHeight = 8;
+        const auto zxPixels = buffer;
+        const auto zxColors = buffer + 6144;
 
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
-            FillThird(i, zxPixels, zxColors, chunk, blockHeight, out);
+            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + (prop.dy + 64 * i) * chunk.pitch) + prop.dx;
+            FillThird(i, zxPixels, zxColors, chunk, BlockHeight, out);
         }
     }
 
@@ -528,7 +518,7 @@ namespace
 
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = (sPixelRGB*)(chunk.bitmap.data() + ((prop.dy + 64 * i) * chunk.pitch)) + prop.dx;
+            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + (prop.dy + 64 * i) * chunk.pitch) + prop.dx;
             FillThird(i, zxPixels[0], zxPixels[1], zxColors[0], zxColors[1], chunk, blockHeight, out);
         }
     }
@@ -542,10 +532,10 @@ namespace
 
         buffer += 7; // skip header
 
-        const uint8_t* zxPixels = buffer;
-        const uint8_t* zxColors = buffer + 6144 * 2;
+        auto zxPixels = buffer;
+        auto zxColors = buffer + 6144 * 2;
 
-        auto out = (sPixelRGB*)(chunk.bitmap.data() + prop.dy * chunk.pitch) + prop.dx;
+        auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + prop.dy * chunk.pitch) + prop.dx;
 
         for (uint32_t y = 0; y < 192; y++)
         {
@@ -553,10 +543,10 @@ namespace
             auto colors = &zxColors[(y / blockHeight) * 64];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
-                const uint8_t pixels = *zxPixels++;
-                const uint8_t ink = colors[x * 2 + 0];
-                const uint8_t paper = colors[x * 2 + 1];
-                const uint8_t attribute = ink | (paper << 3); // zxColors[(y / blockHeight) * 32 + x];
+                const auto pixels = *zxPixels++;
+                const auto ink = colors[x * 2 + 0];
+                const auto paper = colors[x * 2 + 1];
+                const auto attribute = static_cast<uint8_t>(ink | (paper << 3));
                 PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
         }
@@ -566,7 +556,7 @@ namespace
 
 bool cFormatScr::isSupported(cFile& file, Buffer& buffer) const
 {
-    if (readBuffer(file, buffer, 4) == false)
+    if (readBuffer(file, buffer, 7) == false)
     {
         return false;
     }
@@ -600,12 +590,7 @@ bool cFormatScr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     }
 
     info.bppImage = 1;
-    chunk.bpp = 24;
-    chunk.format = ePixelFormat::RGB;
-
-    chunk.width = prop.cw;
-    chunk.height = prop.ch;
-    chunk.allocate(chunk.width, chunk.height, 24, ePixelFormat::RGB);
+    chunk.allocate(prop.cw, prop.ch, 24, ePixelFormat::RGB);
 
     info.formatName = prop.formatName;
 
