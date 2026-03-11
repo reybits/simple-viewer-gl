@@ -156,11 +156,19 @@ cConfig::cConfig()
     else
     {
         cLog::Info("Using config file: '{}'.", m_path.c_str());
+
+        auto pos = m_path.rfind('/');
+        if (pos != std::string::npos)
+        {
+            m_imguiIniPath = m_path.substr(0, pos + 1) + "imgui.ini";
+        }
     }
 }
 
 void cConfig::read(sConfig& config) const
 {
+    config.imguiIniPath = m_imguiIniPath;
+
     ini::cFile file;
     if (m_path.empty() || file.open(m_path.c_str()) == false)
     {

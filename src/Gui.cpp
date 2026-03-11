@@ -416,7 +416,9 @@ cGui::cGui(cWindow& window, const sConfig& config)
 
     auto& io = ImGui::GetIO();
 
-    io.IniFilename = nullptr;
+    io.IniFilename = config.imguiIniPath.empty()
+        ? nullptr
+        : config.imguiIniPath.c_str();
     io.LogFilename = nullptr;
 
     io.SetClipboardTextFn = [](void* user_data, const char* text) {

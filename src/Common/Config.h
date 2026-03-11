@@ -55,6 +55,8 @@ struct sConfig
 
     Vectori windowSize{ 0, 0 };
     Vectori windowPos{ 0, 0 };
+
+    std::string imguiIniPath;
 };
 
 class cConfig final
@@ -67,6 +69,7 @@ public:
 
 private:
     std::string m_path;
+    std::string m_imguiIniPath;
 
 private:
     mutable ini::cIni m_ini;
