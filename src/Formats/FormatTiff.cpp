@@ -22,14 +22,14 @@
 
 namespace
 {
-    void ErrorHandler(const char*, const char*, va_list)
+    void ErrorHandler(const char*, const char* fmt, va_list ap)
     {
-        // ::printf("(EE) \n");
+        cLog::WriteV(cLog::Severity::Debug, fmt, ap);
     }
 
-    void WarningHandler(const char*, const char*, va_list)
+    void WarningHandler(const char*, const char* fmt, va_list ap)
     {
-        // ::printf("(WW) \n");
+        cLog::WriteV(cLog::Severity::Debug, fmt, ap);
     }
 
 } // namespace
@@ -116,7 +116,7 @@ void cFormatTiff::decodePreview(void* handle, uint32_t fullWidth, uint32_t fullH
         img.req_orientation = ORIENTATION_TOPLEFT;
         if (TIFFRGBAImageGet(&img, reinterpret_cast<uint32_t*>(data.bitmap.data()), width, height) != 0)
         {
-            cLog::Debug("TIFF preview: {}x{} (dir {}), full: {}x{}", width, height, dir, fullWidth, fullHeight);
+            cLog::Debug("TIFF preview: {}x{} (dir {}), full: {}x{}.", width, height, dir, fullWidth, fullHeight);
             signalPreviewReady(std::move(data));
             TIFFRGBAImageEnd(&img);
             break;

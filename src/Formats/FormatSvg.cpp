@@ -83,18 +83,18 @@ bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     auto scale = 1.0f;
 
     const auto minSize = m_config->minSvgSize;
-    // ::printf("Config SVG size: %.1f\n", minSize);
+    cLog::Debug("Config SVG size: {:.1f}.", minSize);
 
     if (image->width < minSize && image->height < minSize)
     {
         const auto sw = minSize / image->width;
         const auto sh = minSize / image->height;
         scale = std::min(sw, sh);
-        cLog::Info("SVG size too small, upscaling to {} x {}.", image->width * scale, image->width * scale);
+        cLog::Info("SVG size too small, upscaling to {} x {}.", image->width * scale, image->height * scale);
         cLog::Info("Calculated scale: {} x {}.", sw, sh);
     }
 
-    // ::printf("Selected scale: %.1f\n", scale);
+    cLog::Debug("Selected scale: {:.1f}.", scale);
 
     info.images = 1;
     chunk.format = ePixelFormat::RGBA;

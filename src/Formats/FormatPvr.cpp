@@ -255,15 +255,15 @@ namespace
             return false;
         }
 
-        // auto& s = header.sig;
-        // ::printf("Type '%c%c%c%c'\n", s[0], s[1], s[2], s[3]);
+        auto& s = header.sig;
+        cLog::Debug("Type: '{}{}{}{}'.", s[0], s[1], s[2], s[3]);
 
         // verify header
         if (header.sig[3] == '!')
         {
             // verify header version
             auto version = helpers::read_uint16((const uint8_t*)&header.version);
-            // ::printf("version: %u\n", (uint32_t)version);
+            cLog::Debug("  Version          : {}", version);
             if (version > 2)
             {
                 cLog::Error("Unsupported CCZ header format.");
@@ -272,7 +272,7 @@ namespace
 
             // verify compression format
             auto compressionType = helpers::read_uint16((const uint8_t*)&header.compressionType);
-            // ::printf("compressionType: %u\n", (uint32_t)compressionType);
+            cLog::Debug("  Compression type : {}", compressionType);
             if (compressionType != CCZHeader::CompressionType::ZLIB)
             {
                 cLog::Error("Unsupported CCZ compression method.");
@@ -286,7 +286,7 @@ namespace
 
             // verify header version
             auto version = helpers::read_uint16((const uint8_t*)&header.version);
-            // ::printf("version: %u\n", (uint32_t)version);
+            cLog::Debug("  Version          : {}", version);
             if (version > 0)
             {
                 cLog::Error("Unsupported CCZ header format.");
@@ -295,7 +295,7 @@ namespace
 
             // verify compression format
             auto compressionType = helpers::read_uint16((const uint8_t*)&header.compressionType);
-            // ::printf("compressionType: %u\n", (uint32_t)compressionType);
+            cLog::Debug("  Compression type : {}", compressionType);
             if (compressionType != CCZHeader::CompressionType::ZLIB)
             {
                 cLog::Error("Unsupported CCZ compression method.");
@@ -327,7 +327,7 @@ namespace
         }
 
         auto size = helpers::read_uint32((uint8_t*)&header.len);
-        // ::printf("size: %u\n", size);
+        cLog::Debug("  Size             : {}", size);
 
         bitmap.resize(size);
 
@@ -443,13 +443,13 @@ bool cFormatPvr::isSupported(cFile& file, Buffer& buffer) const
 {
     if (isCCZBuffer(file, buffer))
     {
-        // ::printf("CCZ buffer\n");
+        cLog::Debug("Detected CCZ buffer.");
         return true;
     }
 
     if (isGZipBuffer(file, buffer))
     {
-        // ::printf("GZip buffer\n");
+        cLog::Debug("Detected GZip buffer.");
         return true;
     }
 
@@ -521,29 +521,22 @@ bool cFormatPvr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
             cLog::Warning("Image is flipped. Regenerate it using PVRTexTool.");
         }
 
-        // auto t = (char*)&header.pvrTag;
-        // ::printf("tag: %c%c%c%c\n", t[0], t[1], t[2], t[3]);
-        // ::printf("Header length: %u\n", header.headerLength);
-
         auto width = header.width;
-        // ::printf("Width: %u\n", width);
-
         auto height = header.height;
-        // ::printf("Height: %u\n", height);
 
-        // ::printf("Mipmaps: %u\n", helpers::read_uint32((uint8_t*)&header.numMipmaps));
-        // ::printf("Flags: %u\n", helpers::read_uint32((uint8_t*)&header.flags));
-        // ::printf("Data length: %u\n", helpers::read_uint32((uint8_t*)&header.dataLength));
-
-        // auto bpp = helpers::read_uint32((uint8_t*)&header.bpp);
-        // ::printf("BPP: %u\n", bpp);
-
-        // ::printf("Mask R: %u\n", helpers::read_uint32((uint8_t*)&header.bitmaskRed));
-        // ::printf("Mask G: %u\n", helpers::read_uint32((uint8_t*)&header.bitmaskGreen));
-        // ::printf("Mask B: %u\n", helpers::read_uint32((uint8_t*)&header.bitmaskBlue));
-        // ::printf("Mask A: %u\n", helpers::read_uint32((uint8_t*)&header.bitmaskAlpha));
-        // ::printf("Tag: %u\n", helpers::read_uint32((uint8_t*)&header.pvrTag));
-        // ::printf("Surfaces: %u\n", helpers::read_uint32((uint8_t*)&header.numSurfs));
+        cLog::Debug("-- PVR2 header");
+        cLog::Debug("  Header length  : {}", header.headerLength);
+        cLog::Debug("  Width          : {}", width);
+        cLog::Debug("  Height         : {}", height);
+        cLog::Debug("  Mipmaps        : {}", header.numMipmaps);
+        cLog::Debug("  Flags          : {}", header.flags);
+        cLog::Debug("  Data length    : {}", header.dataLength);
+        cLog::Debug("  BPP            : {}", header.bpp);
+        cLog::Debug("  Mask R         : {}", header.bitmaskRed);
+        cLog::Debug("  Mask G         : {}", header.bitmaskGreen);
+        cLog::Debug("  Mask B         : {}", header.bitmaskBlue);
+        cLog::Debug("  Mask A         : {}", header.bitmaskAlpha);
+        cLog::Debug("  Surfaces       : {}", header.numSurfs);
 
         enum class Decomp
         {
@@ -631,31 +624,27 @@ bool cFormatPvr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
         auto& header = *reinterpret_cast<const PVRv3TexHeader*>(unpackedData);
 
-        auto version = helpers::read_uint32((uint8_t*)&header.version);
+        auto version = helpers::read_uint32(reinterpret_cast<const uint8_t*>(&header.version));
         if (version == 0x50565203)
         {
-            // ::printf("version: 0x%x\n", version);
-
             auto pixelFormat = static_cast<PVR3TexturePixelFormat>(header.pixelFormat);
-            // ::printf("pixelFormat: 0x%llx\n", pixelFormat);
-
-            // auto flags = header.flags;
-            // ::printf("flags: 0x%x\n", flags);
-
-            // ::printf("colorSpace: %u\n", header.colorSpace);
-            // ::printf("channelType: %u\n", header.channelType);
-
+            auto flags = header.flags;
             auto width = header.width;
-            // ::printf("width: %u\n", width);
-
             auto height = header.height;
-            // ::printf("height: %u\n", height);
 
-            // ::printf("depth: %u\n", header.depth);
-            // ::printf("surfaces: %u\n", header.numberOfSurfaces);
-            // ::printf("faces: %u\n", header.numberOfFaces);
-            // ::printf("mipmaps: %u\n", header.numberOfMipmaps);
-            // ::printf("metadata size: %u\n", header.metadataLength);
+            cLog::Debug("-- PVR3 header");
+            cLog::Debug("  Version       : {:#x}", version);
+            cLog::Debug("  Pixel format  : {:#x}", static_cast<uint64_t>(pixelFormat));
+            cLog::Debug("  Flags         : {:#x}", flags);
+            cLog::Debug("  Color space   : {}", header.colorSpace);
+            cLog::Debug("  Channel type  : {}", header.channelType);
+            cLog::Debug("  Width         : {}", width);
+            cLog::Debug("  Height        : {}", height);
+            cLog::Debug("  Depth         : {}", header.depth);
+            cLog::Debug("  Surfaces      : {}", header.numberOfSurfaces);
+            cLog::Debug("  Faces         : {}", header.numberOfFaces);
+            cLog::Debug("  Mipmaps       : {}", header.numberOfMipmaps);
+            cLog::Debug("  Metadata size : {}", header.metadataLength);
 
             enum class Decomp
             {

@@ -227,7 +227,7 @@ void cFormatExr::decodePreview(const char* filename)
             }
         }
 
-        cLog::Debug("EXR preview: {}x{}, full: {}x{}", width, height, fullWidth, fullHeight);
+        cLog::Debug("EXR preview: {}x{}, full: {}x{}.", width, height, fullWidth, fullHeight);
         signalPreviewReady(std::move(data));
     }
     catch (...)

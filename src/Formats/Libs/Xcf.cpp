@@ -260,12 +260,11 @@ namespace
 #if defined(DEBUG)
             for (const auto& property : properties)
             {
-                // auto [prop, pos] = property;
                 auto prop = property.first;
                 auto pos = property.second;
-                cLog::Info("Property {} at position {}.",
-                           static_cast<uint32_t>(prop.type),
-                           pos);
+                cLog::Debug("Property {} at position {}.",
+                            static_cast<uint32_t>(prop.type),
+                            pos);
             }
 #endif
         }
@@ -635,7 +634,7 @@ namespace
                     break;
 
                 default:
-                    // ::printf("-- wrong indexed|indexed src bpp %u\n", (uint32_t)src_bpp);
+                    cLog::Debug("Unexpected indexed|indexed src bpp: {}.", src_bpp);
                     break;
                 }
             }
@@ -710,13 +709,13 @@ namespace
                     break;
 
                 default:
-                    // ::printf("-- wrong indexed|rgb src bpp %u\n", (uint32_t)src_bpp);
+                    cLog::Debug("Unexpected indexed|rgb src bpp: {}.", src_bpp);
                     break;
                 }
             }
             else
             {
-                // ::printf("-- wrong dst mode: %d\n", dst_mode);
+                cLog::Debug("Unexpected dst mode: {}.", static_cast<uint32_t>(dst_mode));
             }
         }
         else if (src_mode == xcf_col_mode::rgb)
@@ -816,13 +815,13 @@ namespace
                     break;
 
                 default:
-                    // ::printf("-- wrong rgb|rgb src bpp %u\n", (uint32_t)src_bpp);
+                    cLog::Debug("Unexpected rgb|rgb src bpp: {}.", src_bpp);
                     break;
                 }
             }
             else
             {
-                // ::printf("-- wrong dst mode: %d\n", dst_mode);
+                cLog::Debug("Unexpected dst mode: {}.", static_cast<uint32_t>(dst_mode));
             }
         }
         else if (src_mode == xcf_col_mode::grayscale)
@@ -876,18 +875,18 @@ namespace
                     break;
 
                 default:
-                    // ::printf("-- wrong grayscale|rgb src bpp %u\n", (uint32_t)src_bpp);
+                    cLog::Debug("Unexpected grayscale|rgb src bpp: {}.", src_bpp);
                     break;
                 }
             }
             else
             {
-                // ::printf("-- wrong dst mode: %d\n", dst_mode);
+                cLog::Debug("Unexpected dst mode: {}.", static_cast<uint32_t>(dst_mode));
             }
         }
         else
         {
-            // ::printf("-- wrong src mode: %d\n", src_mode);
+            cLog::Debug("Unexpected src mode: {}.", static_cast<uint32_t>(src_mode));
         }
     }
 
@@ -896,9 +895,10 @@ namespace
         const auto layer_len = layer.w * layer.h;
         const auto target_len = target.w * target.h;
 
-        // ::printf("-- layer size: %d x %d\n", layer.w, layer.h);
-        // ::printf("-- src mode: %d\n", layer.mode);
-        // ::printf("-- dst mode: %d\n", target.mode);
+        cLog::Debug("-- Layer");
+        cLog::Debug("  Size     : {} x {}", layer.w, layer.h);
+        cLog::Debug("  Src mode : {}", static_cast<uint32_t>(layer.mode));
+        cLog::Debug("  Dst mode : {}", static_cast<uint32_t>(target.mode));
         for (int32_t y = 0; y < layer.h; y++)
         {
             for (int32_t x = 0; x < layer.w; x++)
@@ -918,7 +918,7 @@ namespace
 
     void combine_layers(raw_layer_t& result, const LayersList& layersList, const Palette& palette)
     {
-        // ::printf("-- layers count: %u\n", (uint32_t)layersList.size());
+        cLog::Debug("Layers count: {}.", layersList.size());
         for (size_t i = 0, size = layersList.size(); i < size; i++)
         {
             auto& layer = layersList[size - i - 1];
@@ -937,16 +937,14 @@ bool import_xcf(cFile& file, sChunkData& chunk, sImageInfo& info)
 
     if (sig.find_first_of("gimp xcf ") != 0)
     {
-        cLog::Error("Invalid gimp file.");
+        cLog::Error("Invalid GIMP file.");
         return false;
     }
 
     const uint32_t width = fread<uint32_t>(file, true);
     const uint32_t height = fread<uint32_t>(file, true);
     const xcf_col_mode col_mode = fread<xcf_col_mode>(file, true);
-#if defined(DEBUG)
-    cLog::Info("Color mode: {}.", static_cast<uint32_t>(col_mode));
-#endif
+    cLog::Debug("Color mode: {}.", static_cast<uint32_t>(col_mode));
 
     xcf_comp_mode compression = xcf_comp_mode::none;
 
@@ -962,21 +960,19 @@ bool import_xcf(cFile& file, sChunkData& chunk, sImageInfo& info)
 
         file.seek(pos + sizeof(xcf_property_t), SEEK_SET);
 
-#if defined(DEBUG)
-        cLog::Info("Property type: {}.", static_cast<uint32_t>(prop.type));
-#endif
+        cLog::Debug("Property type: {}.", static_cast<uint32_t>(prop.type));
 
         switch (prop.type)
         {
         case xcf_property_type::col_map: {
             xcf_property_col_map_t col_map(prop, file);
 #if defined(DEBUG)
-            cLog::Info("Palette size: {}.", col_map.count);
+            cLog::Debug("Palette size: {}.", col_map.count);
 
             for (uint32_t i = 0; i < col_map.count; i++)
             {
                 palette[i] = col_map.palette.get()[i];
-                cLog::Info("Color {}: ({}, {}, {}).", i, uint32_t(col_map.palette.get()[i].r), uint32_t(col_map.palette.get()[i].g), uint32_t(col_map.palette.get()[i].b));
+                cLog::Debug("Color {}: ({}, {}, {}).", i, col_map.palette.get()[i].r, col_map.palette.get()[i].g, col_map.palette.get()[i].b);
             }
 #endif
         }
@@ -985,33 +981,25 @@ bool import_xcf(cFile& file, sChunkData& chunk, sImageInfo& info)
         case xcf_property_type::compression: {
             xcf_property_comp_t p(prop, file);
             compression = p.compression;
-#if defined(DEBUG)
-            cLog::Info("Compression: {}.", toCompMode(p.compression));
-#endif
+            cLog::Debug("Compression: {}.", toCompMode(p.compression));
         }
         break;
 
         case xcf_property_type::resolution: {
             xcf_property_res_t p(prop, file);
-#if defined(DEBUG)
-            cLog::Info("Resolution: {:.3f} x {:.3f}.", p.hres, p.vres);
-#endif
+            cLog::Debug("Resolution: {:.3f} x {:.3f}.", p.hres, p.vres);
         }
         break;
 
         case xcf_property_type::layer_mode: {
             xcf_property_layer_mode_t p(prop, file);
-#if defined(DEBUG)
-            cLog::Info("Layer mode: {}.", static_cast<uint32_t>(p.mode));
-#endif
+            cLog::Debug("Layer mode: {}.", static_cast<uint32_t>(p.mode));
         }
         break;
 
         case xcf_property_type::layer_offset: {
             xcf_property_layer_offset_t p(prop, file);
-#if defined(DEBUG)
-            cLog::Info("Offset: {}, {}.", p.x_offset, p.y_offset);
-#endif
+            cLog::Debug("Offset: {}, {}.", p.x_offset, p.y_offset);
         }
         break;
 

@@ -148,7 +148,7 @@ void cFilesList::locateFile(const char* path)
 
 void cFilesList::scanDirectory(const std::string& root)
 {
-    // cLog::Debug("scan: '{}'.", root);
+    cLog::Debug("Scan: '{}'.", root);
 
     dirent** namelist;
     int n = ::scandir(root.c_str(), &namelist, Filter, alphasort);

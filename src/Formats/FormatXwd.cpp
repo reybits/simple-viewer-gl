@@ -115,10 +115,9 @@ bool cFormatXwd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     }
 
     helpers::swap_uint32s((uint8_t*)&common, sizeof(common));
-    // printf("\n");
-    // printf(" HeaderSize: %u\n" , common.HeaderSize);
-    // printf(" FileVersion: %u\n", common.FileVersion);
-    // printf("\n");
+    cLog::Debug("-- XWD common");
+    cLog::Debug("  Header size  : {}", common.HeaderSize);
+    cLog::Debug("  File version : {}", common.FileVersion);
 
     file.seek(0, SEEK_SET);
 
@@ -132,18 +131,18 @@ bool cFormatXwd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         }
         helpers::swap_uint32s((uint8_t*)&header, sizeof(header));
 
-        // printf(" PixmapFormat: %u\n"      , header.PixmapFormat);
-        // printf(" DisplayType: %u\n"       , header.DisplayType);
-        // printf(" DisplayPlanes: %u\n"     , header.DisplayPlanes);
-        // printf(" PixmapFormat: %u\n"      , header.PixmapFormat);
-        // printf(" PixmapWidth: %u\n"       , header.PixmapWidth);
-        // printf(" PixmapHeight: %u\n"      , header.PixmapHeight);
-        // printf(" WindowWidth: %u\n"       , header.WindowWidth);
-        // printf(" WindowHeight: %u\n"      , header.WindowHeight);
-        // printf(" WindowX: %u\n"           , header.WindowX);
-        // printf(" WindowY: %u\n"           , header.WindowY);
-        // printf(" WindowBorderWidth: %u\n" , header.WindowBorderWidth);
-        // printf(" WindowNumColors: %u\n"   , header.WindowNumColors);
+        cLog::Debug("-- X10WindowDump");
+        cLog::Debug("  Pixmap format      : {}", header.PixmapFormat);
+        cLog::Debug("  Display type       : {}", header.DisplayType);
+        cLog::Debug("  Display planes     : {}", header.DisplayPlanes);
+        cLog::Debug("  Pixmap width       : {}", header.PixmapWidth);
+        cLog::Debug("  Pixmap height      : {}", header.PixmapHeight);
+        cLog::Debug("  Window width       : {}", header.WindowWidth);
+        cLog::Debug("  Window height      : {}", header.WindowHeight);
+        cLog::Debug("  Window X           : {}", header.WindowX);
+        cLog::Debug("  Window Y           : {}", header.WindowY);
+        cLog::Debug("  Window border width: {}", header.WindowBorderWidth);
+        cLog::Debug("  Window num colors  : {}", header.WindowNumColors);
 
         return loadX10(header, file, chunk, info);
     }
@@ -157,29 +156,30 @@ bool cFormatXwd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         }
         helpers::swap_uint32s((uint8_t*)&header, sizeof(header));
 
-        // printf(" PixmapFormat: %u\n"      , header.PixmapFormat);
-        // printf(" PixmapDepth: %u\n"       , header.PixmapDepth);
-        // printf(" PixmapWidth: %u\n"       , header.PixmapWidth);
-        // printf(" PixmapHeight: %u\n"      , header.PixmapHeight);
-        // printf(" XOffset: %u\n"           , header.XOffset);
-        // printf(" ByteOrder: %u\n"         , header.ByteOrder);
-        // printf(" BitmapUnit: %u\n"        , header.BitmapUnit);
-        // printf(" BitmapBitOrder: %u\n"    , header.BitmapBitOrder);
-        // printf(" BitmapPad: %u\n"         , header.BitmapPad);
-        // printf(" BitsPerPixel: %u\n"      , header.BitsPerPixel);
-        // printf(" BytesPerLine: %u\n"      , header.BytesPerLine);
-        // printf(" VisualClass: %u\n"       , header.VisualClass);
-        // printf(" RedMask: %u\n"           , header.RedMask);
-        // printf(" GreenMask: %u\n"         , header.GreenMask);
-        // printf(" BlueMask: %u\n"          , header.BlueMask);
-        // printf(" BitsPerRgb: %u\n"        , header.BitsPerRgb);
-        // printf(" NumberOfColors: %u\n"    , header.NumberOfColors);
-        // printf(" ColorMapEntries: %u\n"   , header.ColorMapEntries);
-        // printf(" WindowWidth: %u\n"       , header.WindowWidth);
-        // printf(" WindowHeight: %u\n"      , header.WindowHeight);
-        // printf(" WindowX: %u\n"           , header.WindowX);
-        // printf(" WindowY: %u\n"           , header.WindowY);
-        // printf(" WindowBorderWidth: %u\n" , header.WindowBorderWidth);
+        cLog::Debug("-- X11WindowDump");
+        cLog::Debug("  Pixmap format      : {}", header.PixmapFormat);
+        cLog::Debug("  Pixmap depth       : {}", header.PixmapDepth);
+        cLog::Debug("  Pixmap width       : {}", header.PixmapWidth);
+        cLog::Debug("  Pixmap height      : {}", header.PixmapHeight);
+        cLog::Debug("  X offset           : {}", header.XOffset);
+        cLog::Debug("  Byte order         : {}", header.ByteOrder);
+        cLog::Debug("  Bitmap unit        : {}", header.BitmapUnit);
+        cLog::Debug("  Bitmap bit order   : {}", header.BitmapBitOrder);
+        cLog::Debug("  Bitmap pad         : {}", header.BitmapPad);
+        cLog::Debug("  Bits per pixel     : {}", header.BitsPerPixel);
+        cLog::Debug("  Bytes per line     : {}", header.BytesPerLine);
+        cLog::Debug("  Visual class       : {}", header.VisualClass);
+        cLog::Debug("  Red mask           : {}", header.RedMask);
+        cLog::Debug("  Green mask         : {}", header.GreenMask);
+        cLog::Debug("  Blue mask          : {}", header.BlueMask);
+        cLog::Debug("  Bits per RGB       : {}", header.BitsPerRgb);
+        cLog::Debug("  Number of colors   : {}", header.NumberOfColors);
+        cLog::Debug("  Color map entries  : {}", header.ColorMapEntries);
+        cLog::Debug("  Window width       : {}", header.WindowWidth);
+        cLog::Debug("  Window height      : {}", header.WindowHeight);
+        cLog::Debug("  Window X           : {}", header.WindowX);
+        cLog::Debug("  Window Y           : {}", header.WindowY);
+        cLog::Debug("  Window border width: {}", header.WindowBorderWidth);
 
         return loadX11(header, file, chunk, info);
     }

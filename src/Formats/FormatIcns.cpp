@@ -55,10 +55,10 @@ bool cFormatIcns::isSupported(cFile& file, Buffer& buffer) const
     }
 
     const auto h = reinterpret_cast<const Header*>(buffer.data());
-    // ::printf("Magic: %c%c%c%c\n", h->magic[0], h->magic[1], h->magic[2], h->magic[3]);
+    cLog::Debug("Magic: {}{}{}{}.", static_cast<char>(h->magic[0]), static_cast<char>(h->magic[1]), static_cast<char>(h->magic[2]), static_cast<char>(h->magic[3]));
 
     const uint32_t fileLen = helpers::read_uint32(h->fileLen);
-    // ::printf("Length: %u (%u)\n", fileLen, (uint32_t)file.getSize());
+    cLog::Debug("File length: {} (file size: {}).", fileLen, static_cast<uint32_t>(file.getSize()));
 
     const uint8_t magic[4] = { 'i', 'c', 'n', 's' };
 
@@ -104,7 +104,7 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
         {
             if (desc.type == Type::TOC_)
             {
-                cLog::Debug("---- TOC ----");
+                cLog::Debug("-- TOC");
                 offset += chunkSize;
                 iterateContent(icon, offset, size);
             }
@@ -115,16 +115,13 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
                 entry.offset = offset + sizeof(Chunk);
                 entry.size = chunkSize - sizeof(Chunk);
 
-                cLog::Debug("   chunk size: {}", chunkSize);
-
-                cLog::Debug("   icon bpp: {} -> {}", entry.srcBpp, entry.dstBpp);
-                cLog::Debug("   icon resolution: {} x {}", entry.iconSize, entry.iconSize);
-
-                auto compression = CompressionToName(entry.compression);
-                cLog::Debug("   compression: {}", compression);
-
-                cLog::Debug("   offset: {}", entry.offset);
-                cLog::Debug("   size: {}", entry.size);
+                cLog::Debug("-- ICNS entry");
+                cLog::Debug("  Chunk size : {}", chunkSize);
+                cLog::Debug("  BPP        : {} -> {}", entry.srcBpp, entry.dstBpp);
+                cLog::Debug("  Resolution : {} x {}", entry.iconSize, entry.iconSize);
+                cLog::Debug("  Compression: {}", CompressionToName(entry.compression));
+                cLog::Debug("  Offset     : {}", entry.offset);
+                cLog::Debug("  Size       : {}", entry.size);
 
                 m_entries.push_back(entry);
 
@@ -166,7 +163,7 @@ bool cFormatIcns::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     chunk.resizeBitmap(chunk.pitch, chunk.height);
     auto buffer = chunk.bitmap.data();
 
-    cLog::Debug(" Decoding: {}", CompressionToName(entry.compression));
+    cLog::Debug("Decoding: {}.", CompressionToName(entry.compression));
 
     if (entry.compression == Compression::PngJ)
     {
@@ -243,7 +240,7 @@ void cFormatIcns::unpackBits(uint8_t* buffer, const uint8_t* chunk, uint32_t siz
         }
     }
 
-    cLog::Debug("-- {}", c);
+    cLog::Debug("Unpacked bytes: {}.", c);
 }
 
 void cFormatIcns::ICNSAtoRGBA(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const
@@ -325,7 +322,7 @@ const cFormatIcns::Entry& cFormatIcns::getDescription(const Chunk& chunk) const
     {
         if (::memcmp(e.id, type, 4) == 0)
         {
-            cLog::Debug("Type: '{}'", e.id);
+            cLog::Debug("Type: '{}'.", e.id);
 
             return e.entry;
         }

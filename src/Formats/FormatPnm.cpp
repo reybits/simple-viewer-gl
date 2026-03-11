@@ -12,6 +12,7 @@
 #include "Common/File.h"
 #include "Common/Helpers.h"
 #include "Common/ImageInfo.h"
+#include "Log/Log.h"
 
 #include <algorithm>
 #include <cmath>
@@ -45,7 +46,7 @@ namespace
         auto remain = file.getSize() - file.getOffset();
         if (remain == 0)
         {
-            // ::printf("- eof\n");
+            cLog::Debug("End of file.");
             return false;
         }
 
@@ -63,7 +64,7 @@ namespace
             if (file.read(buffer, size) != size)
             {
                 line.push_back(0);
-                // ::printf("- error read file\n");
+                cLog::Debug("Error reading file.");
                 return true;
             }
 
@@ -76,7 +77,7 @@ namespace
                     line.resize(bufferOffset + i + 1);
                     line[line.size() - 1] = 0;
                     file.seek(offset, SEEK_SET);
-                    // ::printf("- stop char detected, seek to: %u\n", (uint32_t)offset);
+                    cLog::Debug("Stop char detected, seek to: {}.", offset);
                     return true;
                 }
             }
@@ -326,7 +327,7 @@ bool cFormatPnm::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                     continue;
                 }
 
-                // ::printf("token: '%s'\n", word);
+                cLog::Debug("Token: '{}'.", word);
 
                 switch (token)
                 {

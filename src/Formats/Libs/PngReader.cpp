@@ -148,9 +148,10 @@ namespace
         png_uint_32 size;
         if (png_get_iCCP(png, info, &name, &comp_type, &icc, &size) == PNG_INFO_iCCP)
         {
-            // cLog::Debug("name: {}", name);
-            // cLog::Debug("comp_type: {}", comp_type);
-            // cLog::Debug("size: {}", size);
+            cLog::Debug("-- ICC profile");
+            cLog::Debug("  Name             : {}", name);
+            cLog::Debug("  Compression type : {}", comp_type);
+            cLog::Debug("  Size             : {}", size);
 
             iccProfileSize = size;
             return icc;
@@ -241,21 +242,21 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImage
 
     // Setup transformations.
 
-    // cLog::Debug("src color type: {}.", colorType);
+    cLog::Debug("Source color type: {}.", colorType);
     if (colorType == PNG_COLOR_TYPE_PALETTE)
     {
-        // cLog::Debug("palette -> rgb.");
+        cLog::Debug("Converting palette to RGB.");
         png_set_palette_to_rgb(png);
     }
 
     if (png_get_valid(png, info, PNG_INFO_tRNS))
     {
-        // cLog::Debug("tRNS -> alpha.");
+        cLog::Debug("Converting tRNS to alpha.");
         png_set_tRNS_to_alpha(png);
     }
     if (png_get_bit_depth(png, info) == 16)
     {
-        // cLog::Debug("16 bit depth -> 8.");
+        cLog::Debug("Stripping 16-bit depth to 8-bit.");
         png_set_strip_16(png);
     }
 
@@ -274,8 +275,7 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImage
     }
 
     colorType = png_get_color_type(png, info);
-    // cLog::Debug("res color type: {}.", colorType);
-    // cLog::Debug("res bpp: {}.", chunk.bpp);
+    cLog::Debug("Result color type: {}, bpp: {}.", colorType, chunk.bpp);
 
     // #define PNG_COLOR_MASK_PALETTE    1
     // #define PNG_COLOR_MASK_COLOR      2

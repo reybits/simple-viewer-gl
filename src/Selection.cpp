@@ -296,7 +296,7 @@ int cSelection::getCursor() const
         // 0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
         0, 3, 2, 5, 3, 0, 4, 2, 2, 4, 0, 3, 5, 2, 3, 1, 1
     };
-    // cLog::Debug("corner: {} , cursor: {}.", m_corner, cursor[m_corner]);
+    cLog::Debug("Corner: {}, cursor: {}.", m_corner, cursor[m_corner]);
     return cursor[m_corner];
 }
 

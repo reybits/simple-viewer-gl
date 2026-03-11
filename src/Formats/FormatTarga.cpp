@@ -129,7 +129,7 @@ namespace
 
         if (header.imageType == ImageType::Colormap)
         {
-            // ::printf("(II) Uncompressed color-mapped image.\n");
+            cLog::Debug("Uncompressed color-mapped image.");
 
             uint32_t sp = 0;
             for (uint32_t y = 0; y < header.height; y++)
@@ -149,7 +149,7 @@ namespace
         }
         else if (header.imageType == ImageType::RLEColormap)
         {
-            // ::printf("(II) Compressed color-mapped image.\n");
+            cLog::Debug("Compressed color-mapped image.");
 
             uint32_t sp = 0;
             uint32_t x = 0;
@@ -553,20 +553,19 @@ bool cFormatTarga::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo&
     chunk.width = header.width;
     chunk.height = header.height;
 
-#if defined(_DEBUG)
-    cLog::Debug("idLength:          {}", (uint32_t)header.idLength);
-    cLog::Debug("colorMapType:      {}", (uint32_t)header.colorMapType);
-    cLog::Debug("imageType:         {}", (uint32_t)header.imageType);
-    cLog::Debug("firstEntryIndex:   {}", (uint32_t)header.firstEntryIndex);
-    cLog::Debug("colorMapLength:    {}", (uint32_t)header.colorMapLength);
-    cLog::Debug("colorMapEntrySize: {}", (uint32_t)header.colorMapEntrySize);
-    cLog::Debug("xOrigin:           {}", (uint32_t)header.xOrigin);
-    cLog::Debug("yOrigin:           {}", (uint32_t)header.yOrigin);
-    cLog::Debug("width:             {}", (uint32_t)header.width);
-    cLog::Debug("height:            {}", (uint32_t)header.height);
-    cLog::Debug("pixelDepth:        {}", (uint32_t)header.pixelDepth);
-    cLog::Debug("imageDescriptor:   {}", (uint32_t)header.imageDescriptor);
-#endif
+    cLog::Debug("-- TGA header");
+    cLog::Debug("  ID length        : {}", static_cast<uint32_t>(header.idLength));
+    cLog::Debug("  Color map type   : {}", static_cast<uint32_t>(header.colorMapType));
+    cLog::Debug("  Image type       : {}", static_cast<uint32_t>(header.imageType));
+    cLog::Debug("  First entry index: {}", static_cast<uint32_t>(header.firstEntryIndex));
+    cLog::Debug("  Color map length : {}", static_cast<uint32_t>(header.colorMapLength));
+    cLog::Debug("  Color map entry  : {}", static_cast<uint32_t>(header.colorMapEntrySize));
+    cLog::Debug("  X origin         : {}", static_cast<uint32_t>(header.xOrigin));
+    cLog::Debug("  Y origin         : {}", static_cast<uint32_t>(header.yOrigin));
+    cLog::Debug("  Width            : {}", static_cast<uint32_t>(header.width));
+    cLog::Debug("  Height           : {}", static_cast<uint32_t>(header.height));
+    cLog::Debug("  Pixel depth      : {}", static_cast<uint32_t>(header.pixelDepth));
+    cLog::Debug("  Image descriptor : {}", static_cast<uint32_t>(header.imageDescriptor));
 
     bool result = false;
 

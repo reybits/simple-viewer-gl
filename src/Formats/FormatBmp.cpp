@@ -192,42 +192,38 @@ namespace
 
     void debugHeader(const BITMAPCOREHEADER& header)
     {
-#if defined(_DEBUG)
         auto ver = getVersion(header.size);
         if (ver == Version::Core)
         {
             cLog::Debug("-- BITMAPCOREHEADER");
-            cLog::Debug("     header size   : {}", header.size);
-            cLog::Debug("     image width   : {}", (uint32_t)header.width);
-            cLog::Debug("     image height  : {}", (uint32_t)header.height);
-            cLog::Debug("     planes        : {}", (uint32_t)header.planes);
-            cLog::Debug("     bitCount      : {}", (uint32_t)header.bitCount);
+            cLog::Debug("  Header size  : {}", header.size);
+            cLog::Debug("  Image width  : {}", header.width);
+            cLog::Debug("  Image height : {}", header.height);
+            cLog::Debug("  Planes       : {}", header.planes);
+            cLog::Debug("  Bit count    : {}", header.bitCount);
         }
-#endif
-        (void)header;
     }
 
     void debugHeader(const BITMAPCOMMON& header)
     {
-#if defined(_DEBUG)
         cLog::Debug("-- BITMAPCOMMON");
-        cLog::Debug("     header size   : {}", header.size);
-        cLog::Debug("     image width   : {}", header.width);
-        cLog::Debug("     image height  : {}", header.height);
-        cLog::Debug("     planes        : {}", header.planes);
-        cLog::Debug("     bitCount      : {}", header.bitCount);
-        cLog::Debug("     compression   : {}", compressionToName(header.compression));
-        cLog::Debug("     sizeImage     : {}", header.sizeImage);
+        cLog::Debug("  Header size  : {}", header.size);
+        cLog::Debug("  Image width  : {}", header.width);
+        cLog::Debug("  Image height : {}", header.height);
+        cLog::Debug("  Planes       : {}", header.planes);
+        cLog::Debug("  Bit count    : {}", header.bitCount);
+        cLog::Debug("  Compression  : {}", compressionToName(static_cast<Compression>(header.compression)));
+        cLog::Debug("  Size image   : {}", header.sizeImage);
 
         auto ver = getVersion(header.size);
         if (ver == Version::Info)
         {
             auto& h = reinterpret_cast<const BITMAPINFOHEADER&>(header);
             cLog::Debug("-- BITMAPINFOHEADER");
-            cLog::Debug("     horiResolution  : {}", h.horiResolution);
-            cLog::Debug("     vertResolution  : {}", h.vertResolution);
-            cLog::Debug("     paletteColors   : {}", h.paletteColors);
-            cLog::Debug("     importantColors : {}", h.importantColors);
+            cLog::Debug("  Hori resolution  : {}", h.horiResolution);
+            cLog::Debug("  Vert resolution  : {}", h.vertResolution);
+            cLog::Debug("  Palette colors   : {}", h.paletteColors);
+            cLog::Debug("  Important colors : {}", h.importantColors);
         }
         else
         {
@@ -235,40 +231,39 @@ namespace
             {
                 auto& h = reinterpret_cast<const BITMAPV4HEADER&>(header);
                 cLog::Debug("-- BITMAPV4HEADER");
-                cLog::Debug("     xPelsPerMeter : {}", h.xPelsPerMeter);
-                cLog::Debug("     yPelsPerMeter : {}", h.yPelsPerMeter);
-                cLog::Debug("     clrUsed       : {}", h.clrUsed);
-                cLog::Debug("     clrImportant  : {}", h.clrImportant);
-                cLog::Debug("     redMask       : {}", h.redMask);
-                cLog::Debug("     greenMask     : {}", h.greenMask);
-                cLog::Debug("     blueMask      : {}", h.blueMask);
-                cLog::Debug("     alphaMask     : {}", h.alphaMask);
-                cLog::Debug("     cSType        : {}", h.cSType);
-                cLog::Debug("     endp red      : {} {} {}", h.endpoints.r.x, h.endpoints.r.y, h.endpoints.r.z);
-                cLog::Debug("     endp green    : {} {} {}", h.endpoints.g.x, h.endpoints.g.y, h.endpoints.g.z);
-                cLog::Debug("     endp blue     : {} {} {}", h.endpoints.b.x, h.endpoints.b.y, h.endpoints.b.z);
-                cLog::Debug("     gammaRed      : {}", h.gammaRed);
-                cLog::Debug("     gammaGreen    : {}", h.gammaGreen);
-                cLog::Debug("     gammaBlue     : {}", h.gammaBlue);
+                cLog::Debug("  X pels/meter : {}", h.xPelsPerMeter);
+                cLog::Debug("  Y pels/meter : {}", h.yPelsPerMeter);
+                cLog::Debug("  Colors used  : {}", h.clrUsed);
+                cLog::Debug("  Colors import: {}", h.clrImportant);
+                cLog::Debug("  Red mask     : {}", h.redMask);
+                cLog::Debug("  Green mask   : {}", h.greenMask);
+                cLog::Debug("  Blue mask    : {}", h.blueMask);
+                cLog::Debug("  Alpha mask   : {}", h.alphaMask);
+                cLog::Debug("  CS type      : {}", h.cSType);
+                cLog::Debug("  Endp red     : {} {} {}", h.endpoints.r.x, h.endpoints.r.y, h.endpoints.r.z);
+                cLog::Debug("  Endp green   : {} {} {}", h.endpoints.g.x, h.endpoints.g.y, h.endpoints.g.z);
+                cLog::Debug("  Endp blue    : {} {} {}", h.endpoints.b.x, h.endpoints.b.y, h.endpoints.b.z);
+                cLog::Debug("  Gamma red    : {}", h.gammaRed);
+                cLog::Debug("  Gamma green  : {}", h.gammaGreen);
+                cLog::Debug("  Gamma blue   : {}", h.gammaBlue);
             }
 
             if (ver == Version::V5)
             {
                 auto& h = reinterpret_cast<const BITMAPV5HEADER&>(header);
                 cLog::Debug("-- BITMAPV5HEADER");
-                cLog::Debug("     intent        : {}", h.intent);
-                cLog::Debug("     profileData   : {}", h.profileData);
-                cLog::Debug("     profileSize   : {}", h.profileSize);
+                cLog::Debug("  Intent       : {}", h.intent);
+                cLog::Debug("  Profile data : {}", h.profileData);
+                cLog::Debug("  Profile size : {}", h.profileSize);
             }
         }
-#endif
         (void)header;
     }
 
     bool isValidFormat(const BmpHeader& header, uint32_t size)
     {
-        // ::printf("-- file size: %u\n", size);
-        // ::printf("-- bmp  size: %u\n", header.fileSize);
+        cLog::Debug("File size: {}.", size);
+        cLog::Debug("BMP size: {}.", header.fileSize);
 
         const bool idValid = (header.id[0] == 'B' && header.id[1] == 'M') || // BM – Windows 3.1x, 95, NT, ... etc.
             (header.id[0] == 'B' && header.id[1] == 'A') ||                  // BA – OS/2 struct bitmap array
@@ -622,11 +617,12 @@ bool cFormatBmp::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
 
-    // ::printf("-- BITMAPCOREHEADER : %u\n", (uint32_t)sizeof(BITMAPCOREHEADER));
-    // ::printf("-- BITMAPCOMMON     : %u\n", (uint32_t)sizeof(BITMAPCOMMON));
-    // ::printf("-- BITMAPINFOHEADER : %u\n", (uint32_t)sizeof(BITMAPINFOHEADER));
-    // ::printf("-- BITMAPV4HEADER   : %u\n", (uint32_t)sizeof(BITMAPV4HEADER));
-    // ::printf("-- BITMAPV5HEADER   : %u\n", (uint32_t)sizeof(BITMAPV5HEADER));
+    cLog::Debug("-- Header struct sizes");
+    cLog::Debug("  BITMAPCOREHEADER : {}", sizeof(BITMAPCOREHEADER));
+    cLog::Debug("  BITMAPCOMMON     : {}", sizeof(BITMAPCOMMON));
+    cLog::Debug("  BITMAPINFOHEADER : {}", sizeof(BITMAPINFOHEADER));
+    cLog::Debug("  BITMAPV4HEADER   : {}", sizeof(BITMAPV4HEADER));
+    cLog::Debug("  BITMAPV5HEADER   : {}", sizeof(BITMAPV5HEADER));
 
     BmpHeader bmpHeader;
     if (file.read(&bmpHeader, sizeof(bmpHeader)) != sizeof(bmpHeader))
@@ -673,13 +669,14 @@ bool cFormatBmp::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         setupBitmap(chunk, info, chunk.bpp, chunk.format, "bmp");
 
         const uint32_t fileOffset = file.getOffset();
-        // ::printf("fileOffset: %u , offset: %u\n", fileOffset, bmpHeader.bitmapOffset);
+        cLog::Debug("  File offset      : {}", fileOffset);
+        cLog::Debug("  Bitmap offset    : {}", bmpHeader.bitmapOffset);
 
         Buffer palette(bmpHeader.bitmapOffset - fileOffset);
         file.read(palette.data(), palette.size());
-        // ::printf("palette data size: %u\n", (uint32_t)palette.size());
-        // ::printf(" clrImportant : %u\n", header.clrImportant);
-        // ::printf(" clrUsed      : %u\n", header.clrUsed);
+        cLog::Debug("  Palette data size: {}", palette.size());
+        cLog::Debug("  Colors important : {}", header.clrImportant);
+        cLog::Debug("  Colors used      : {}", header.clrUsed);
 
         // file.seek(bmpHeader.bitmapOffset, SEEK_SET);
 

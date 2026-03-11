@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Rle.h"
+#include "Log/Log.h"
 
 #include <algorithm>
 
@@ -22,8 +23,7 @@ cRLE::~cRLE()
 
 unsigned cRLE::encode(const unsigned char* in, unsigned in_size, unsigned char* const rle, unsigned rle_size)
 {
-    // printf("--------------------------\n");
-    // printf("Encode...\n");
+    cLog::Debug("-- RLE encode");
 
     unsigned rle_pos = 0;
     for (unsigned i = 0; i < in_size; i++)
@@ -58,11 +58,11 @@ unsigned cRLE::encode(const unsigned char* in, unsigned in_size, unsigned char* 
             m_desired_size = rle_pos + count + 1;
             if (m_desired_size > rle_size)
             {
-                // printf("no room for copy: required %u, allowed: %u\n", m_desired_size, rle_size);
+                cLog::Debug("No room for copy: required {}, allowed: {}.", m_desired_size, rle_size);
                 return 0;
             }
 
-            // printf("raw %u symbols...\n", count);
+            cLog::Debug("Raw {} symbols.", count);
 
             rle[rle_pos++] = 0x80 + count;
             for (unsigned a = i, copy = 0; copy < count; a++, copy++)
@@ -76,17 +76,15 @@ unsigned cRLE::encode(const unsigned char* in, unsigned in_size, unsigned char* 
             m_desired_size = rle_pos + 2;
             if (m_desired_size > rle_size)
             {
-                // printf("no room for clone: required %u, allowed: %u\n", m_desired_size, rle_size);
+                cLog::Debug("No room for clone: required {}, allowed: {}.", m_desired_size, rle_size);
                 return 0;
             }
 
-            // printf("rle %c %u times...\n", (char)symbol, count);
+            cLog::Debug("RLE {} {} times.", static_cast<char>(symbol), count);
             rle[rle_pos++] = count;
             rle[rle_pos++] = symbol;
         }
     }
-
-    // printf("\n");
 
     m_desired_size = rle_pos;
 
@@ -97,8 +95,7 @@ static const unsigned half = (1 << sizeof(unsigned) * 8 / 2) - 1;
 
 unsigned cRLE::encodeBy4(const unsigned* in, unsigned in_size, unsigned* const rle, unsigned rle_size)
 {
-    // printf("--------------------------\n");
-    // printf("Encode...\n");
+    cLog::Debug("-- RLE encode by 4");
 
     unsigned rle_pos = 0;
 
@@ -134,11 +131,11 @@ unsigned cRLE::encodeBy4(const unsigned* in, unsigned in_size, unsigned* const r
             m_desired_size = rle_pos + count + 1;
             if (m_desired_size > rle_size)
             {
-                // printf("no room for copy: required %u, allowed: %u\n", m_desired_size, rle_size);
+                cLog::Debug("No room for copy: required {}, allowed: {}.", m_desired_size, rle_size);
                 return 0;
             }
 
-            // printf("raw %u quads...\n", count);
+            cLog::Debug("Raw {} quads.", count);
 
             rle[rle_pos++] = half + count;
             for (unsigned a = i, copy = 0; copy < count; a++, copy++)
@@ -152,17 +149,15 @@ unsigned cRLE::encodeBy4(const unsigned* in, unsigned in_size, unsigned* const r
             m_desired_size = rle_pos + 2;
             if (m_desired_size > rle_size)
             {
-                // printf("no room for clone: required %u, allowed: %u\n", m_desired_size, rle_size);
+                cLog::Debug("No room for clone: required {}, allowed: {}.", m_desired_size, rle_size);
                 return 0;
             }
 
-            // printf("rle 0x%x %u times...\n", symbol, count);
+            cLog::Debug("RLE {:#x} {} times.", symbol, count);
             rle[rle_pos++] = count;
             rle[rle_pos++] = symbol;
         }
     }
-
-    // printf("\n");
 
     m_desired_size = rle_pos;
 
@@ -171,8 +166,7 @@ unsigned cRLE::encodeBy4(const unsigned* in, unsigned in_size, unsigned* const r
 
 unsigned cRLE::decode(const unsigned char* rle, unsigned rle_size, unsigned char* const out, unsigned out_size)
 {
-    // printf("--------------------------\n");
-    // printf("decode...\n");
+    cLog::Debug("-- RLE decode");
 
     unsigned out_pos = 0;
     for (unsigned i = 0; i < rle_size;)
@@ -180,16 +174,16 @@ unsigned cRLE::decode(const unsigned char* rle, unsigned rle_size, unsigned char
         unsigned char symbol = rle[i];
         if (symbol <= 0x7f)
         {
-            const unsigned count = (unsigned)symbol;
+            const auto count = static_cast<unsigned>(symbol);
             m_desired_size = out_pos + count;
             if (m_desired_size > out_size)
             {
-                // printf("no room: required %u, allowed: %u\n", m_desired_size, out_size);
+                cLog::Debug("No room: required {}, allowed: {}.", m_desired_size, out_size);
                 return 0;
             }
 
             const unsigned char clone = rle[++i];
-            // printf("cloning %c %u times...\n", clone, count);
+            cLog::Debug("Cloning {} {} times.", static_cast<char>(clone), count);
             for (unsigned a = 0; a < count; a++)
             {
                 out[out_pos++] = clone;
@@ -198,16 +192,16 @@ unsigned cRLE::decode(const unsigned char* rle, unsigned rle_size, unsigned char
         }
         else
         {
-            const unsigned count = (unsigned)symbol - 0x80;
+            const auto count = static_cast<unsigned>(symbol) - 0x80;
             m_desired_size = out_pos + count;
             if (m_desired_size > out_size)
             {
-                // printf("no room: required %u, allowed: %u\n", m_desired_size, out_size);
+                cLog::Debug("No room: required {}, allowed: {}.", m_desired_size, out_size);
                 return 0;
             }
 
             i++;
-            // printf("raw %u symbols (%u)...\n", count, symbol);
+            cLog::Debug("Raw {} symbols ({}).", count, static_cast<unsigned>(symbol));
             for (unsigned a = 0; a < count; a++)
             {
                 out[out_pos++] = rle[i];
@@ -216,8 +210,6 @@ unsigned cRLE::decode(const unsigned char* rle, unsigned rle_size, unsigned char
         }
     }
 
-    // printf("\n");
-
     m_desired_size = out_pos;
 
     return out_pos;
@@ -225,8 +217,7 @@ unsigned cRLE::decode(const unsigned char* rle, unsigned rle_size, unsigned char
 
 unsigned cRLE::decodeBy4(const unsigned* rle, unsigned rle_size, unsigned* const out, unsigned out_size)
 {
-    // printf("--------------------------\n");
-    // printf("decode...\n");
+    cLog::Debug("-- RLE decode by 4");
 
     unsigned out_pos = 0;
     for (unsigned i = 0; i < rle_size;)
@@ -238,12 +229,12 @@ unsigned cRLE::decodeBy4(const unsigned* rle, unsigned rle_size, unsigned* const
             m_desired_size = out_pos + count;
             if (m_desired_size > out_size)
             {
-                // printf("no room: required %u, allowed: %u\n", m_desired_size, out_size);
+                cLog::Debug("No room: required {}, allowed: {}.", m_desired_size, out_size);
                 return 0;
             }
 
             const unsigned clone = rle[++i];
-            // printf("cloning %c %u times...\n", clone, count);
+            cLog::Debug("Cloning {:#x} {} times.", clone, count);
             for (unsigned a = 0; a < count; a++)
             {
                 out[out_pos++] = clone;
@@ -256,12 +247,12 @@ unsigned cRLE::decodeBy4(const unsigned* rle, unsigned rle_size, unsigned* const
             m_desired_size = out_pos + count;
             if (m_desired_size > out_size)
             {
-                // printf("no room: required %u, allowed: %u\n", m_desired_size, out_size);
+                cLog::Debug("No room: required {}, allowed: {}.", m_desired_size, out_size);
                 return 0;
             }
 
             i++;
-            // printf("raw %u symbols (%u)...\n", count, symbol);
+            cLog::Debug("Raw {} symbols ({}).", count, symbol);
             for (unsigned a = 0; a < count; a++)
             {
                 out[out_pos++] = rle[i];
@@ -269,8 +260,6 @@ unsigned cRLE::decodeBy4(const unsigned* rle, unsigned rle_size, unsigned* const
             }
         }
     }
-
-    // printf("\n");
 
     m_desired_size = out_pos;
 

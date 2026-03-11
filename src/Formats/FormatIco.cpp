@@ -120,14 +120,14 @@ bool cFormatIco::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     current = std::min<uint32_t>(current, header.count - 1);
 
     const auto image = &images[current];
-    // ::printf("--- IcoDirentry ---\n");
-    // ::printf("(II) width: %u.\n", (uint32_t)image->width);
-    // ::printf("(II) height: %u.\n", (uint32_t)image->height);
-    // ::printf("(II) colors: %u.\n", (uint32_t)image->colors);
-    // ::printf("(II) planes: %u.\n", (uint32_t)image->planes);
-    // ::printf("(II) bits: %u.\n", (uint32_t)image->bits);
-    // ::printf("(II) size: %u.\n", (uint32_t)image->size);
-    // ::printf("(II) offset: %u.\n", (uint32_t)image->offset);
+    cLog::Debug("-- IcoDirentry");
+    cLog::Debug("  Width  : {}", image->width);
+    cLog::Debug("  Height : {}", image->height);
+    cLog::Debug("  Colors : {}", image->colors);
+    cLog::Debug("  Planes : {}", image->planes);
+    cLog::Debug("  Bits   : {}", image->bits);
+    cLog::Debug("  Size   : {}", image->size);
+    cLog::Debug("  Offset : {}", image->offset);
 
     bool result = false;
 
@@ -205,13 +205,13 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
 
     auto out = chunk.bitmap.data();
 
-    // ::printf("--- IcoBmpInfoHeader ---\n");
-    // ::printf("size: %u\n", imgHeader->size);
-    // ::printf("width: %u\n", imgHeader->width);
-    // ::printf("height: %u\n", imgHeader->height);
-    // ::printf("planes: %u\n", (uint32_t)imgHeader->planes);
-    // ::printf("bits: %u\n", (uint32_t)imgHeader->bits);
-    // ::printf("imagesize: %u\n", imgHeader->imagesize);
+    cLog::Debug("-- IcoBmpInfoHeader");
+    cLog::Debug("  Size       : {}", imgHeader->size);
+    cLog::Debug("  Width      : {}", imgHeader->width);
+    cLog::Debug("  Height     : {}", imgHeader->height);
+    cLog::Debug("  Planes     : {}", imgHeader->planes);
+    cLog::Debug("  Bits       : {}", imgHeader->bits);
+    cLog::Debug("  Image size : {}", imgHeader->imagesize);
 
     // const uint32_t colors = image->colors == 0 ? (1 << info.bppImage) : image->colors;
     uint32_t colors = image->colors;

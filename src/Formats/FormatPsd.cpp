@@ -445,7 +445,7 @@ void cFormatPsd::decodePreview(const Buffer& jpegData, uint32_t fullWidth, uint3
     data.fullImageWidth = fullWidth;
     data.fullImageHeight = fullHeight;
 
-    // cLog::Debug("PSD preview: {}x{}, full: {}x{}", bitmap.width, bitmap.height, fullWidth, fullHeight);
+    cLog::Debug("PSD preview: {}x{}, full: {}x{}.", bitmap.width, bitmap.height, fullWidth, fullHeight);
     signalPreviewReady(std::move(data));
 }
 
@@ -466,7 +466,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     if (isValidFormat(header) == false)
     {
-        cLog::Error("Not valid PSD/PSB file.");
+        cLog::Error("Invalid PSD/PSB file.");
         return false;
     }
 
@@ -633,7 +633,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 uint32_t len;
                 if (sizeof(uint32_t) != file.read(&len, sizeof(uint32_t)))
                 {
-                    cLog::Error("Can't read length of lines");
+                    cLog::Error("Can't read length of lines.");
                     return false;
                 }
                 linesLengths[i] = helpers::read_uint32(reinterpret_cast<uint8_t*>(&len));
@@ -647,7 +647,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 uint16_t len;
                 if (sizeof(uint16_t) != file.read(&len, sizeof(uint16_t)))
                 {
-                    cLog::Error("Can't read length of lines");
+                    cLog::Error("Can't read length of lines.");
                     return false;
                 }
                 linesLengths[i] = helpers::read_uint16(reinterpret_cast<uint8_t*>(&len));
