@@ -387,34 +387,41 @@ bool cWindow::shouldClose() const
 
 void cWindow::toggleFullscreen(const sConfig& config)
 {
-    const bool wasWindowed = m_windowed;
-    GLFWwindow* newWindow = wasWindowed
-        ? createFullscreenWindow(m_window, config)
-        : createWindowedWindow(m_window, config);
-
-    if (newWindow == nullptr)
+    if (m_window == nullptr)
     {
-        cLog::Error("Can't create new window for fullscreen toggle.");
         return;
     }
 
-    glfwMakeContextCurrent(newWindow);
-
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
+    if (m_windowed)
     {
-        cLog::Error("Can't re-initialize GLAD, keeping old window.");
-        glfwDestroyWindow(newWindow);
-        glfwMakeContextCurrent(m_window);
-        return;
+        auto monitor = getCurrentMonitor();
+        if (monitor == nullptr)
+        {
+            cLog::Error("No monitor found for fullscreen.");
+            return;
+        }
+        auto mode = glfwGetVideoMode(monitor);
+        if (mode == nullptr)
+        {
+            cLog::Error("Can't get video mode for fullscreen.");
+            return;
+        }
+        glfwSetWindowMonitor(m_window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    }
+    else
+    {
+        // Use config values which reflect the viewer's current windowed state
+        // (image size, scale, borders, etc.). centerWindow() will refine
+        // the geometry on the next frame if needed.
+        auto width = std::max(config.windowSize.x, DefaultWindowSize.w);
+        auto height = std::max(config.windowSize.y, DefaultWindowSize.h);
+        glfwSetWindowMonitor(m_window, nullptr,
+                             config.windowPos.x, config.windowPos.y,
+                             width, height, 0);
     }
 
+    m_windowed = !m_windowed;
     glfwSwapInterval(1);
-
-    glfwDestroyWindow(m_window);
-    m_window = newWindow;
-    m_windowed = !wasWindowed;
-
-    setupCallbacks();
 }
 
 void cWindow::pollEvents()

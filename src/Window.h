@@ -61,7 +61,7 @@ public:
     void requestClose();
     bool shouldClose() const;
 
-    // Fullscreen toggle — handles window recreation + GL re-init
+    // Fullscreen toggle via glfwSetWindowMonitor (no context recreation).
     void toggleFullscreen(const sConfig& config);
     bool isWindowed() const
     {

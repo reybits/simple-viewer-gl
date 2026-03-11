@@ -370,7 +370,6 @@ void cViewer::processDeferred()
         m_fullscreenRequested = false;
         m_skipEnterEvents = true;
         m_window.toggleFullscreen(m_config);
-        onContextRecreated();
 
         if (m_window.isWindowed())
         {
