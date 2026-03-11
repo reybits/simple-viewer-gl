@@ -1209,6 +1209,11 @@ void cViewer::navigateImage(int step)
 
 void cViewer::loadImage(const char* path)
 {
+    if (path == nullptr)
+    {
+        return;
+    }
+
     m_config.fitImage = m_config.keepScale == false && m_config.fitImage;
 
     m_subImageForced = false;
