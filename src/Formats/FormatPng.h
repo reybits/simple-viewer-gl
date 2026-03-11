@@ -20,4 +20,6 @@ public:
 
 private:
     bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
+
+    bool loadCgBI(cFile& file, sChunkData& chunk, sImageInfo& info);
 };
