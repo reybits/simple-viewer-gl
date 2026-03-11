@@ -11,7 +11,7 @@ TODO.org
 compile_commands.json
 cppcheck-output
 project.xcworkspace/
-src/version.cpp
+src/Version.cpp
 sviewgl
 tags
 test/
