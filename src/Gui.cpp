@@ -530,12 +530,18 @@ void cGui::beginFrame()
     auto fbSize = m_window.getFramebufferSize();
     io.DisplaySize = ImVec2(static_cast<float>(winSize.x), static_cast<float>(winSize.y));
     io.DisplayFramebufferScale = ImVec2(
-        winSize.x > 0 ? (static_cast<float>(fbSize.x) / winSize.x) : 0,
-        winSize.y > 0 ? (static_cast<float>(fbSize.y) / winSize.y) : 0);
+        winSize.x > 0
+            ? (static_cast<float>(fbSize.x) / winSize.x)
+            : 0,
+        winSize.y > 0
+            ? (static_cast<float>(fbSize.y) / winSize.y)
+            : 0);
 
-    double current_time = timing::seconds();
-    io.DeltaTime = m_time > 0.0 ? static_cast<float>(current_time - m_time) : (1.0f / 60.0f);
-    m_time = current_time;
+    double currentTime = timing::seconds();
+    io.DeltaTime = m_time > 0.0
+        ? static_cast<float>(currentTime - m_time)
+        : (1.0f / 60.0f);
+    m_time = currentTime;
 
     ImGui::NewFrame();
 
