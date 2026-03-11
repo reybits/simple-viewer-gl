@@ -108,9 +108,17 @@ namespace
         if (location == Location::XDG)
         {
             auto xdgConfigHome = ::getenv("XDG_CONFIG_HOME");
-            if (xdgConfigHome != nullptr)
+            if (xdgConfigHome != nullptr && xdgConfigHome[0] != '\0')
             {
                 path = strfmt("%s/sviewgl/%s", xdgConfigHome, name);
+            }
+            else
+            {
+                auto home = ::getenv("HOME");
+                if (home != nullptr)
+                {
+                    path = strfmt("%s/.config/sviewgl/%s", home, name);
+                }
             }
         }
         else if (location == Location::HOME)
