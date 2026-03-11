@@ -25,31 +25,89 @@ namespace
         uint8_t fileLen[4]; // Length of file, in bytes, msb first
     };
 
-    struct RGBA
+    const char* CompressionToName(cFormatIcns::Compression compression)
     {
-        uint8_t r, g, b, a;
-    };
+        static constexpr const char* Names[] = {
+            "None",
+            "Pack",
+            "PngJ"
+        };
+        return Names[static_cast<size_t>(compression)];
+    }
 
-    struct ICNSA
+    void UnpackBits(uint8_t* buffer, const uint8_t* chunk, uint32_t size)
     {
-        uint8_t g, r, b, a;
-    };
+        uint32_t c = 0;
 
-    struct RGB
-    {
-        uint8_t r, g, b;
-    };
+        const auto end = chunk + size;
+        while (chunk < end)
+        {
+            const auto N = *chunk++;
 
-    struct ICNS
+            if (N < 0x80)
+            {
+                const auto count = N + 1u;
+                for (uint32_t i = 0; i < count; i++)
+                {
+                    *buffer++ = *chunk++;
+                    c++;
+                }
+            }
+            else
+            {
+                const auto count = N - 0x80 + 3u;
+
+                const auto value = *chunk++;
+                for (uint32_t i = 0; i < count; i++)
+                {
+                    *buffer++ = value;
+                    c++;
+                }
+            }
+        }
+
+        cLog::Debug("Unpacked bytes: {}.", c);
+    }
+
+    // ICNS stores 32-bit pixels as GRBA — reorder to RGBA.
+    void ConvertGRBAtoRGBA(uint8_t* buffer, const uint8_t* src, uint32_t size)
     {
-        uint8_t g, r, b;
-    };
+        for (uint32_t i = 0; i < size / 4; i++)
+        {
+            const auto g = src[0];
+            const auto r = src[1];
+            const auto b = src[2];
+            const auto a = src[3];
+            buffer[0] = r;
+            buffer[1] = g;
+            buffer[2] = b;
+            buffer[3] = a;
+            src += 4;
+            buffer += 4;
+        }
+    }
+
+    // ICNS stores 24-bit pixels as GRB — reorder to RGB.
+    void ConvertGRBtoRGB(uint8_t* buffer, const uint8_t* src, uint32_t size)
+    {
+        for (uint32_t i = 0; i < size / 3; i++)
+        {
+            const auto g = src[0];
+            const auto r = src[1];
+            const auto b = src[2];
+            buffer[0] = r;
+            buffer[1] = g;
+            buffer[2] = b;
+            src += 3;
+            buffer += 3;
+        }
+    }
 
 } // namespace
 
 bool cFormatIcns::isSupported(cFile& file, Buffer& buffer) const
 {
-    if (!readBuffer(file, buffer, sizeof(Header)))
+    if (readBuffer(file, buffer, sizeof(Header)) == false)
     {
         return false;
     }
@@ -57,23 +115,23 @@ bool cFormatIcns::isSupported(cFile& file, Buffer& buffer) const
     const auto h = reinterpret_cast<const Header*>(buffer.data());
     cLog::Debug("Magic: {}{}{}{}.", static_cast<char>(h->magic[0]), static_cast<char>(h->magic[1]), static_cast<char>(h->magic[2]), static_cast<char>(h->magic[3]));
 
-    const uint32_t fileLen = helpers::read_uint32(h->fileLen);
+    const auto fileLen = helpers::read_uint32(h->fileLen);
     cLog::Debug("File length: {} (file size: {}).", fileLen, static_cast<uint32_t>(file.getSize()));
 
-    const uint8_t magic[4] = { 'i', 'c', 'n', 's' };
+    constexpr uint8_t Magic[4] = { 'i', 'c', 'n', 's' };
 
-    return fileLen == file.getSize() && ::memcmp(&h->magic, magic, sizeof(magic)) == 0;
+    return fileLen == file.getSize() && ::memcmp(&h->magic, Magic, sizeof(Magic)) == 0;
 }
 
 bool cFormatIcns::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, info))
+    if (openFile(file, filename, info) == false)
     {
         return false;
     }
 
-    const auto size = (uint32_t)file.getSize();
+    const auto size = static_cast<uint32_t>(file.getSize());
 
     m_icon.resize(size);
     auto icon = m_icon.data();
@@ -87,7 +145,7 @@ bool cFormatIcns::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
 
     iterateContent(icon, sizeof(Header), size);
 
-    info.images = (uint32_t)m_entries.size();
+    info.images = static_cast<uint32_t>(m_entries.size());
 
     return info.images > 0 && load(0, chunk, info);
 }
@@ -110,7 +168,7 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
             }
             else
             {
-                Entry entry = desc;
+                auto entry = desc;
 
                 entry.offset = offset + sizeof(Chunk);
                 entry.size = chunkSize - sizeof(Chunk);
@@ -130,7 +188,7 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
         }
         else
         {
-            offset += (uint32_t)sizeof(Chunk);
+            offset += static_cast<uint32_t>(sizeof(Chunk));
         }
     }
 }
@@ -142,15 +200,16 @@ bool cFormatIcns::LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageIn
 
 bool cFormatIcns::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
-    current = std::max<uint32_t>(current, 0);
-    current = std::min<uint32_t>(current, info.images - 1);
+    current = std::min(current, static_cast<uint32_t>(info.images - 1));
 
     info.current = current;
 
     const auto& entry = m_entries[current];
     auto data = m_icon.data() + entry.offset;
 
-    chunk.format = entry.dstBpp == 32 ? ePixelFormat::RGBA : (entry.dstBpp == 24 ? ePixelFormat::RGB : ePixelFormat::Luminance);
+    chunk.format = entry.dstBpp == 32
+        ? ePixelFormat::RGBA
+        : (entry.dstBpp == 24 ? ePixelFormat::RGB : ePixelFormat::Luminance);
     chunk.bpp = entry.dstBpp;
     chunk.pitch = entry.dstBpp * entry.iconSize / 8;
     chunk.width = entry.iconSize;
@@ -174,12 +233,12 @@ bool cFormatIcns::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
             updateProgress(percent);
         });
 
-        // auto data = icon + sizeof(Chunk);
-        // auto size = chunk.chunkSize - sizeof(Chunk);
         if (reader.loadPng(chunk, info, data, entry.size))
         {
             // ICC is applied per-scanline inside loadPng()
-            info.formatName = reader.getIccProfile().empty() ? "icns/png" : "icns/png/icc";
+            info.formatName = reader.getIccProfile().empty()
+                ? "icns/png"
+                : "icns/png/icc";
         }
         else
         {
@@ -190,15 +249,15 @@ bool cFormatIcns::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     {
         if (entry.compression == Compression::Pack)
         {
-            unpackBits(buffer, data, entry.size);
+            UnpackBits(buffer, data, entry.size);
         }
         else if (entry.srcBpp == 32)
         {
-            ICNSAtoRGBA(buffer, data, entry.size);
+            ConvertGRBAtoRGBA(buffer, data, entry.size);
         }
         else if (entry.srcBpp == 24)
         {
-            ICNStoRGB(buffer, data, entry.size);
+            ConvertGRBtoRGB(buffer, data, entry.size);
         }
         else
         {
@@ -209,74 +268,13 @@ bool cFormatIcns::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     return true;
 }
 
-void cFormatIcns::unpackBits(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const
-{
-    uint32_t c = 0;
-
-    const auto end = chunk + size;
-    while (chunk < end)
-    {
-        const uint8_t N = *chunk++;
-
-        if (N < 0x80)
-        {
-            const uint32_t count = N + 1;
-            for (uint32_t i = 0; i < count; i++)
-            {
-                *buffer++ = *chunk++;
-                c++;
-            }
-        }
-        else
-        {
-            const uint32_t count = N - 0x80 + 3;
-
-            const uint8_t value = *chunk++;
-            for (uint32_t i = 0; i < count; i++)
-            {
-                *buffer++ = value;
-                c++;
-            }
-        }
-    }
-
-    cLog::Debug("Unpacked bytes: {}.", c);
-}
-
-void cFormatIcns::ICNSAtoRGBA(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const
-{
-    auto src = (const ICNSA*)chunk;
-    auto dst = (RGBA*)buffer;
-    for (uint32_t i = 0; i < size / 4; i++)
-    {
-        dst[i].r = src[i].r;
-        dst[i].g = src[i].g;
-        dst[i].b = src[i].b;
-        dst[i].a = src[i].a;
-    }
-}
-
-void cFormatIcns::ICNStoRGB(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const
-{
-    auto src = (const ICNS*)chunk;
-    auto dst = (RGBA*)buffer;
-    for (uint32_t i = 0; i < size / 4; i++)
-    {
-        dst[i].r = src[i].r;
-        dst[i].g = src[i].g;
-        dst[i].b = src[i].b;
-    }
-}
-
 const cFormatIcns::Entry& cFormatIcns::getDescription(const Chunk& chunk) const
 {
-    struct Pair
+    static constexpr struct
     {
         const char* id;
         Entry entry;
-    };
-
-    static constexpr Pair List[] = {
+    } List[] = {
         { "TOC ", { Type::TOC_, Compression::None, 0, 0, 0, 0, 0 } },      // Table Of Content
         { "ICON", { Type::ICON, Compression::None, 1, 8, 32, 0, 0 } },     // 128	32	1.0	32×32 1-bit mono icon
         { "ICN#", { Type::ICN3, Compression::None, 1, 8, 32, 0, 0 } },     // 256	32	6.0	32×32 1-bit mono icon with 1-bit mask
@@ -311,14 +309,14 @@ const cFormatIcns::Entry& cFormatIcns::getDescription(const Chunk& chunk) const
         { "ic13", { Type::ic13, Compression::PngJ, 32, 32, 256, 0, 0 } },  // varies	256	10.8	128x128@2x "retina" icon in JPEG 2000 or PNG format
         { "ic14", { Type::ic14, Compression::PngJ, 32, 32, 512, 0, 0 } },  // varies	512	10.8	256x256@2x "retina" icon in JPEG 2000 or PNG format
 
-        { "icnV", { Type::icnV, Compression::PngJ, 0, 0, 0, 0, 0 } }, // 4-byte big endian float - equal to the bundle version number of Icon Composer.app that created to icon
-        { "name", { Type::name, Compression::PngJ, 0, 0, 0, 0, 0 } }, // Unknown
-        { "info", { Type::info, Compression::PngJ, 0, 0, 0, 0, 0 } }, // Info binary plist. Usage unknown
+        { "icnV", { Type::icnV, Compression::None, 0, 0, 0, 0, 0 } }, // 4-byte big endian float - equal to the bundle version number of Icon Composer.app that created to icon
+        { "name", { Type::name, Compression::None, 0, 0, 0, 0, 0 } }, // Unknown
+        { "info", { Type::info, Compression::None, 0, 0, 0, 0, 0 } }, // Info binary plist. Usage unknown
     };
 
     auto type = chunk.type;
 
-    for (auto& e : List)
+    for (const auto& e : List)
     {
         if (::memcmp(e.id, type, 4) == 0)
         {
@@ -332,15 +330,4 @@ const cFormatIcns::Entry& cFormatIcns::getDescription(const Chunk& chunk) const
 
     static const Entry Error{ Type::Count, Compression::Count, 0, 0, 0, 0, 0 };
     return Error;
-}
-
-const char* cFormatIcns::CompressionToName(Compression compression)
-{
-    static const char* Names[] = {
-        "None",
-        "Pack",
-        "PngJ"
-    };
-
-    return Names[static_cast<size_t>(compression)];
 }

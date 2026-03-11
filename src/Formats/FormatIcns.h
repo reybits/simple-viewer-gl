@@ -18,18 +18,6 @@ public:
 
     bool isSupported(cFile& file, Buffer& buffer) const override;
 
-private:
-    bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
-    bool LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInfo& info) override;
-
-private:
-    bool load(uint32_t current, sChunkData& chunk, sImageInfo& info);
-
-    void iterateContent(const uint8_t* icon, uint32_t offset, uint32_t size);
-    void unpackBits(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;
-    void ICNSAtoRGBA(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;
-    void ICNStoRGB(uint8_t* buffer, const uint8_t* chunk, uint32_t size) const;
-
     enum class Type
     {
         TOC_,
@@ -73,17 +61,6 @@ private:
         Count
     };
 
-    struct Entry;
-    struct Chunk
-    {
-        uint8_t type[4];    // Icon type, see OSType below.
-        uint8_t dataLen[4]; // Length of data, in bytes (including type and length), msb first
-        // Variable Icon data
-    };
-
-    const Entry& getDescription(const Chunk& chunk) const;
-
-private:
     enum class Compression : uint32_t
     {
         None,
@@ -92,11 +69,6 @@ private:
 
         Count
     };
-
-    static const char* CompressionToName(Compression compression);
-
-private:
-    std::vector<uint8_t> m_icon;
 
     struct Entry
     {
@@ -111,5 +83,21 @@ private:
         uint32_t size;
     };
 
+    struct Chunk
+    {
+        uint8_t type[4];    // Icon type, see OSType below.
+        uint8_t dataLen[4]; // Length of data, in bytes (including type and length), msb first
+        // Variable Icon data
+    };
+
+private:
+    bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
+    bool LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInfo& info) override;
+
+    bool load(uint32_t current, sChunkData& chunk, sImageInfo& info);
+    void iterateContent(const uint8_t* icon, uint32_t offset, uint32_t size);
+    const Entry& getDescription(const Chunk& chunk) const;
+
+    std::vector<uint8_t> m_icon;
     std::vector<Entry> m_entries;
 };
