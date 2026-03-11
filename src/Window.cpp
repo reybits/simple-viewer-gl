@@ -65,13 +65,45 @@ GLFWwindow* cWindow::createWindowedWindow(GLFWwindow* parent, const sConfig& con
     return glfwCreateWindow(width, height, version::getTitle(), nullptr, parent);
 }
 
+GLFWmonitor* cWindow::getCurrentMonitor() const
+{
+    if (m_window == nullptr)
+    {
+        return glfwGetPrimaryMonitor();
+    }
+
+    int wx = 0, wy = 0, ww = 0, wh = 0;
+    glfwGetWindowPos(m_window, &wx, &wy);
+    glfwGetWindowSize(m_window, &ww, &wh);
+
+    const auto centerX = wx + ww / 2;
+    const auto centerY = wy + wh / 2;
+
+    int monitorCount = 0;
+    auto monitors = glfwGetMonitors(&monitorCount);
+    if (monitors != nullptr)
+    {
+        for (int i = 0; i < monitorCount; i++)
+        {
+            int mx = 0, my = 0, mw = 0, mh = 0;
+            glfwGetMonitorWorkarea(monitors[i], &mx, &my, &mw, &mh);
+            if (centerX >= mx && centerX < mx + mw && centerY >= my && centerY < my + mh)
+            {
+                return monitors[i];
+            }
+        }
+    }
+
+    return glfwGetPrimaryMonitor();
+}
+
 GLFWwindow* cWindow::createFullscreenWindow(GLFWwindow* parent, const sConfig& config)
 {
     setHints(config);
-    auto monitor = glfwGetPrimaryMonitor();
+    auto monitor = getCurrentMonitor();
     if (monitor == nullptr)
     {
-        cLog::Error("No primary monitor found, falling back to windowed mode.");
+        cLog::Error("No monitor found, falling back to windowed mode.");
         return createWindowedWindow(parent, config);
     }
     auto mode = glfwGetVideoMode(monitor);
@@ -236,7 +268,7 @@ Vectori cWindow::getFramebufferSize() const
 
 Vectori cWindow::getScreenSize() const
 {
-    auto monitor = glfwGetPrimaryMonitor();
+    auto monitor = getCurrentMonitor();
     if (monitor != nullptr)
     {
         int wx = 0, wy = 0, ww = 0, wh = 0;

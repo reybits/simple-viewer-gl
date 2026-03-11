@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <functional>
 
+struct GLFWmonitor;
 struct GLFWwindow;
 struct sConfig;
 
@@ -82,6 +83,7 @@ private:
     GLFWwindow* createWindowedWindow(GLFWwindow* parent, const sConfig& config);
     GLFWwindow* createFullscreenWindow(GLFWwindow* parent, const sConfig& config);
     void setHints(const sConfig& config);
+    GLFWmonitor* getCurrentMonitor() const;
 
 private:
     GLFWwindow* m_window = nullptr;
