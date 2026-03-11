@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <cstdarg>
 #include <fmt/core.h>
 
 class cLog
@@ -57,6 +58,11 @@ public:
         auto msg = fmt::format(format, std::forward<Args>(args)...);
         Write(Severity::Debug, msg);
     }
+
+    static void WriteV(Severity type, const char* format, va_list args);
+
+public:
+    static void setDebugEnabled(bool enabled);
 
 private:
     static void Write(Severity type, const std::string& msg);

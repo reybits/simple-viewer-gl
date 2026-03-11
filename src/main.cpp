@@ -263,6 +263,8 @@ int main(int argc, char* argv[])
         }
     }
 
+    cLog::setDebugEnabled(config.debug);
+
     cWindow window;
     if (window.init(config) == false)
     {
