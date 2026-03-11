@@ -25,63 +25,106 @@ struct IcoHeader
 };
 
 // List of icons.
-// Size = IcoHeader.ount * 16
 struct IcoDirentry
 {
-    uint8_t width;    // Specifies image width in pixels. Can be 0, 255 or a number between 0 to 255. Should be 0 if image width is 256 pixels.
-    uint8_t height;   // Specifies image height in pixels. Can be 0, 255 or a number between 0 to 255. Should be 0 if image height is 256 pixels.
-    uint8_t colors;   // Specifies number of colors in the color palette. Should be 0 if the image is truecolor.
-    uint8_t reserved; // Reserved. Should be 0.[Notes 1]
-    uint16_t planes;  // In .ICO format: Specifies color planes. Should be 0 or 1.
-                      // In .CUR format: Specifies the horizontal coordinates of the hotspot in number of pixels from the left.
-    uint16_t bits;    // In .ICO format: Specifies bits per pixel. (1, 4, 8)
-                      // In .CUR format: Specifies the vertical coordinates of the hotspot in number of pixels from the top.
-    uint32_t size;    // Specifies the size of the bitmap data in bytes. Size of (InfoHeader + ANDbitmap + XORbitmap)
-    uint32_t offset;  // Specifies the offset of bitmap data address in the file
+    uint8_t width;    // Specifies image width in pixels. 0 means 256.
+    uint8_t height;   // Specifies image height in pixels. 0 means 256.
+    uint8_t colors;   // Number of colors in palette. 0 if truecolor.
+    uint8_t reserved; // Reserved. Should be 0.
+    uint16_t planes;  // ICO: color planes (0 or 1). CUR: hotspot X.
+    uint16_t bits;    // ICO: bits per pixel. CUR: hotspot Y.
+    uint32_t size;    // Size of bitmap data in bytes.
+    uint32_t offset;  // Offset of bitmap data in the file.
 };
 
-// Variant of BMP InfoHeader.
-// Size = 40 bytes.
+// Variant of BMP InfoHeader (40 bytes).
 struct IcoBmpInfoHeader
 {
-    uint32_t size;      // Size of InfoHeader structure = 40
-    uint32_t width;     // Icon Width
-    uint32_t height;    // Icon Height (added height of XOR-Bitmap and AND-Bitmap)
-    uint16_t planes;    // number of planes = 1
-    uint16_t bits;      // bits per pixel = 1, 2, 4, 8, 16, 24, 32
-    uint32_t reserved0; // Type of Compression = 0
-    uint32_t imagesize; // Size of Image in Bytes = 0 (uncompressed)
-    uint32_t reserved1; // XpixelsPerM
-    uint32_t reserved2; // YpixelsPerM
-    uint32_t reserved3; // ColorsUsed
-    uint32_t reserved4; // ColorsImportant
+    uint32_t size;
+    uint32_t width;
+    uint32_t height; // XOR-Bitmap height + AND-Bitmap height
+    uint16_t planes;
+    uint16_t bits;
+    uint32_t reserved0; // Compression = 0
+    uint32_t imagesize;
+    uint32_t reserved1;
+    uint32_t reserved2;
+    uint32_t reserved3;
+    uint32_t reserved4;
 };
-
-// Color Map for XOR-Bitmap.
-// Size = NumberOfColors * 4 bytes.
-struct IcoColors
-{
-    uint8_t red;      // red component
-    uint8_t green;    // green component
-    uint8_t blue;     // blue component
-    uint8_t reserved; // = 0
-};
-
-// uint8_t xormask; // DIB bits for XOR mask
-// uint8_t andmask; // DIB bits for AND mask
 #pragma pack(pop)
+
+namespace
+{
+    // Standard DWORD-aligned row pitch.
+    uint32_t DwordAlignedPitch(uint32_t width, uint32_t bpp)
+    {
+        return ((width * bpp + 31) / 32) * 4;
+    }
+
+    uint32_t GetBit(const uint8_t* data, uint32_t bit, uint32_t width)
+    {
+        const auto w = DwordAlignedPitch(width, 1);
+        const auto line = bit / width;
+        const auto offset = bit % width;
+        return (data[line * w + offset / 8] >> (7 - (offset % 8))) & 1;
+    }
+
+    uint32_t GetNibble(const uint8_t* data, uint32_t nibble, uint32_t width)
+    {
+        const auto w = DwordAlignedPitch(width, 4);
+        const auto line = nibble / width;
+        const auto offset = nibble % width;
+        const auto byte = data[line * w + offset / 2];
+        return (offset % 2 == 0)
+            ? (byte >> 4)
+            : (byte & 0x0F);
+    }
+
+    uint32_t GetByte(const uint8_t* data, uint32_t byte, uint32_t width)
+    {
+        const auto w = DwordAlignedPitch(width, 8);
+        const auto line = byte / width;
+        const auto offset = byte % width;
+        return data[line * w + offset];
+    }
+
+    using IndexFn = uint32_t (*)(const uint8_t*, uint32_t, uint32_t);
+
+    void DecodePaletted(uint8_t* out, const sChunkData& chunk,
+                        const uint32_t* palette, const uint8_t* xorMask, const uint8_t* andMask,
+                        IndexFn getIndex)
+    {
+        for (uint32_t y = 0; y < chunk.height; y++)
+        {
+            auto idx = (chunk.height - y - 1) * chunk.pitch;
+            for (uint32_t x = 0; x < chunk.width; x++)
+            {
+                const auto pos = y * chunk.width + x;
+                const auto color = palette[getIndex(xorMask, pos, chunk.width)];
+                ::memcpy(&out[idx], &color, 3);
+                out[idx + 3] = GetBit(andMask, pos, chunk.width)
+                    ? 0
+                    : 255;
+                idx += 4;
+            }
+        }
+    }
+
+} // namespace
 
 bool cFormatIco::isSupported(cFile& file, Buffer& buffer) const
 {
-    if (!readBuffer(file, buffer, sizeof(IcoHeader)))
+    if (readBuffer(file, buffer, sizeof(IcoHeader)) == false)
     {
         return false;
     }
 
     const auto h = reinterpret_cast<const IcoHeader*>(buffer.data());
-    return (h->reserved == 0 && h->count > 0
-            && h->count * sizeof(IcoDirentry) <= (size_t)file.getSize()
-            && (h->type == 1 || h->type == 2));
+    return h->reserved == 0
+        && h->count > 0
+        && h->count * sizeof(IcoDirentry) <= static_cast<size_t>(file.getSize())
+        && (h->type == 1 || h->type == 2);
 }
 
 bool cFormatIco::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
@@ -98,7 +141,7 @@ bool cFormatIco::LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageInf
 bool cFormatIco::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, m_filename.c_str(), info))
+    if (openFile(file, m_filename.c_str(), info) == false)
     {
         return false;
     }
@@ -116,8 +159,7 @@ bool cFormatIco::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
         return false;
     }
 
-    current = std::max<uint32_t>(current, 0);
-    current = std::min<uint32_t>(current, header.count - 1);
+    current = std::min(current, static_cast<uint32_t>(header.count - 1));
 
     const auto image = &images[current];
     cLog::Debug("-- IcoDirentry");
@@ -134,17 +176,14 @@ bool cFormatIco::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     if (image->colors == 0 && image->width == 0 && image->height == 0)
     {
         info.formatName = "ico/png";
-
         result = loadPngFrame(chunk, info, file, image);
     }
     else
     {
         info.formatName = "ico";
-
         result = loadOrdinaryFrame(chunk, info, file, image);
     }
 
-    // store frame number and frames count after reset again
     info.images = header.count;
     info.current = current;
 
@@ -170,7 +209,7 @@ bool cFormatIco::loadPngFrame(sChunkData& chunk, sImageInfo& info, cFile& file, 
     });
 
     // ICC is applied per-scanline inside loadPng()
-    bool result = reader.loadPng(chunk, info, data, size);
+    auto result = reader.loadPng(chunk, info, data, size);
     if (result && reader.getIccProfile().empty() == false)
     {
         info.formatName = "ico/png/icc";
@@ -179,7 +218,6 @@ bool cFormatIco::loadPngFrame(sChunkData& chunk, sImageInfo& info, cFile& file, 
     return result;
 }
 
-// load frame in ordinary format
 bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& file, const IcoDirentry* image)
 {
     file.seek(image->offset, SEEK_SET);
@@ -194,15 +232,17 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
     chunk.width = imgHeader->width;
     chunk.height = imgHeader->height / 2; // xor mask + and mask
     info.bppImage = imgHeader->bits;
-    chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::BGRA);
 
-    int pitch = calcIcoPitch(info.bppImage, chunk.width);
-    if (pitch == -1)
+    if (info.bppImage != 1 && info.bppImage != 4 && info.bppImage != 8
+        && info.bppImage != 24 && info.bppImage != 32)
     {
-        cLog::Error("Invalid icon pitch.");
+        cLog::Error("Unsupported ICO bit depth: {}.", info.bppImage);
         return false;
     }
 
+    chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::BGRA);
+
+    const auto pitch = DwordAlignedPitch(chunk.width, info.bppImage);
     auto out = chunk.bitmap.data();
 
     cLog::Debug("-- IcoBmpInfoHeader");
@@ -213,176 +253,43 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
     cLog::Debug("  Bits       : {}", imgHeader->bits);
     cLog::Debug("  Image size : {}", imgHeader->imagesize);
 
-    // const uint32_t colors = image->colors == 0 ? (1 << info.bppImage) : image->colors;
     uint32_t colors = image->colors;
     if (info.bppImage < 16)
     {
-        colors = colors == 0 ? (1 << info.bppImage) : image->colors;
+        colors = colors == 0
+            ? (1u << info.bppImage)
+            : image->colors;
     }
     const auto palette = reinterpret_cast<const uint32_t*>(p.data() + imgHeader->size);
-    const auto xorMask = reinterpret_cast<const uint8_t*>(p.data() + imgHeader->size + colors * 4);
-    const auto andMask = reinterpret_cast<const uint8_t*>(p.data() + imgHeader->size + colors * 4 + chunk.height * pitch);
+    const auto xorMask = p.data() + imgHeader->size + colors * 4;
+    const auto andMask = xorMask + chunk.height * pitch;
 
-    switch (info.bppImage)
+    if (info.bppImage <= 8)
     {
-    case 1:
-        for (uint32_t y = 0; y < chunk.height; y++)
-        {
-            uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
-            for (uint32_t x = 0; x < chunk.width; x++)
-            {
-                const auto color = palette[getBit(xorMask, y * chunk.width + x, chunk.width)];
-
-                ::memcpy(&out[idx], &color, 3);
-                out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
-                idx += 4;
-
-                updateProgress((float)chunk.height * chunk.width / (y * chunk.width + x));
-            }
-        }
-        break;
-
-    case 4:
-        for (uint32_t y = 0; y < chunk.height; y++)
-        {
-            uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
-            for (uint32_t x = 0; x < chunk.width; x++)
-            {
-                const auto color = palette[getNibble(xorMask, y * chunk.width + x, chunk.width)];
-
-                ::memcpy(&out[idx], &color, 3);
-                out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
-                idx += 4;
-
-                updateProgress((float)chunk.height * chunk.width / (y * chunk.width + x));
-            }
-        }
-        break;
-
-    case 8:
-        for (uint32_t y = 0; y < chunk.height; y++)
-        {
-            uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
-            for (uint32_t x = 0; x < chunk.width; x++)
-            {
-                const auto color = palette[getByte(xorMask, y * chunk.width + x, chunk.width)];
-
-                ::memcpy(&out[idx], &color, 3);
-                out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
-                idx += 4;
-
-                updateProgress((float)chunk.height * chunk.width / (y * chunk.width + x));
-            }
-        }
-        break;
-
-    default: {
+        static constexpr IndexFn Lookup[] = { nullptr, GetBit, nullptr, nullptr, GetNibble, nullptr, nullptr, nullptr, GetByte };
+        DecodePaletted(out, chunk, palette, xorMask, andMask, Lookup[info.bppImage]);
+    }
+    else
+    {
         const uint32_t bpp = info.bppImage / 8;
         for (uint32_t y = 0; y < chunk.height; y++)
         {
-            const uint8_t* row = xorMask + pitch * y;
-
-            uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
+            const auto* row = xorMask + pitch * y;
+            auto idx = (chunk.height - y - 1) * chunk.pitch;
             for (uint32_t x = 0; x < chunk.width; x++)
             {
-                out[idx + 0] = row[0];
-                out[idx + 1] = row[1];
-                out[idx + 2] = row[2];
-
-                if (info.bppImage < 32)
-                {
-                    out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
-                }
-                else
-                {
-                    out[idx + 3] = row[3];
-                }
+                ::memcpy(&out[idx], row, 3);
+                out[idx + 3] = (info.bppImage < 32)
+                    ? (GetBit(andMask, y * chunk.width + x, chunk.width)
+                           ? 0
+                           : 255)
+                    : row[3];
 
                 idx += 4;
                 row += bpp;
-
-                updateProgress((float)chunk.height * chunk.width / (y * chunk.width + x));
             }
         }
     }
-    break;
-    }
 
     return true;
-}
-
-int cFormatIco::calcIcoPitch(uint32_t bppImage, uint32_t width)
-{
-    switch (bppImage)
-    {
-    case 1:
-        if ((width % 32) == 0)
-        {
-            return width / 8;
-        }
-        return 4 * (width / 32 + 1);
-
-    case 4:
-        if ((width % 8) == 0)
-        {
-            return width / 2;
-        }
-        return 4 * (width / 8 + 1);
-
-    case 8:
-        if ((width % 4) == 0)
-        {
-            return width;
-        }
-        return 4 * (width / 4 + 1);
-
-    case 24:
-        if (((width * 3) % 4) == 0)
-        {
-            return width * 3;
-        }
-        return 4 * (width * 3 / 4 + 1);
-
-    case 32:
-        return width * 4;
-    }
-
-    cLog::Error("Invalid bits count: {}.", bppImage);
-    return -1; // width * (bppImage / 8);
-}
-
-uint32_t cFormatIco::getBit(const uint8_t* data, uint32_t bit, uint32_t width)
-{
-    const uint32_t w = width % 32 == 0 ? (width / 32) : (width / 32 + 1);
-    const uint32_t line = bit / width;
-    const uint32_t offset = bit % width;
-
-    uint32_t result = data[line * w * 4 + offset / 8] & (1 << (7 - (offset % 8)));
-
-    return (result ? 1 : 0);
-}
-
-uint32_t cFormatIco::getNibble(const uint8_t* data, uint32_t nibble, uint32_t width)
-{
-    const uint32_t w = width % 8 == 0 ? (width / 8) : (width / 8 + 1);
-    const uint32_t line = nibble / width;
-    const uint32_t offset = nibble % width;
-
-    uint32_t result = data[line * w * 4 + offset / 2] & (0x0F << (4 * (1 - offset % 2)));
-
-    if (offset % 2 == 0)
-    {
-        result = result >> 4;
-    }
-
-    return result;
-}
-
-uint32_t cFormatIco::getByte(const uint8_t* data, uint32_t byte, uint32_t width)
-{
-    const uint32_t w = width % 4 == 0 ? (width / 4) : (width / 4 + 1);
-    const uint32_t line = byte / width;
-    const uint32_t offset = byte % width;
-
-    return data[line * w * 4 + offset];
 }
