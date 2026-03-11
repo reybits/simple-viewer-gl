@@ -1266,6 +1266,11 @@ void cViewer::loadSubImage(int subStep)
     assert(subStep == -1 || subStep == 1);
 
     const auto& subInfo = m_loader->getImageInfo();
+    if (subInfo.images < 2)
+    {
+        return;
+    }
+
     const auto next = static_cast<uint32_t>(subInfo.current + subInfo.images + subStep) % subInfo.images;
     if (subInfo.current == next)
     {
