@@ -286,24 +286,32 @@ int main(int argc, char* argv[])
         }
     }
 
+    uint32_t frames = 0;
+    auto fpsTimer = timing::seconds();
+
     while (window.shouldClose() == false)
     {
-        const double timeStart = timing::seconds();
+        const auto timeStart = timing::seconds();
 
         viewer.onRender();
         viewer.onUpdate();
 
         window.pollEvents();
 
-        if (viewer.isUploading() == false)
+        frames++;
+        const auto now = timing::seconds();
+        if (now - fpsTimer >= 1.0)
         {
-            const double frameDuration = timing::seconds() - timeStart;
-            constexpr double desiredFps = 1.0 / 60.0;
-            const double timeRest = desiredFps - frameDuration;
-            if (timeRest > 0.0)
-            {
-                usleep(static_cast<useconds_t>(timeRest * 1000000));
-            }
+            viewer.setFps(static_cast<float>(frames / (now - fpsTimer)));
+            frames = 0;
+            fpsTimer = now;
+        }
+
+        constexpr auto desiredFps = 1.0 / 60.0;
+        const auto timeRest = desiredFps - (now - timeStart);
+        if (timeRest > 0.0)
+        {
+            usleep(static_cast<useconds_t>(timeRest * 1000000.0));
         }
     }
 

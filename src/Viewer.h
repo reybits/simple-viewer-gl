@@ -11,7 +11,6 @@
 
 #include "Common/Callbacks.h"
 #include "Common/Scale.h"
-#include "Gui.h"
 #include "Types/Types.h"
 #include "Types/Vector.h"
 #include "Window.h"
@@ -24,6 +23,7 @@ class cDeletionMark;
 class cExifPopup;
 class cFileBrowser;
 class cFilesList;
+class cGui;
 class cHelpPopup;
 class cImageBorder;
 class cImageGrid;
@@ -44,6 +44,7 @@ public:
     void addPaths(const StringsList& paths);
 
     bool isUploading() const;
+    void setFps(float fps);
 
     void onRender();
     void onUpdate();
@@ -157,8 +158,6 @@ private:
     bool m_animation = false;
     float m_animationTime = 0.0f;
 
-    cGui m_imgui;
-
     std::unique_ptr<cQuadImage> m_image;
     std::unique_ptr<cQuadImage> m_preview; // lazy: created on preview ready, destroyed when full-res upload completes
     std::unique_ptr<cFilesList> m_filesList;
@@ -166,6 +165,7 @@ private:
     std::unique_ptr<cProgress> m_progress;
     std::unique_ptr<cImageLoader> m_loader;
     std::unique_ptr<cInfoBar> m_infoBar;
+    std::unique_ptr<cGui> m_imgui;
     std::unique_ptr<cPixelPopup> m_pixelPopup;
     std::unique_ptr<cExifPopup> m_exifPopup;
     std::unique_ptr<cHelpPopup> m_helpPopup;

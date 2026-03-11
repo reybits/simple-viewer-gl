@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "Gui.h"
-#include "Common/Timing.h"
 #include "Assets/FontAwesomeSolid.h"
 #include "Assets/InterRegular.h"
+#include "Common/Config.h"
+#include "Common/Timing.h"
 #include "Log/Log.h"
 #include "Renderer.h"
 #include "Types/Matrix.h"
@@ -406,6 +407,56 @@ void main()
 
 } // namespace
 
+cGui::cGui(cWindow& window, const sConfig& config)
+    : m_window(window)
+    , m_config(config)
+{
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+    auto& io = ImGui::GetIO();
+
+    io.IniFilename = nullptr;
+    io.LogFilename = nullptr;
+
+    io.SetClipboardTextFn = [](void* user_data, const char* text) {
+        static_cast<cWindow*>(user_data)->setClipboardText(text);
+    };
+
+    io.GetClipboardTextFn = [](void* user_data) {
+        return static_cast<cWindow*>(user_data)->getClipboardText();
+    };
+
+    io.ClipboardUserData = &m_window;
+
+    const ImWchar textRange[] = { 0x0020, 0xFFFF, 0 };
+    io.Fonts->AddFontFromMemoryCompressedTTF(InterRegular_compressed_data, InterRegular_compressed_size, 16, nullptr, textRange);
+
+    // Merge Font Awesome icons into the same font atlas
+    ImFontConfig iconConfig;
+    iconConfig.MergeMode = true;
+    iconConfig.PixelSnapH = true;
+    const ImWchar iconRange[] = { 0xE000, 0xF8FF, 0 }; // Private Use Area (Font Awesome icons)
+    io.Fonts->AddFontFromMemoryCompressedTTF(FontAwesomeSolid_compressed_data, FontAwesomeSolid_compressed_size, 16, &iconConfig, iconRange);
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
+
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    auto& s = ImGui::GetStyle();
+    s.WindowTitleAlign = { 0.5f, 0.5f };
+    s.WindowRounding = 5.0f;
+    s.WindowPadding = { 3.0f, 3.0f };
+
+    initImGuiGL();
+}
+
+cGui::~cGui()
+{
+    shutdownImGuiGL();
+
+    ImGui::DestroyContext();
+}
+
 void cGui::onMousePosition(const Vectorf& pos)
 {
     auto& io = ImGui::GetIO();
@@ -469,61 +520,12 @@ void cGui::onChar(uint32_t c)
     }
 }
 
-void cGui::init(cWindow& window)
-{
-    m_window = &window;
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-
-    auto& io = ImGui::GetIO();
-
-    io.IniFilename = nullptr;
-    io.LogFilename = nullptr;
-
-    io.SetClipboardTextFn = [](void* user_data, const char* text) {
-        static_cast<cWindow*>(user_data)->setClipboardText(text);
-    };
-
-    io.GetClipboardTextFn = [](void* user_data) {
-        return static_cast<cWindow*>(user_data)->getClipboardText();
-    };
-
-    io.ClipboardUserData = m_window;
-
-    const ImWchar textRange[] = { 0x0020, 0xFFFF, 0 };
-    io.Fonts->AddFontFromMemoryCompressedTTF(InterRegular_compressed_data, InterRegular_compressed_size, 16, nullptr, textRange);
-
-    // Merge Font Awesome icons into the same font atlas
-    ImFontConfig iconConfig;
-    iconConfig.MergeMode = true;
-    iconConfig.PixelSnapH = true;
-    const ImWchar iconRange[] = { 0xE000, 0xF8FF, 0 }; // Private Use Area (Font Awesome icons)
-    io.Fonts->AddFontFromMemoryCompressedTTF(FontAwesomeSolid_compressed_data, FontAwesomeSolid_compressed_size, 16, &iconConfig, iconRange);
-    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
-
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-    auto& s = ImGui::GetStyle();
-    s.WindowTitleAlign = { 0.5f, 0.5f };
-    s.WindowRounding = 5.0f;
-    s.WindowPadding = { 3.0f, 3.0f };
-
-    initImGuiGL();
-}
-
-void cGui::shutdown()
-{
-    shutdownImGuiGL();
-    ImGui::DestroyContext();
-}
-
 void cGui::beginFrame()
 {
     auto& io = ImGui::GetIO();
 
-    auto winSize = m_window->getWindowSize();
-    auto fbSize = m_window->getFramebufferSize();
+    auto winSize = m_window.getWindowSize();
+    auto fbSize = m_window.getFramebufferSize();
     io.DisplaySize = ImVec2(static_cast<float>(winSize.x), static_cast<float>(winSize.y));
     io.DisplayFramebufferScale = ImVec2(
         winSize.x > 0 ? (static_cast<float>(fbSize.x) / winSize.x) : 0,
@@ -625,8 +627,33 @@ bool cGui::wantCaptureMouse() const
     return ImGui::GetIO().WantCaptureMouse;
 }
 
+void cGui::setFps(float fps)
+{
+    m_fps = fps;
+}
+
 void cGui::endFrame()
 {
+    if (m_config.debug)
+    {
+        constexpr ImGuiWindowFlags fpsFlags = ImGuiWindowFlags_NoTitleBar
+            | ImGuiWindowFlags_NoScrollbar
+            | ImGuiWindowFlags_NoSavedSettings
+            | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoResize
+            | ImGuiWindowFlags_NoDocking
+            | ImGuiWindowFlags_NoInputs
+            | ImGuiWindowFlags_AlwaysAutoResize;
+
+        ImGui::SetNextWindowPos({ 10.0f, 10.0f }, ImGuiCond_Always);
+        if (ImGui::Begin("##fps", nullptr, fpsFlags))
+        {
+            constexpr ImVec4 FpsColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+            ImGui::TextColored(FpsColor, "fps: %.1f", m_fps);
+        }
+        ImGui::End();
+    }
+
     ImGui::Render();
 
     auto drawData = ImGui::GetDrawData();

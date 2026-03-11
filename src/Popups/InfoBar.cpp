@@ -9,7 +9,6 @@
 
 #include "InfoBar.h"
 #include "Common/Config.h"
-#include "Common/Timing.h"
 #include "Common/Unicode.h"
 
 #include <cstring>
@@ -59,7 +58,7 @@ void cInfoBar::render()
     auto& io = ImGui::GetIO();
     auto& s = ImGui::GetStyle();
     auto font = ImGui::GetFont();
-    const float barHeight = s.WindowPadding.y * 2.0f + font->LegacySize;
+    const auto barHeight = s.WindowPadding.y * 2.0f + font->LegacySize;
     ImGui::SetNextWindowPos({ 0.0f, io.DisplaySize.y - barHeight });
     ImGui::SetNextWindowSize({ io.DisplaySize.x, barHeight });
 
@@ -117,31 +116,6 @@ void cInfoBar::render()
     ImGui::End();
 
     s.WindowRounding = oldRounding;
-
-    if (m_config.debug)
-    {
-        static unsigned frame = 0;
-        static float fps = 0.0f;
-
-        frame++;
-        static auto last = timing::seconds();
-        const auto now = timing::seconds();
-        const auto delta = now - last;
-        if (delta > 0.5f)
-        {
-            fps = frame / delta;
-            last = now;
-            frame = 0;
-        }
-
-        constexpr auto debugFlags = flags | ImGuiWindowFlags_AlwaysAutoResize;
-        ImGui::SetNextWindowPos({ 0.0f, 0.0f }, ImGuiCond_Always);
-        if (ImGui::Begin("debug", nullptr, debugFlags))
-        {
-            ImGui::TextColored(ColorActive, "fps: %.1f", fps);
-        }
-        ImGui::End();
-    }
 }
 
 void cInfoBar::setFileName(const char* path)

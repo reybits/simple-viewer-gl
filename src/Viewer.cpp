@@ -14,6 +14,7 @@
 #include "Common/Timing.h"
 #include "DeletionMark.h"
 #include "FilesList.h"
+#include "Gui.h"
 #include "ImageBorder.h"
 #include "ImageGrid.h"
 #include "ImageLoader.h"
@@ -73,6 +74,7 @@ cViewer::cViewer(sConfig& config, cWindow& window)
     m_checkerBoard = std::make_unique<cCheckerboard>(config);
     m_deletionMark = std::make_unique<cDeletionMark>();
     m_infoBar = std::make_unique<cInfoBar>(config);
+    m_imgui = std::make_unique<cGui>(window, config);
     m_pixelPopup = std::make_unique<cPixelPopup>();
     m_exifPopup = std::make_unique<cExifPopup>();
     m_helpPopup = std::make_unique<cHelpPopup>();
@@ -90,14 +92,13 @@ cViewer::~cViewer()
 {
     m_image->clear();
 
-    m_imgui.shutdown();
+    m_imgui.reset();
     render::shutdown();
 }
 
 void cViewer::onContextRecreated()
 {
     render::init();
-    m_imgui.init(m_window);
 
     m_checkerBoard->init();
     m_pixelPopup->init();
@@ -130,8 +131,8 @@ void cViewer::onRender()
     render::setViewportSize(m_window.getFramebufferSize());
 
     render::beginFrame();
-    m_imgui.setInfoBarVisible(m_config.hideInfobar == false);
-    m_imgui.beginFrame();
+    m_imgui->setInfoBarVisible(m_config.hideInfobar == false);
+    m_imgui->beginFrame();
 
     // Recalculate scale after dock layout is up-to-date.
     calculateScale();
@@ -235,12 +236,12 @@ void cViewer::onRender()
             m_progress->setStatus(progress < -2.5f ? "decoding..." : "loading...");
         }
 
-        const auto& centralPos = m_imgui.getCentralPos();
-        const auto& centralSize = m_imgui.getCentralSize();
+        const auto& centralPos = m_imgui->getCentralPos();
+        const auto& centralSize = m_imgui->getCentralSize();
         m_progress->render(centralPos.x + centralSize.x, centralPos.y + centralSize.y);
     }
 
-    m_imgui.endFrame();
+    m_imgui->endFrame();
     render::endFrame();
 
     m_window.swapBuffers();
@@ -349,6 +350,11 @@ void cViewer::onUpdate()
 bool cViewer::isUploading() const
 {
     return m_image->isUploading();
+}
+
+void cViewer::setFps(float fps)
+{
+    m_imgui->setFps(fps);
 }
 
 void cViewer::handlePreviewReady()
@@ -552,9 +558,9 @@ Vectorf cViewer::calculateMousePosition(const Vectorf& pos) const
 
 void cViewer::onMouseMove(const Vectorf& pos)
 {
-    m_imgui.onMousePosition(pos);
+    m_imgui->onMousePosition(pos);
 
-    if (m_fileSelector->isVisible() || m_imgui.wantCaptureMouse())
+    if (m_fileSelector->isVisible() || m_imgui->wantCaptureMouse())
     {
         updateCursorState(true);
         return;
@@ -589,9 +595,9 @@ void cViewer::onMouseMove(const Vectorf& pos)
 
 void cViewer::onMouseScroll(const Vectorf& offset)
 {
-    m_imgui.onScroll(offset);
+    m_imgui->onScroll(offset);
 
-    if (m_fileSelector->isVisible() || m_imgui.wantCaptureMouse())
+    if (m_fileSelector->isVisible() || m_imgui->wantCaptureMouse())
     {
         return;
     }
@@ -614,9 +620,9 @@ void cViewer::onMouseScroll(const Vectorf& offset)
 
 void cViewer::onMouseButton(int button, int action, int /*mods*/)
 {
-    m_imgui.onMouseButton(button, action);
+    m_imgui->onMouseButton(button, action);
 
-    if (m_fileSelector->isVisible() || m_imgui.wantCaptureMouse())
+    if (m_fileSelector->isVisible() || m_imgui->wantCaptureMouse())
     {
         return;
     }
@@ -651,9 +657,9 @@ void cViewer::onMouseButton(int button, int action, int /*mods*/)
 
 void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
 {
-    m_imgui.onKey(key, scancode, action);
+    m_imgui->onKey(key, scancode, action);
 
-    if (m_fileSelector->isVisible() || m_imgui.wantCaptureKeyboard())
+    if (m_fileSelector->isVisible() || m_imgui->wantCaptureKeyboard())
     {
         return;
     }
@@ -879,7 +885,7 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
 
 void cViewer::onCharEvent(uint32_t c)
 {
-    m_imgui.onChar(c);
+    m_imgui->onChar(c);
 
     // Char events are only relevant for ImGui text input — no viewer handling needed.
 }
@@ -1017,12 +1023,12 @@ void cViewer::calculateScale()
 
 Vectorf cViewer::getCentralAreaFbSize() const
 {
-    return m_imgui.getCentralSize() * m_ratio;
+    return m_imgui->getCentralSize() * m_ratio;
 }
 
 Vectorf cViewer::getCentralAreaFbCenter() const
 {
-    auto pos = m_imgui.getCentralPos() * m_ratio;
+    auto pos = m_imgui->getCentralPos() * m_ratio;
     auto size = getCentralAreaFbSize();
     return { pos.x + size.x * 0.5f, pos.y + size.y * 0.5f };
 }
@@ -1109,11 +1115,11 @@ void cViewer::centerWindow()
 
     // Compute overhead from docked windows + infobar.
     // The central area (from the last frame) already excludes these.
-    const auto centralSize = m_imgui.getCentralSize();
+    const auto centralSize = m_imgui->getCentralSize();
     float overheadX = 0.0f;
     float overheadY = m_config.hideInfobar
         ? 0.0f
-        : m_imgui.getInfoBarHeight();
+        : m_imgui->getInfoBarHeight();
 
     if (centralSize.x > 0.0f && centralSize.y > 0.0f)
     {
