@@ -87,7 +87,4 @@ private:
     GLFWwindow* m_window = nullptr;
     sWindowEvents* m_handler = nullptr;
     bool m_windowed = true;
-
-    // macOS Mojave workaround
-    int m_macOSHackCount = 0;
 };

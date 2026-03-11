@@ -375,29 +375,10 @@ void cWindow::toggleFullscreen(const sConfig& config)
     m_windowed = !wasWindowed;
 
     setupCallbacks();
-    m_macOSHackCount = 0;
 }
 
 void cWindow::pollEvents()
 {
-    // macOS Mojave workaround (GLFW #1334)
-#if defined(__APPLE__)
-    if (m_macOSHackCount < 2)
-    {
-        m_macOSHackCount++;
-        int x, y;
-        glfwGetWindowPos(m_window, &x, &y);
-        if (m_macOSHackCount == 1)
-        {
-            glfwSetWindowPos(m_window, x + 1, y);
-        }
-        else
-        {
-            glfwSetWindowPos(m_window, x - 1, y);
-        }
-    }
-#endif
-
     glfwPollEvents();
 }
 
