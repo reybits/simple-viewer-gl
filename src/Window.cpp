@@ -61,6 +61,8 @@ void cWindow::setHints(const sConfig& config)
 GLFWwindow* cWindow::createWindowedWindow(GLFWwindow* parent, const sConfig& config)
 {
     setHints(config);
+    // Create the window hidden, we'll show it after restoring position and size.
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     auto width = std::max(config.windowSize.w, DefaultWindowSize.w);
     auto height = std::max(config.windowSize.h, DefaultWindowSize.h);
     return glfwCreateWindow(width, height, version::getTitle(), nullptr, parent);
@@ -372,6 +374,14 @@ const char* cWindow::getClipboardText() const
     return nullptr;
 }
 
+void cWindow::showWindow()
+{
+    if (m_window != nullptr)
+    {
+        glfwShowWindow(m_window);
+    }
+}
+
 void cWindow::requestClose()
 {
     if (m_window != nullptr)
@@ -392,32 +402,60 @@ void cWindow::toggleFullscreen(const sConfig& config)
         return;
     }
 
+    auto monitor = getCurrentMonitor();
+    if (monitor == nullptr)
+    {
+        cLog::Error("No monitor found for fullscreen toggle.");
+        return;
+    }
+
     if (m_windowed)
     {
-        auto monitor = getCurrentMonitor();
-        if (monitor == nullptr)
+        // Save windowed geometry for later restore.
+        glfwGetWindowPos(m_window, &m_savedPos.x, &m_savedPos.y);
+        glfwGetWindowSize(m_window, &m_savedSize.x, &m_savedSize.y);
+
+        if (helpers::getPlatform() == helpers::Platform::Cocoa)
         {
-            cLog::Error("No monitor found for fullscreen.");
-            return;
+            // On macOS, borderless windowed fullscreen preserves Retina scaling.
+            // Exclusive fullscreen (glfwSetWindowMonitor with monitor) switches
+            // to a hardware display mode that loses HiDPI content scale.
+            // Use work area (excludes menu bar and dock) since a borderless
+            // window can't cover the menu bar without native fullscreen APIs.
+            glfwSetWindowAttrib(m_window, GLFW_DECORATED, GLFW_FALSE);
+
+            int wx = 0, wy = 0, ww = 0, wh = 0;
+            glfwGetMonitorWorkarea(monitor, &wx, &wy, &ww, &wh);
+            glfwSetWindowPos(m_window, wx, wy);
+            glfwSetWindowSize(m_window, ww, wh);
         }
-        auto mode = glfwGetVideoMode(monitor);
-        if (mode == nullptr)
+        else
         {
-            cLog::Error("Can't get video mode for fullscreen.");
-            return;
+            auto mode = glfwGetVideoMode(monitor);
+            if (mode == nullptr)
+            {
+                cLog::Error("Can't get video mode for fullscreen.");
+                return;
+            }
+            glfwSetWindowMonitor(m_window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
         }
-        glfwSetWindowMonitor(m_window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
     }
     else
     {
-        // Use config values which reflect the viewer's current windowed state
-        // (image size, scale, borders, etc.). centerWindow() will refine
-        // the geometry on the next frame if needed.
-        auto width = std::max(config.windowSize.x, DefaultWindowSize.w);
-        auto height = std::max(config.windowSize.y, DefaultWindowSize.h);
-        glfwSetWindowMonitor(m_window, nullptr,
-                             config.windowPos.x, config.windowPos.y,
-                             width, height, 0);
+        if (helpers::getPlatform() == helpers::Platform::Cocoa)
+        {
+            glfwSetWindowAttrib(m_window, GLFW_DECORATED, GLFW_TRUE);
+        }
+        else
+        {
+            glfwSetWindowMonitor(m_window, nullptr, 0, 0, 0, 0, 0);
+        }
+
+        if (config.centerWindow == false)
+        {
+            glfwSetWindowSize(m_window, m_savedSize.x, m_savedSize.y);
+            glfwSetWindowPos(m_window, m_savedPos.x, m_savedPos.y);
+        }
     }
 
     m_windowed = !m_windowed;

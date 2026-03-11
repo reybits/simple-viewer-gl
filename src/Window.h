@@ -58,6 +58,7 @@ public:
     void setCursorVisible(bool visible);
     void setClipboardText(const char* text);
     const char* getClipboardText() const;
+    void showWindow();
     void requestClose();
     bool shouldClose() const;
 
@@ -89,4 +90,8 @@ private:
     GLFWwindow* m_window = nullptr;
     sWindowEvents* m_handler = nullptr;
     bool m_windowed = true;
+
+    // Saved windowed geometry for restoring after fullscreen exit.
+    Vectori m_savedPos{ 0, 0 };
+    Vectori m_savedSize{ 0, 0 };
 };

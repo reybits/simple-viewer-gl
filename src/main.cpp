@@ -276,11 +276,14 @@ int main(int argc, char* argv[])
     viewer.addPaths(ImagesList);
     ImagesList.clear();
 
-    // Apply saved window position/size for windowed mode
+    // Apply saved window position/size for windowed mode.
+    // The window is created hidden to avoid a flash of wrong size;
+    // it becomes visible after the first frame sets the correct geometry.
     if (config.fullScreen == false && config.centerWindow == false)
     {
         window.setSize({ config.windowSize.x, config.windowSize.y });
         window.setPosition({ config.windowPos.x, config.windowPos.y });
+        window.showWindow();
     }
 
     uint32_t frames = 0;

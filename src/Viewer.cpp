@@ -371,7 +371,7 @@ void cViewer::processDeferred()
         m_skipEnterEvents = true;
         m_window.toggleFullscreen(m_config);
 
-        if (m_window.isWindowed())
+        if (m_window.isWindowed() && m_config.centerWindow)
         {
             m_centerAfterToggle = true;
         }
@@ -1210,6 +1210,8 @@ void cViewer::centerWindow()
             m_window.setPosition({ x, y });
         }
     }
+
+    m_window.showWindow();
 }
 
 void cViewer::resetViewAndUpdate(int scalePercent)
