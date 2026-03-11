@@ -33,6 +33,16 @@ private:
 private:
     std::string m_filename;
 
+    struct PreviousFrame
+    {
+        uint32_t disposalMode = 0;
+        uint32_t left = 0;
+        uint32_t top = 0;
+        uint32_t width = 0;
+        uint32_t height = 0;
+    };
+    PreviousFrame m_prevFrame;
+
     struct GifDeleter
     {
         void operator()(GifFileType* b);

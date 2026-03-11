@@ -324,7 +324,12 @@ void cViewer::onUpdate()
             }
 
             const auto& uploadInfo = m_loader->getImageInfo();
-            m_animation = uploadInfo.isAnimation;
+            m_anim.isAnimated = uploadInfo.isAnimation;
+            if (m_anim.isAnimated && m_anim.timerStarted == false)
+            {
+                m_anim.nextFrameTime = timing::seconds() + uploadInfo.delay * 0.001;
+                m_anim.timerStarted = true;
+            }
 
             // Full-res upload complete — discard preview.
             if (m_preview != nullptr)
@@ -334,20 +339,18 @@ void cViewer::onUpdate()
             }
 
             // Free bitmap memory — pixel readback now uses GPU textures.
-            if (m_uploadFinal && !uploadInfo.isAnimation && uploadInfo.images <= 1)
+            if (m_uploadFinal && m_anim.isAnimated == false && uploadInfo.images <= 1)
             {
                 m_loader->releaseBitmap();
                 updateInfobar();
             }
         }
     }
-    else if (m_animation && m_subImageForced == false)
+    else if (m_anim.isAnimated && m_anim.autoAdvance && m_anim.timerStarted)
     {
-        const auto& animInfo = m_loader->getImageInfo();
-        if (m_animationTime + animInfo.delay * 0.001f <= timing::seconds())
+        if (timing::seconds() >= m_anim.nextFrameTime)
         {
-            m_animation = false;
-            m_animationTime = timing::seconds();
+            m_anim.timerStarted = false;  // re-armed on next upload completion
             loadSubImage(1);
         }
     }
@@ -462,6 +465,14 @@ void cViewer::handleImageReady()
             centerWindow();
             enablePixelInfo(m_config.showPixelInfo);
         }
+    }
+    else if (m_loader->getMode() == cImageLoader::Mode::SubImage && chunk.width > 0)
+    {
+        // Sub-image: replace GPU data in-place. setBuffer() clears old chunks,
+        // so the previous frame is swapped out atomically with the new upload.
+        m_uploadActive.store(true, std::memory_order_relaxed);
+        m_uploadStartTime = timing::seconds();
+        m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData());
     }
     else if (isUploading() == false)
     {
@@ -889,12 +900,12 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
         break;
 
     case GLFW_KEY_PAGE_UP:
-        m_subImageForced = true;
+        m_anim.autoAdvance = false;
         loadSubImage(-1);
         break;
 
     case GLFW_KEY_PAGE_DOWN:
-        m_subImageForced = true;
+        m_anim.autoAdvance = false;
         loadSubImage(1);
         break;
 
@@ -1250,8 +1261,7 @@ void cViewer::loadImage(const char* path)
 
     m_config.fitImage = m_config.keepScale == false && m_config.fitImage;
 
-    m_subImageForced = false;
-    m_animation = false;
+    m_anim.reset();
     m_imageInfo = {};
     m_image->reset();
     m_preview.reset();
@@ -1277,9 +1287,8 @@ void cViewer::loadSubImage(int subStep)
         return;
     }
 
-    m_animation = false;
+    m_anim.timerStarted = false;
     m_imageInfo = {};
-    m_image->reset();
 
     m_loader->loadSubImage(next);
 }
@@ -1382,8 +1391,7 @@ void cViewer::updateCursorState(bool show)
 
 void cViewer::startLoading()
 {
-    const auto& startInfo = m_loader->getImageInfo();
-    if (startInfo.isAnimation == false)
+    if (m_anim.isAnimated == false)
     {
         m_progress->show();
     }

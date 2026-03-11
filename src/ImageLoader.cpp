@@ -142,6 +142,12 @@ void cImageLoader::loadSubImage(unsigned subImage)
     assert(m_activeReader != nullptr);
 
     stop();
+
+    m_chunk.readyHeight.store(0, std::memory_order_relaxed);
+    m_chunk.consumedHeight.store(0, std::memory_order_relaxed);
+    m_chunk.lutData.clear();
+    m_chunk.lutSize = 0;
+
     m_metrics.reset();
 
     m_mode = Mode::SubImage;
@@ -149,7 +155,11 @@ void cImageLoader::loadSubImage(unsigned subImage)
     m_loader = std::thread([this](unsigned subImage) {
         const auto t0 = timing::seconds();
         m_callbacks->startLoading();
-        m_activeReader->LoadSubImage(subImage, m_chunk, m_info);
+        if (m_activeReader->LoadSubImage(subImage, m_chunk, m_info) == false)
+        {
+            cLog::Error("Failed to load sub-image {}.", subImage);
+            m_chunk.reset();
+        }
         m_metrics.bitmapBytes = m_chunk.bitmap.size();
         m_metrics.totalMs = (timing::seconds() - t0) * 1000.0;
         m_completed.store(true, std::memory_order_release);

@@ -158,9 +158,19 @@ private:
     bool m_flipH = false;
     bool m_flipV = false;
 
-    bool m_subImageForced = false;
-    bool m_animation = false;
-    float m_animationTime = 0.0f;
+    struct AnimationState
+    {
+        bool isAnimated = false;     // image has animation frames (descriptive)
+        bool autoAdvance = true;     // auto-advance enabled (user intent)
+        double nextFrameTime = 0.0;  // absolute time for next frame
+        bool timerStarted = false;   // nextFrameTime has been set
+
+        void reset()
+        {
+            *this = {};
+        }
+    };
+    AnimationState m_anim;
 
     std::unique_ptr<cQuadImage> m_image;
     std::unique_ptr<cQuadImage> m_preview; // lazy: created on preview ready, destroyed when full-res upload completes

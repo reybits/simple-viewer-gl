@@ -57,24 +57,24 @@ namespace
         return "n/a";
     }
 
-    void putPixel(sChunkData& chunk, sImageInfo& info, uint32_t pos, const GifColorType* color, bool transparent)
+    void putPixel(sChunkData& chunk, uint32_t pos, const GifColorType* color, bool transparent)
     {
-        if (!info.current || !transparent)
+        if (transparent == false)
         {
             chunk.bitmap[pos + 0] = color->Red;
             chunk.bitmap[pos + 1] = color->Green;
             chunk.bitmap[pos + 2] = color->Blue;
-            chunk.bitmap[pos + 3] = transparent ? 0 : 255;
+            chunk.bitmap[pos + 3] = 255;
         }
     }
 
-    void putRow(sChunkData& chunk, sImageInfo& info, uint32_t row, uint32_t width, const SavedImage& image, const ColorMapObject* cmap, uint32_t transparentIdx)
+    void putRow(sChunkData& chunk, uint32_t row, uint32_t width, const SavedImage& image, const ColorMapObject* cmap, uint32_t transparentIdx)
     {
         for (uint32_t x = 0; x < width; x++)
         {
             const uint32_t idx = image.RasterBits[row * width + x];
             const uint32_t pos = (row + image.ImageDesc.Top) * chunk.pitch + (x + image.ImageDesc.Left) * 4;
-            putPixel(chunk, info, pos, &cmap->Colors[idx], transparentIdx == idx);
+            putPixel(chunk, pos, &cmap->Colors[idx], transparentIdx == idx);
         }
     }
 } // namespace
@@ -132,6 +132,8 @@ bool cFormatGif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::RGBA);
 
+    m_prevFrame = {};
+
     return load(0, chunk, info);
 }
 
@@ -169,32 +171,21 @@ bool cFormatGif::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
 
     info.delay = 100; // default value
 
-    // look for the transparent color extension
-    uint32_t transparentIdx = (uint32_t)-1U;
+    // Parse GCE for current frame
+    uint32_t transparentIdx = static_cast<uint32_t>(-1);
+    uint32_t disposalMode = 0;
     for (int i = 0; i < image.ExtensionBlockCount; i++)
     {
         const auto& eb = image.ExtensionBlocks[i];
-        if (eb.ByteCount == 4)
+        if (eb.ByteCount == 4 && eb.Function == 0xF9)
         {
-            if (eb.Function == 0xF9)
+            const bool hasTransparency = (eb.Bytes[0] & 1) == 1;
+            if (hasTransparency)
             {
-                const bool hasTransparency = (eb.Bytes[0] & 1) == 1;
-                if (hasTransparency)
-                {
-                    transparentIdx = eb.Bytes[3];
-                }
-
-                const uint32_t disposalMode = (eb.Bytes[0] >> 2) & 0x07;
-                cLog::Debug("Disposal: {} at frame {}.", disposalMode, info.current);
-                // DISPOSAL_UNSPECIFIED 0 // No disposal specified.
-                // DISPOSE_DO_NOT       1 // Leave image in place
-                // DISPOSE_BACKGROUND   2 // Set area too background color
-                // DISPOSE_PREVIOUS     3 // Restore to previous content
-                if (disposalMode == 2)
-                {
-                    ::memset(chunk.bitmap.data(), 0, chunk.bitmap.size());
-                }
+                transparentIdx = eb.Bytes[3];
             }
+
+            disposalMode = (eb.Bytes[0] >> 2) & 0x07;
 
             // setup delay time in milliseconds
             uint32_t delay = (eb.Bytes[1] | (eb.Bytes[2] << 8)) * 10;
@@ -204,6 +195,24 @@ bool cFormatGif::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
             }
         }
     }
+
+    // Apply previous frame's disposal before rendering current frame
+    if (info.current == 0)
+    {
+        std::memset(chunk.bitmap.data(), 0, chunk.bitmap.size());
+        m_prevFrame = {};
+    }
+    else if (m_prevFrame.disposalMode == 2)
+    {
+        // Clear previous frame's rectangle to transparent black
+        for (uint32_t y = m_prevFrame.top; y < m_prevFrame.top + m_prevFrame.height && y < chunk.height; y++)
+        {
+            auto* row = &chunk.bitmap[y * chunk.pitch + m_prevFrame.left * 4];
+            std::memset(row, 0, std::min(m_prevFrame.width, chunk.width - m_prevFrame.left) * 4);
+        }
+    }
+    // Mode 0/1: leave canvas as-is (overlay)
+    // Mode 3: not implemented (needs backup buffer — rare, skip for now)
 
     const uint32_t width = image.ImageDesc.Width;
     const uint32_t height = image.ImageDesc.Height;
@@ -229,9 +238,9 @@ bool cFormatGif::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
         {
             for (uint32_t y = interlace.offset; y < height; y += interlace.jump)
             {
-                putRow(chunk, info, y, width, image, cmap, transparentIdx);
+                putRow(chunk, y, width, image, cmap, transparentIdx);
 
-                updateProgress((float)row / height);
+                updateProgress(static_cast<float>(row) / height);
                 row++;
             }
         }
@@ -242,13 +251,20 @@ bool cFormatGif::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     {
         for (uint32_t y = 0; y < height; y++)
         {
-            putRow(chunk, info, y, width, image, cmap, transparentIdx);
+            putRow(chunk, y, width, image, cmap, transparentIdx);
 
-            updateProgress((float)y / height);
+            updateProgress(static_cast<float>(y) / height);
         }
 
         info.formatName = "gif/p";
     }
+
+    // Save current frame's disposal info for next frame
+    m_prevFrame.disposalMode = disposalMode;
+    m_prevFrame.left = image.ImageDesc.Left;
+    m_prevFrame.top = image.ImageDesc.Top;
+    m_prevFrame.width = width;
+    m_prevFrame.height = height;
 
     return true;
 }
