@@ -194,7 +194,7 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
     chunk.width = imgHeader->width;
     chunk.height = imgHeader->height / 2; // xor mask + and mask
     info.bppImage = imgHeader->bits;
-    chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::RGBA);
+    chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::BGRA);
 
     int pitch = calcIcoPitch(info.bppImage, chunk.width);
     if (pitch == -1)
@@ -231,11 +231,9 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
             uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
             for (uint32_t x = 0; x < chunk.width; x++)
             {
-                const uint32_t color = palette[getBit(xorMask, y * chunk.width + x, chunk.width)];
+                const auto color = palette[getBit(xorMask, y * chunk.width + x, chunk.width)];
 
-                out[idx + 0] = ((uint8_t*)(&color))[2];
-                out[idx + 1] = ((uint8_t*)(&color))[1];
-                out[idx + 2] = ((uint8_t*)(&color))[0];
+                ::memcpy(&out[idx], &color, 3);
                 out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
                 idx += 4;
 
@@ -250,11 +248,9 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
             uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
             for (uint32_t x = 0; x < chunk.width; x++)
             {
-                const uint32_t color = palette[getNibble(xorMask, y * chunk.width + x, chunk.width)];
+                const auto color = palette[getNibble(xorMask, y * chunk.width + x, chunk.width)];
 
-                out[idx + 0] = ((uint8_t*)(&color))[2];
-                out[idx + 1] = ((uint8_t*)(&color))[1];
-                out[idx + 2] = ((uint8_t*)(&color))[0];
+                ::memcpy(&out[idx], &color, 3);
                 out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
                 idx += 4;
 
@@ -269,11 +265,9 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
             uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
             for (uint32_t x = 0; x < chunk.width; x++)
             {
-                const uint32_t color = palette[getByte(xorMask, y * chunk.width + x, chunk.width)];
+                const auto color = palette[getByte(xorMask, y * chunk.width + x, chunk.width)];
 
-                out[idx + 0] = ((uint8_t*)(&color))[2];
-                out[idx + 1] = ((uint8_t*)(&color))[1];
-                out[idx + 2] = ((uint8_t*)(&color))[0];
+                ::memcpy(&out[idx], &color, 3);
                 out[idx + 3] = getBit(andMask, y * chunk.width + x, chunk.width) ? 0 : 255;
                 idx += 4;
 
@@ -291,9 +285,9 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
             uint32_t idx = (chunk.height - y - 1) * chunk.pitch;
             for (uint32_t x = 0; x < chunk.width; x++)
             {
-                out[idx + 0] = row[2];
+                out[idx + 0] = row[0];
                 out[idx + 1] = row[1];
-                out[idx + 2] = row[0];
+                out[idx + 2] = row[2];
 
                 if (info.bppImage < 32)
                 {
