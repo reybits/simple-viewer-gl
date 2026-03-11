@@ -11,9 +11,9 @@
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"
+#include "Libs/GpuDecode.h"
 #include "Log/Log.h"
 
-#include <cassert>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -231,13 +231,6 @@ namespace
     // uint32_t dwTextureStage;
     // };
 
-    struct dds_color
-    {
-        uint8_t r;
-        uint8_t g;
-        uint8_t b;
-    };
-
     enum DDPF_FLAGS
     {
         DDPF_ALPHAPIXELS = 0x1,
@@ -430,115 +423,76 @@ bool cFormatDds::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     }
     else
     {
+        using GpuDecodeFunc = void (*)(const uint8_t*, uint8_t*, uint32_t, uint32_t);
+        GpuDecodeFunc decoder = nullptr;
+
+        if (format == DDS_DXT1)
+        {
+            decoder = gpu_decode::decodeBC1;
+        }
+        else if (format == DDS_DXT2 || format == DDS_DXT3)
+        {
+            decoder = gpu_decode::decodeBC2;
+        }
+        else if (format == DDS_DXT4 || format == DDS_DXT5)
+        {
+            decoder = gpu_decode::decodeBC3;
+        }
+        else if (format == DDS_DXT10)
+        {
+            switch (header10.dxgiFormat)
+            {
+            case DXGI_FORMAT_BC1_TYPELESS:
+            case DXGI_FORMAT_BC1_UNORM:
+            case DXGI_FORMAT_BC1_UNORM_SRGB:
+                decoder = gpu_decode::decodeBC1;
+                break;
+            case DXGI_FORMAT_BC2_TYPELESS:
+            case DXGI_FORMAT_BC2_UNORM:
+            case DXGI_FORMAT_BC2_UNORM_SRGB:
+                decoder = gpu_decode::decodeBC2;
+                break;
+            case DXGI_FORMAT_BC3_TYPELESS:
+            case DXGI_FORMAT_BC3_UNORM:
+            case DXGI_FORMAT_BC3_UNORM_SRGB:
+                decoder = gpu_decode::decodeBC3;
+                break;
+            case DXGI_FORMAT_BC4_TYPELESS:
+            case DXGI_FORMAT_BC4_UNORM:
+            case DXGI_FORMAT_BC4_SNORM:
+                decoder = gpu_decode::decodeBC4;
+                break;
+            case DXGI_FORMAT_BC5_TYPELESS:
+            case DXGI_FORMAT_BC5_UNORM:
+            case DXGI_FORMAT_BC5_SNORM:
+                decoder = gpu_decode::decodeBC5;
+                break;
+            case DXGI_FORMAT_BC7_TYPELESS:
+            case DXGI_FORMAT_BC7_UNORM:
+            case DXGI_FORMAT_BC7_UNORM_SRGB:
+                decoder = gpu_decode::decodeBC7;
+                break;
+            default:
+                cLog::Error("Unsupported DXT10 DXGI format: {}.", static_cast<uint32_t>(header10.dxgiFormat));
+                return false;
+            }
+        }
+
+        if (decoder == nullptr)
+        {
+            cLog::Error("No decoder for DDS format.");
+            return false;
+        }
+
         chunk.format = ePixelFormat::RGBA;
         chunk.bpp = 32;
         info.bppImage = 32;
         chunk.pitch = chunk.width * 4;
-        const uint32_t h = (uint32_t)::ceilf(chunk.height / 4.0f) * 4;
+        const uint32_t h = static_cast<uint32_t>(::ceilf(chunk.height / 4.0f)) * 4;
         const uint32_t size = chunk.pitch * h;
         chunk.bitmap.resize(size);
 
-        for (uint32_t y = 0; y < chunk.height; y += 4)
-        {
-            for (uint32_t x = 0; x < chunk.width; x += 4)
-            {
-                uint64_t alpha = 0;
-                uint32_t a0 = 0;
-                uint32_t a1 = 0;
-                dds_color color[4];
-                if (format == DDS_DXT3)
-                {
-                    alpha = *(uint64_t*)src;
-                    src += 8;
-                }
-                else if (format == DDS_DXT5)
-                {
-                    alpha = (*(uint64_t*)src) >> 16;
-                    a0 = src[0];
-                    a1 = src[1];
-                    src += 8;
-                }
-                uint32_t c0 = *(uint16_t*)(src + 0);
-                uint32_t c1 = *(uint16_t*)(src + 2);
-                src += 4;
-                color[0].r = ((c0 >> 11) & 0x1f) << 3;
-                color[0].g = ((c0 >> 5) & 0x3f) << 2;
-                color[0].b = ((c0 >> 0) & 0x1f) << 3;
-                color[1].r = ((c1 >> 11) & 0x1f) << 3;
-                color[1].g = ((c1 >> 5) & 0x3f) << 2;
-                color[1].b = ((c1 >> 0) & 0x1f) << 3;
-                if (c0 > c1)
-                {
-                    color[2].r = (color[0].r * 2 + color[1].r) / 3;
-                    color[2].g = (color[0].g * 2 + color[1].g) / 3;
-                    color[2].b = (color[0].b * 2 + color[1].b) / 3;
-                    color[3].r = (color[0].r + color[1].r * 2) / 3;
-                    color[3].g = (color[0].g + color[1].g * 2) / 3;
-                    color[3].b = (color[0].b + color[1].b * 2) / 3;
-                }
-                else
-                {
-                    color[2].r = (color[0].r + color[1].r) / 2;
-                    color[2].g = (color[0].g + color[1].g) / 2;
-                    color[2].b = (color[0].b + color[1].b) / 2;
-                    color[3].r = 0;
-                    color[3].g = 0;
-                    color[3].b = 0;
-                }
-
-                for (uint32_t i = 0; i < 4; i++)
-                {
-                    uint32_t index = *src++;
-                    uint8_t* dest = chunk.bitmap.data() + (chunk.width * (y + i) + x) * 4;
-                    for (uint32_t j = 0; j < 4; j++)
-                    {
-                        *dest++ = color[index & 0x03].r;
-                        *dest++ = color[index & 0x03].g;
-                        *dest++ = color[index & 0x03].b;
-                        if (format == DDS_DXT1)
-                        {
-                            *dest++ = ((index & 0x03) == 3 && c0 <= c1) ? 0 : 255;
-                        }
-                        else if (format == DDS_DXT3)
-                        {
-                            *dest++ = (alpha & 0x0f) << 4;
-                            alpha >>= 4;
-                        }
-                        else if (format == DDS_DXT5)
-                        {
-                            uint32_t a = alpha & 0x07;
-                            if (a == 0)
-                            {
-                                *dest++ = a0;
-                            }
-                            else if (a == 1)
-                            {
-                                *dest++ = a1;
-                            }
-                            else if (a0 > a1)
-                            {
-                                *dest++ = ((8 - a) * a0 + (a - 1) * a1) / 7;
-                            }
-                            else if (a > 5)
-                            {
-                                *dest++ = (a == 6) ? 0 : 255;
-                            }
-                            else
-                            {
-                                *dest++ = ((6 - a) * a0 + (a - 1) * a1) / 5;
-                            }
-                            alpha >>= 3;
-                        }
-                        else
-                        {
-                            *dest++ = 255;
-                        }
-
-                        index >>= 2;
-                    }
-                }
-            }
-        }
+        decoder(src, chunk.bitmap.data(), chunk.width, chunk.height);
     }
 
     return true;
