@@ -1264,16 +1264,18 @@ void cViewer::loadSubImage(int subStep)
 {
     assert(subStep == -1 || subStep == 1);
 
+    const auto& subInfo = m_loader->getImageInfo();
+    const auto next = static_cast<uint32_t>(subInfo.current + subInfo.images + subStep) % subInfo.images;
+    if (subInfo.current == next)
+    {
+        return;
+    }
+
     m_animation = false;
     m_imageInfo = {};
     m_image->reset();
 
-    const auto& subInfo = m_loader->getImageInfo();
-    const unsigned next = (subInfo.current + subInfo.images + subStep) % subInfo.images;
-    if (subInfo.current != next)
-    {
-        m_loader->loadSubImage(next);
-    }
+    m_loader->loadSubImage(next);
 }
 
 void cViewer::updateInfobar()
