@@ -52,7 +52,8 @@ void cWindow::setHints(const sConfig& config)
     {
 #if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 4
         glfwWindowHintString(GLFW_WAYLAND_APP_ID, className);
-        glfwWindowHint(GLFW_ANY_POSITION, true);
+        glfwWindowHint(GLFW_POSITION_X, GLFW_ANY_POSITION);
+        glfwWindowHint(GLFW_POSITION_Y, GLFW_ANY_POSITION);
 #endif
     }
 }
@@ -72,24 +73,28 @@ GLFWmonitor* cWindow::getCurrentMonitor() const
         return glfwGetPrimaryMonitor();
     }
 
-    int wx = 0, wy = 0, ww = 0, wh = 0;
-    glfwGetWindowPos(m_window, &wx, &wy);
-    glfwGetWindowSize(m_window, &ww, &wh);
-
-    const auto centerX = wx + ww / 2;
-    const auto centerY = wy + wh / 2;
-
-    int monitorCount = 0;
-    auto monitors = glfwGetMonitors(&monitorCount);
-    if (monitors != nullptr)
+    // Wayland does not provide window position, so skip position-based detection.
+    if (helpers::getPlatform() != helpers::Platform::Wayland)
     {
-        for (int i = 0; i < monitorCount; i++)
+        int wx = 0, wy = 0, ww = 0, wh = 0;
+        glfwGetWindowPos(m_window, &wx, &wy);
+        glfwGetWindowSize(m_window, &ww, &wh);
+
+        const auto centerX = wx + ww / 2;
+        const auto centerY = wy + wh / 2;
+
+        int monitorCount = 0;
+        auto monitors = glfwGetMonitors(&monitorCount);
+        if (monitors != nullptr)
         {
-            int mx = 0, my = 0, mw = 0, mh = 0;
-            glfwGetMonitorWorkarea(monitors[i], &mx, &my, &mw, &mh);
-            if (centerX >= mx && centerX < mx + mw && centerY >= my && centerY < my + mh)
+            for (int i = 0; i < monitorCount; i++)
             {
-                return monitors[i];
+                int mx = 0, my = 0, mw = 0, mh = 0;
+                glfwGetMonitorWorkarea(monitors[i], &mx, &my, &mw, &mh);
+                if (centerX >= mx && centerX < mx + mw && centerY >= my && centerY < my + mh)
+                {
+                    return monitors[i];
+                }
             }
         }
     }
@@ -127,11 +132,14 @@ void cWindow::setupCallbacks()
             return;
         dispatch(Instance->m_handler, Instance->m_handler->onFramebufferResize, Vectori{ w, h });
     });
-    glfwSetWindowPosCallback(m_window, [](GLFWwindow*, int x, int y) {
-        if (Instance == nullptr)
-            return;
-        dispatch(Instance->m_handler, Instance->m_handler->onWindowPosition, Vectori{ x, y });
-    });
+    if (helpers::getPlatform() != helpers::Platform::Wayland)
+    {
+        glfwSetWindowPosCallback(m_window, [](GLFWwindow*, int x, int y) {
+            if (Instance == nullptr)
+                return;
+            dispatch(Instance->m_handler, Instance->m_handler->onWindowPosition, Vectori{ x, y });
+        });
+    }
     glfwSetWindowRefreshCallback(m_window, [](GLFWwindow*) {
         if (Instance == nullptr)
             return;
@@ -325,7 +333,7 @@ void cWindow::setSize(const Vectori& size)
 
 void cWindow::setPosition(const Vectori& pos)
 {
-    if (m_window != nullptr)
+    if (m_window != nullptr && helpers::getPlatform() != helpers::Platform::Wayland)
     {
         glfwSetWindowPos(m_window, pos.x, pos.y);
     }

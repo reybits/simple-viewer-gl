@@ -279,11 +279,8 @@ int main(int argc, char* argv[])
     // Apply saved window position/size for windowed mode
     if (config.fullScreen == false && config.centerWindow == false)
     {
-        if (helpers::getPlatform() != helpers::Platform::Wayland)
-        {
-            window.setSize({ config.windowSize.x, config.windowSize.y });
-            window.setPosition({ config.windowPos.x, config.windowPos.y });
-        }
+        window.setSize({ config.windowSize.x, config.windowSize.y });
+        window.setPosition({ config.windowPos.x, config.windowPos.y });
     }
 
     uint32_t frames = 0;
