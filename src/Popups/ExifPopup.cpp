@@ -23,13 +23,12 @@ namespace
     {
         for (const char* h = text; *h != '\0'; ++h)
         {
-            const char* hi = h;
-            const char* ni = filter;
-            while (*ni != '\0'
-                && std::tolower(static_cast<unsigned char>(*hi)) == std::tolower(static_cast<unsigned char>(*ni)))
+            auto hi = reinterpret_cast<const uint8_t*>(h);
+            auto ni = reinterpret_cast<const uint8_t*>(filter);
+            while (*ni != '\0' && std::tolower(*hi) == std::tolower(*ni))
             {
-                ++hi;
-                ++ni;
+                hi++;
+                ni++;
             }
             if (*ni == '\0')
             {
