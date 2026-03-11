@@ -23,6 +23,9 @@ public:
 private:
     bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
 
+    bool loadPvr2(const uint8_t* data, sChunkData& chunk, sImageInfo& info);
+    bool loadPvr3(const uint8_t* data, sChunkData& chunk, sImageInfo& info);
+
     bool isGZipBuffer(const uint8_t* buffer, uint32_t size) const;
     bool isGZipBuffer(cFile& file, Buffer& buffer) const;
 

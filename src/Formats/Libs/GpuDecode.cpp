@@ -977,6 +977,38 @@ namespace gpu_decode
         }
     }
 
+    void decodeBC2(const uint8_t* src, uint8_t* dst, uint32_t width, uint32_t height)
+    {
+        uint32_t blocksW = (width + 3) / 4;
+        uint32_t blocksH = (height + 3) / 4;
+
+        for (uint32_t by = 0; by < blocksH; by++)
+        {
+            for (uint32_t bx = 0; bx < blocksW; bx++)
+            {
+                // First 8 bytes: explicit 4-bit alpha for each pixel
+                const uint8_t* alphaBlock = src;
+
+                Rgba pixels[16];
+                decodeBC1Block(src + 8, pixels);
+                src += 16;
+
+                for (int py = 0; py < 4; py++)
+                {
+                    for (int px = 0; px < 4; px++)
+                    {
+                        int i = py * 4 + px;
+                        int byteIdx = i / 2;
+                        int shift = (i & 1) * 4;
+                        uint8_t a4 = (alphaBlock[byteIdx] >> shift) & 0x0f;
+                        pixels[i].a = static_cast<uint8_t>(a4 | (a4 << 4));
+                        writePixel(dst, bx * 4 + px, by * 4 + py, width, height, pixels[i]);
+                    }
+                }
+            }
+        }
+    }
+
     void decodeBC3(const uint8_t* src, uint8_t* dst, uint32_t width, uint32_t height)
     {
         uint32_t blocksW = (width + 3) / 4;
@@ -1000,6 +1032,60 @@ namespace gpu_decode
                         int i = py * 4 + px;
                         pixels[i].a = alphas[i];
                         writePixel(dst, bx * 4 + px, by * 4 + py, width, height, pixels[i]);
+                    }
+                }
+            }
+        }
+    }
+
+    void decodeBC4(const uint8_t* src, uint8_t* dst, uint32_t width, uint32_t height)
+    {
+        uint32_t blocksW = (width + 3) / 4;
+        uint32_t blocksH = (height + 3) / 4;
+
+        for (uint32_t by = 0; by < blocksH; by++)
+        {
+            for (uint32_t bx = 0; bx < blocksW; bx++)
+            {
+                uint8_t values[16];
+                decodeBC3Alpha(src, values);
+                src += 8;
+
+                for (int py = 0; py < 4; py++)
+                {
+                    for (int px = 0; px < 4; px++)
+                    {
+                        int i = py * 4 + px;
+                        Rgba c = { values[i], 0, 0, 255 };
+                        writePixel(dst, bx * 4 + px, by * 4 + py, width, height, c);
+                    }
+                }
+            }
+        }
+    }
+
+    void decodeBC5(const uint8_t* src, uint8_t* dst, uint32_t width, uint32_t height)
+    {
+        uint32_t blocksW = (width + 3) / 4;
+        uint32_t blocksH = (height + 3) / 4;
+
+        for (uint32_t by = 0; by < blocksH; by++)
+        {
+            for (uint32_t bx = 0; bx < blocksW; bx++)
+            {
+                uint8_t red[16];
+                decodeBC3Alpha(src, red);
+                uint8_t green[16];
+                decodeBC3Alpha(src + 8, green);
+                src += 16;
+
+                for (int py = 0; py < 4; py++)
+                {
+                    for (int px = 0; px < 4; px++)
+                    {
+                        int i = py * 4 + px;
+                        Rgba c = { red[i], green[i], 0, 255 };
+                        writePixel(dst, bx * 4 + px, by * 4 + py, width, height, c);
                     }
                 }
             }
@@ -1079,6 +1165,216 @@ namespace gpu_decode
                         int i = py * 4 + px;
                         pixels[i].a = alphas[i];
                         writePixel(dst, bx * 4 + px, by * 4 + py, width, height, pixels[i]);
+                    }
+                }
+            }
+        }
+    }
+
+    void decodeETC2_RGBA1(const uint8_t* src, uint8_t* dst, uint32_t width, uint32_t height)
+    {
+        uint32_t blocksW = (width + 3) / 4;
+        uint32_t blocksH = (height + 3) / 4;
+
+        for (uint32_t by = 0; by < blocksH; by++)
+        {
+            for (uint32_t bx = 0; bx < blocksW; bx++)
+            {
+                // ETC2 punchthrough alpha uses the same 8-byte block as ETC2 RGB
+                // but the diff bit signals opaque vs punchthrough mode.
+                // When c0 <= c1 in the individual/differential path, index 2 = transparent black.
+                uint64_t block = 0;
+                for (int i = 0; i < 8; i++)
+                {
+                    block = (block << 8) | src[i];
+                }
+
+                bool diffBit = (block >> 33) & 1;
+                bool flipBit = (block >> 32) & 1;
+
+                int baseR[2], baseG[2], baseB[2];
+
+                bool tMode = false;
+                bool hMode = false;
+                bool planar = false;
+
+                if (diffBit)
+                {
+                    int r = (block >> 59) & 0x1f;
+                    int dr = (block >> 56) & 0x07;
+                    if (dr >= 4)
+                        dr -= 8;
+                    int rr = r + dr;
+                    if (rr < 0 || rr > 31)
+                    {
+                        tMode = true;
+                    }
+
+                    int g = (block >> 51) & 0x1f;
+                    int dg = (block >> 48) & 0x07;
+                    if (dg >= 4)
+                        dg -= 8;
+                    int gg = g + dg;
+                    if (!tMode && (gg < 0 || gg > 31))
+                    {
+                        hMode = true;
+                    }
+
+                    int b = (block >> 43) & 0x1f;
+                    int db = (block >> 40) & 0x07;
+                    if (db >= 4)
+                        db -= 8;
+                    int bb = b + db;
+                    if (!tMode && !hMode && (bb < 0 || bb > 31))
+                    {
+                        planar = true;
+                    }
+
+                    if (!tMode && !hMode && !planar)
+                    {
+                        baseR[0] = (r << 3) | (r >> 2);
+                        baseG[0] = (g << 3) | (g >> 2);
+                        baseB[0] = (b << 3) | (b >> 2);
+                        baseR[1] = (rr << 3) | (rr >> 2);
+                        baseG[1] = (gg << 3) | (gg >> 2);
+                        baseB[1] = (bb << 3) | (bb >> 2);
+                    }
+                }
+                else
+                {
+                    // Non-differential: always opaque in punchthrough (spec says diffbit=0 is invalid
+                    // for punchthrough, but we handle it gracefully as opaque)
+                    baseR[0] = ((block >> 60) & 0xf) * 17;
+                    baseG[0] = ((block >> 52) & 0xf) * 17;
+                    baseB[0] = ((block >> 44) & 0xf) * 17;
+                    baseR[1] = ((block >> 56) & 0xf) * 17;
+                    baseG[1] = ((block >> 48) & 0xf) * 17;
+                    baseB[1] = ((block >> 40) & 0xf) * 17;
+                }
+
+                // For T/H/planar modes, delegate to the RGB decoder (always opaque alpha)
+                if (tMode || hMode || planar)
+                {
+                    Rgba pixels[16];
+                    decodeETC2Block_RGB(src, pixels);
+                    for (int py = 0; py < 4; py++)
+                    {
+                        for (int px = 0; px < 4; px++)
+                        {
+                            writePixel(dst, bx * 4 + px, by * 4 + py, width, height, pixels[py * 4 + px]);
+                        }
+                    }
+                    src += 8;
+                    continue;
+                }
+
+                // Individual/differential mode with punchthrough
+                int table[2];
+                table[0] = (block >> 37) & 7;
+                table[1] = (block >> 34) & 7;
+
+                Rgba pixels[16];
+                for (int i = 0; i < 16; i++)
+                {
+                    int col = i >> 2, row = i & 3;
+                    int sub = flipBit
+                        ? (row >= 2 ? 1 : 0)
+                        : (col >= 2 ? 1 : 0);
+                    int bitIdx = col * 4 + row;
+                    int msb = (src[4 + (bitIdx >> 3)] >> (7 - (bitIdx & 7))) & 1;
+                    int lsb = (src[4 + ((bitIdx + 16) >> 3)] >> (7 - ((bitIdx + 16) & 7))) & 1;
+                    int idx = msb | (lsb << 1);
+
+                    // In punchthrough mode, index 2 (msb=0, lsb=1) = transparent black
+                    if (idx == 2)
+                    {
+                        pixels[row * 4 + col] = { 0, 0, 0, 0 };
+                        continue;
+                    }
+
+                    int mod = 0;
+                    switch (idx)
+                    {
+                    case 0:
+                        mod = Etc2Modifier[table[sub]][0];
+                        break;
+                    case 1:
+                        mod = -Etc2Modifier[table[sub]][0];
+                        break;
+                    case 3:
+                        mod = -Etc2Modifier[table[sub]][1];
+                        break;
+                    }
+
+                    pixels[row * 4 + col] = {
+                        clampByte(baseR[sub] + mod),
+                        clampByte(baseG[sub] + mod),
+                        clampByte(baseB[sub] + mod),
+                        255
+                    };
+                }
+
+                for (int py = 0; py < 4; py++)
+                {
+                    for (int px = 0; px < 4; px++)
+                    {
+                        writePixel(dst, bx * 4 + px, by * 4 + py, width, height, pixels[py * 4 + px]);
+                    }
+                }
+
+                src += 8;
+            }
+        }
+    }
+
+    void decodeEAC_R11(const uint8_t* src, uint8_t* dst, uint32_t width, uint32_t height)
+    {
+        uint32_t blocksW = (width + 3) / 4;
+        uint32_t blocksH = (height + 3) / 4;
+
+        for (uint32_t by = 0; by < blocksH; by++)
+        {
+            for (uint32_t bx = 0; bx < blocksW; bx++)
+            {
+                uint8_t values[16];
+                decodeEACAlpha(src, values);
+                src += 8;
+
+                for (int py = 0; py < 4; py++)
+                {
+                    for (int px = 0; px < 4; px++)
+                    {
+                        int i = py * 4 + px;
+                        Rgba c = { values[i], values[i], values[i], 255 };
+                        writePixel(dst, bx * 4 + px, by * 4 + py, width, height, c);
+                    }
+                }
+            }
+        }
+    }
+
+    void decodeEAC_RG11(const uint8_t* src, uint8_t* dst, uint32_t width, uint32_t height)
+    {
+        uint32_t blocksW = (width + 3) / 4;
+        uint32_t blocksH = (height + 3) / 4;
+
+        for (uint32_t by = 0; by < blocksH; by++)
+        {
+            for (uint32_t bx = 0; bx < blocksW; bx++)
+            {
+                uint8_t red[16];
+                decodeEACAlpha(src, red);
+                uint8_t green[16];
+                decodeEACAlpha(src + 8, green);
+                src += 16;
+
+                for (int py = 0; py < 4; py++)
+                {
+                    for (int px = 0; px < 4; px++)
+                    {
+                        int i = py * 4 + px;
+                        Rgba c = { red[i], green[i], 0, 255 };
+                        writePixel(dst, bx * 4 + px, by * 4 + py, width, height, c);
                     }
                 }
             }

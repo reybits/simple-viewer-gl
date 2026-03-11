@@ -12,11 +12,11 @@
 #include "Common/File.h"
 #include "Common/Helpers.h"
 #include "Common/ImageInfo.h"
-#include "Libs/Etc1.h"
-#include "Libs/PVRTDecompress.h"
+#include "Libs/GpuDecode.h"
 #include "Log/Log.h"
 
 #include <cstring>
+#include <pvrtc/PVRTDecompress.h>
 #include <zlib.h>
 
 namespace
@@ -40,7 +40,7 @@ namespace
         uint32_t len;      // Size of the uncompressed file.
     };
 
-    const uint32_t PVR_TEXTURE_FLAG_TYPE_MASK = 0xff;
+    constexpr uint32_t PVR_TEXTURE_FLAG_TYPE_MASK = 0xff;
 
     enum class PVR2TextureFlag : uint32_t
     {
@@ -174,75 +174,18 @@ namespace
         return version == 0x50565203;
     }
 
-    void decodeEncodedPvr(uint32_t* data, size_t len)
+    void convertRgb555toRgb888(uint8_t* dst, const uint8_t* src, uint32_t pixelCount)
     {
-        const int enclen = 1024;
-        const int securelen = 512;
-        const int distance = 64;
-
-        // check if key was set
-        // make sure to call caw_setkey_part() for all 4 key parts
-        // CCASSERT(s_uEncryptedPvrKeyParts[0] != 0, "file is encrypted but key part 0 is not set. Did you call ZipUtils::setPvrEncryptionKeyPart(...)?");
-        // CCASSERT(s_uEncryptedPvrKeyParts[1] != 0, "CCZ file is encrypted but key part 1 is not set. Did you call ZipUtils::setPvrEncryptionKeyPart(...)?");
-        // CCASSERT(s_uEncryptedPvrKeyParts[2] != 0, "CCZ file is encrypted but key part 2 is not set. Did you call ZipUtils::setPvrEncryptionKeyPart(...)?");
-        // CCASSERT(s_uEncryptedPvrKeyParts[3] != 0, "CCZ file is encrypted but key part 3 is not set. Did you call ZipUtils::setPvrEncryptionKeyPart(...)?");
-
-        // create long key
-        static bool s_bEncryptionKeyIsValid = false;
-        static uint32_t s_uEncryptionKey[1024];
-        static uint32_t s_uEncryptedPvrKeyParts[4] = { 0, 0, 0, 0 };
-        if (s_bEncryptionKeyIsValid == false)
+        auto in = reinterpret_cast<const uint16_t*>(src);
+        for (uint32_t i = 0; i < pixelCount; i++)
         {
-            unsigned int y, p, e;
-            unsigned int rounds = 6;
-            unsigned int sum = 0;
-            unsigned int z = s_uEncryptionKey[enclen - 1];
-
-            do
-            {
-#define DELTA 0x9e3779b9
-#define MX (((z >> 5 ^ y << 2) + (y >> 3 ^ z << 4)) ^ ((sum ^ y) + (s_uEncryptedPvrKeyParts[(p & 3) ^ e] ^ z)))
-
-                sum += DELTA;
-                e = (sum >> 2) & 3;
-
-                for (p = 0; p < enclen - 1; p++)
-                {
-                    y = s_uEncryptionKey[p + 1];
-                    z = s_uEncryptionKey[p] += MX;
-                }
-
-                y = s_uEncryptionKey[0];
-                z = s_uEncryptionKey[enclen - 1] += MX;
-
-            } while (--rounds);
-
-            s_bEncryptionKeyIsValid = true;
-        }
-
-        uint32_t b = 0;
-        uint32_t i = 0;
-
-        // encrypt first part completely
-        for (; i < len && i < securelen; i++)
-        {
-            data[i] ^= s_uEncryptionKey[b++];
-
-            if (b >= enclen)
-            {
-                b = 0;
-            }
-        }
-
-        // encrypt second section partially
-        for (; i < len; i += distance)
-        {
-            data[i] ^= s_uEncryptionKey[b++];
-
-            if (b >= enclen)
-            {
-                b = 0;
-            }
+            const auto pixel = in[i];
+            const auto r5 = static_cast<uint8_t>((pixel >> 10) & 0x1F);
+            const auto g5 = static_cast<uint8_t>((pixel >> 5) & 0x1F);
+            const auto b5 = static_cast<uint8_t>(pixel & 0x1F);
+            dst[i * 3 + 0] = static_cast<uint8_t>((r5 << 3) | (r5 >> 2));
+            dst[i * 3 + 1] = static_cast<uint8_t>((g5 << 3) | (g5 >> 2));
+            dst[i * 3 + 2] = static_cast<uint8_t>((b5 << 3) | (b5 >> 2));
         }
     }
 
@@ -256,13 +199,13 @@ namespace
         }
 
         auto& s = header.sig;
-        cLog::Debug("Type: '{}{}{}{}'.", s[0], s[1], s[2], s[3]);
+        cLog::Debug("Type: '{}{}{}{}'.",
+                    static_cast<char>(s[0]), static_cast<char>(s[1]),
+                    static_cast<char>(s[2]), static_cast<char>(s[3]));
 
-        // verify header
         if (header.sig[3] == '!')
         {
-            // verify header version
-            auto version = helpers::read_uint16((const uint8_t*)&header.version);
+            auto version = helpers::read_uint16(reinterpret_cast<const uint8_t*>(&header.version));
             cLog::Debug("  Version          : {}", version);
             if (version > 2)
             {
@@ -270,8 +213,7 @@ namespace
                 return false;
             }
 
-            // verify compression format
-            auto compressionType = helpers::read_uint16((const uint8_t*)&header.compressionType);
+            auto compressionType = helpers::read_uint16(reinterpret_cast<const uint8_t*>(&header.compressionType));
             cLog::Debug("  Compression type : {}", compressionType);
             if (compressionType != CCZHeader::CompressionType::ZLIB)
             {
@@ -281,44 +223,8 @@ namespace
         }
         else if (header.sig[3] == 'p')
         {
-            // encrypted ccz file
-            // header = (CCZHeader*)buffer;
-
-            // verify header version
-            auto version = helpers::read_uint16((const uint8_t*)&header.version);
-            cLog::Debug("  Version          : {}", version);
-            if (version > 0)
-            {
-                cLog::Error("Unsupported CCZ header format.");
-                return false;
-            }
-
-            // verify compression format
-            auto compressionType = helpers::read_uint16((const uint8_t*)&header.compressionType);
-            cLog::Debug("  Compression type : {}", compressionType);
-            if (compressionType != CCZHeader::CompressionType::ZLIB)
-            {
-                cLog::Error("Unsupported CCZ compression method.");
-                return false;
-            }
-
-            // decrypt
-            auto ints = (uint32_t*)(buffer + 12);
-            auto enclen = (bufferLen - 12) / 4;
-
-            decodeEncodedPvr(ints, enclen);
-
-#if 0
-        // verify checksum in debug mode
-        unsigned int calculated = checksumPvr(ints, enclen);
-        unsigned int required = helpers::read_uint32((uint8_t*)&header.reserved);
-
-        if (calculated != required)
-        {
-            cLog::Error("Can't decrypt image file. Is the decryption key valid?");
-            return -1;
-        }
-#endif
+            cLog::Error("Encrypted CCZ files are not supported.");
+            return false;
         }
         else
         {
@@ -326,7 +232,7 @@ namespace
             return false;
         }
 
-        auto size = helpers::read_uint32((uint8_t*)&header.len);
+        auto size = helpers::read_uint32(reinterpret_cast<const uint8_t*>(&header.len));
         cLog::Debug("  Size             : {}", size);
 
         bitmap.resize(size);
@@ -344,17 +250,16 @@ namespace
         size_t bufferSize = 256 * 1024;
         bitmap.resize(bufferSize);
 
-        z_stream d_stream; /* decompression stream */
+        z_stream d_stream;
         d_stream.zalloc = nullptr;
         d_stream.zfree = nullptr;
         d_stream.opaque = nullptr;
 
-        d_stream.next_in = (uint8_t*)in;
+        d_stream.next_in = const_cast<uint8_t*>(in);
         d_stream.avail_in = inLength;
         d_stream.next_out = bitmap.data();
-        d_stream.avail_out = bufferSize;
+        d_stream.avail_out = static_cast<uInt>(bufferSize);
 
-        /* window size to hold 256k */
         if (inflateInit2(&d_stream, 15 + 32) != Z_OK)
         {
             return false;
@@ -375,18 +280,17 @@ namespace
             if (err == Z_DATA_ERROR || err == Z_MEM_ERROR)
             {
                 inflateEnd(&d_stream);
-                return err;
+                return false;
             }
 
-            // not enough memory ?
             if (err != Z_STREAM_END)
             {
-                const auto Factor = 2u;
+                constexpr auto Factor = 2u;
 
                 bitmap.resize(bufferSize * Factor);
 
                 d_stream.next_out = bitmap.data() + bufferSize;
-                d_stream.avail_out = bufferSize;
+                d_stream.avail_out = static_cast<uInt>(bufferSize);
                 bufferSize *= Factor;
             }
         }
@@ -395,6 +299,8 @@ namespace
 
         return inflateEnd(&d_stream) == Z_OK;
     }
+
+    using GpuDecodeFunc = void (*)(const uint8_t*, uint8_t*, uint32_t, uint32_t);
 
 } // namespace
 
@@ -467,7 +373,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     Buffer buffer(info.fileSize);
 
-    if (file.read(buffer.data(), (uint32_t)buffer.size()) != (uint32_t)buffer.size())
+    if (file.read(buffer.data(), static_cast<uint32_t>(buffer.size())) != static_cast<uint32_t>(buffer.size()))
     {
         cLog::Error("Can't read file.");
         return false;
@@ -479,8 +385,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     if (isCCZBuffer(buffer.data(), buffer.size()))
     {
-        auto result = inflateCCZBuffer(buffer.data(), buffer.size(), unpacked);
-        if (result == false)
+        if (inflateCCZBuffer(buffer.data(), buffer.size(), unpacked) == false)
         {
             cLog::Error("Can't decompress CCZ data.");
             return false;
@@ -491,8 +396,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     }
     else if (isGZipBuffer(buffer.data(), buffer.size()))
     {
-        auto result = inflateMemory(buffer.data(), buffer.size(), unpacked);
-        if (result == false)
+        if (inflateMemory(buffer.data(), buffer.size(), unpacked) == false)
         {
             cLog::Error("Can't decompress GZip data.");
             return false;
@@ -509,239 +413,358 @@ bool cFormatPvr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     if (isPvr2(unpackedData, unpackedSize))
     {
-        info.formatName = "pvr2";
-
-        auto& header = *reinterpret_cast<const PVRv2TexHeader*>(unpackedData);
-
-        auto flags = header.flags;
-        auto pixelFormat = static_cast<PVR2TexturePixelFormat>(flags & PVR_TEXTURE_FLAG_TYPE_MASK);
-        auto flipped = (flags & (uint32_t)PVR2TextureFlag::VerticalFlip) ? true : false;
-        if (flipped)
-        {
-            cLog::Warning("Image is flipped. Regenerate it using PVRTexTool.");
-        }
-
-        auto width = header.width;
-        auto height = header.height;
-
-        cLog::Debug("-- PVR2 header");
-        cLog::Debug("  Header length  : {}", header.headerLength);
-        cLog::Debug("  Width          : {}", width);
-        cLog::Debug("  Height         : {}", height);
-        cLog::Debug("  Mipmaps        : {}", header.numMipmaps);
-        cLog::Debug("  Flags          : {}", header.flags);
-        cLog::Debug("  Data length    : {}", header.dataLength);
-        cLog::Debug("  BPP            : {}", header.bpp);
-        cLog::Debug("  Mask R         : {}", header.bitmaskRed);
-        cLog::Debug("  Mask G         : {}", header.bitmaskGreen);
-        cLog::Debug("  Mask B         : {}", header.bitmaskBlue);
-        cLog::Debug("  Mask A         : {}", header.bitmaskAlpha);
-        cLog::Debug("  Surfaces       : {}", header.numSurfs);
-
-        enum class Decomp
-        {
-            Copy,
-            PVR,
-        };
-        auto decopmress = Decomp::Copy;
-        auto bytes = 0u;
-        switch (pixelFormat)
-        {
-        case PVR2TexturePixelFormat::RGBA4444:
-            bytes = 2;
-            chunk.format = ePixelFormat::RGBA4444;
-            break;
-        case PVR2TexturePixelFormat::RGBA5551:
-            bytes = 2;
-            chunk.format = ePixelFormat::RGBA5551;
-            break;
-        case PVR2TexturePixelFormat::RGBA8888:
-            bytes = 4;
-            chunk.format = ePixelFormat::RGBA;
-            break;
-        case PVR2TexturePixelFormat::RGB565:
-            bytes = 2;
-            chunk.format = ePixelFormat::RGB565;
-            break;
-        case PVR2TexturePixelFormat::RGB555:
-            bytes = 2;
-            chunk.format = ePixelFormat::RGBA5551;
-            break;
-        case PVR2TexturePixelFormat::RGB888:
-            bytes = 3;
-            chunk.format = ePixelFormat::RGB;
-            break;
-        case PVR2TexturePixelFormat::BGRA8888:
-            bytes = 4;
-            chunk.format = ePixelFormat::BGRA;
-            break;
-        case PVR2TexturePixelFormat::A8:
-            bytes = 1;
-            chunk.format = ePixelFormat::Alpha;
-            break;
-        case PVR2TexturePixelFormat::PVRTC2BPP_RGBA:
-            decopmress = Decomp::PVR;
-            bytes = 4;
-            chunk.format = ePixelFormat::RGBA;
-            break;
-        case PVR2TexturePixelFormat::PVRTC4BPP_RGBA:
-            decopmress = Decomp::PVR;
-            bytes = 4;
-            chunk.format = ePixelFormat::RGBA;
-            break;
-
-        case PVR2TexturePixelFormat::I8:
-        case PVR2TexturePixelFormat::AI88:
-        default:
-            cLog::Error("Unsupported PVR2 pixel format: {}.", static_cast<uint32_t>(pixelFormat));
-            return false;
-        }
-
-        chunk.bpp = bytes * 8;
-        info.bppImage = bytes * 8;
-        chunk.width = width;
-        chunk.height = height;
-        chunk.pitch = width * bytes;
-        chunk.resizeBitmap(chunk.pitch, chunk.height);
-        auto src = unpackedData + sizeof(PVRv2TexHeader);
-
-        auto result = true;
-        switch (decopmress)
-        {
-        case Decomp::Copy:
-            ::memcpy(chunk.bitmap.data(), src, chunk.bitmap.size());
-            break;
-        case Decomp::PVR:
-            result = pvr::PVRTDecompressPVRTC(src, true, width, height, chunk.bitmap.data()) == chunk.bitmap.size();
-            break;
-        }
-
-        return result;
+        return loadPvr2(unpackedData, chunk, info);
     }
     else if (isPvr3(unpackedData, unpackedSize))
     {
-        info.formatName = "pvr3";
-
-        auto& header = *reinterpret_cast<const PVRv3TexHeader*>(unpackedData);
-
-        auto version = helpers::read_uint32(reinterpret_cast<const uint8_t*>(&header.version));
-        if (version == 0x50565203)
-        {
-            auto pixelFormat = static_cast<PVR3TexturePixelFormat>(header.pixelFormat);
-            auto flags = header.flags;
-            auto width = header.width;
-            auto height = header.height;
-
-            cLog::Debug("-- PVR3 header");
-            cLog::Debug("  Version       : {:#x}", version);
-            cLog::Debug("  Pixel format  : {:#x}", static_cast<uint64_t>(pixelFormat));
-            cLog::Debug("  Flags         : {:#x}", flags);
-            cLog::Debug("  Color space   : {}", header.colorSpace);
-            cLog::Debug("  Channel type  : {}", header.channelType);
-            cLog::Debug("  Width         : {}", width);
-            cLog::Debug("  Height        : {}", height);
-            cLog::Debug("  Depth         : {}", header.depth);
-            cLog::Debug("  Surfaces      : {}", header.numberOfSurfaces);
-            cLog::Debug("  Faces         : {}", header.numberOfFaces);
-            cLog::Debug("  Mipmaps       : {}", header.numberOfMipmaps);
-            cLog::Debug("  Metadata size : {}", header.metadataLength);
-
-            enum class Decomp
-            {
-                Copy,
-                PVR,
-                ETC1
-            };
-            auto decopmress = Decomp::Copy;
-            auto bytes = 0u;
-            switch (pixelFormat)
-            {
-            case PVR3TexturePixelFormat::RGBA8888:
-                bytes = 4;
-                chunk.format = ePixelFormat::RGBA;
-                break;
-            case PVR3TexturePixelFormat::BGRA8888:
-                bytes = 4;
-                chunk.format = ePixelFormat::BGRA;
-                break;
-            case PVR3TexturePixelFormat::RGB888:
-                bytes = 3;
-                chunk.format = ePixelFormat::RGB;
-                break;
-            case PVR3TexturePixelFormat::RGB565:
-                bytes = 2;
-                chunk.format = ePixelFormat::RGB565;
-                break;
-            case PVR3TexturePixelFormat::RGBA4444:
-                bytes = 2;
-                chunk.format = ePixelFormat::RGBA4444;
-                break;
-            case PVR3TexturePixelFormat::RGBA5551:
-                bytes = 2;
-                chunk.format = ePixelFormat::RGBA5551;
-                break;
-            case PVR3TexturePixelFormat::A8:
-                bytes = 1;
-                chunk.format = ePixelFormat::Alpha;
-                break;
-            case PVR3TexturePixelFormat::L8:
-                bytes = 1;
-                chunk.format = ePixelFormat::Luminance;
-                break;
-            case PVR3TexturePixelFormat::PVRTC2BPP_RGB:
-            case PVR3TexturePixelFormat::PVRTC2BPP_RGBA:
-                decopmress = Decomp::PVR;
-                bytes = 4;
-                chunk.format = ePixelFormat::RGBA;
-                break;
-            case PVR3TexturePixelFormat::PVRTC4BPP_RGB:
-            case PVR3TexturePixelFormat::PVRTC4BPP_RGBA:
-                decopmress = Decomp::PVR;
-                bytes = 4;
-                chunk.format = ePixelFormat::RGBA;
-                break;
-            case PVR3TexturePixelFormat::ETC1:
-                decopmress = Decomp::ETC1;
-                bytes = 3;
-                chunk.format = ePixelFormat::RGB;
-                break;
-
-            default:
-                cLog::Error("Unsupported PVR3 pixel format: {}.", static_cast<long long unsigned>(pixelFormat));
-                return false;
-            }
-
-            chunk.bpp = bytes * 8;
-            info.bppImage = bytes * 8;
-            chunk.width = width;
-            chunk.height = height;
-            chunk.pitch = width * bytes;
-            chunk.resizeBitmap(chunk.pitch, chunk.height);
-            auto src = unpackedData + sizeof(PVRv3TexHeader) + header.metadataLength;
-
-            auto result = true;
-            switch (decopmress)
-            {
-            case Decomp::Copy:
-                ::memcpy(chunk.bitmap.data(), src, chunk.bitmap.size());
-                break;
-            case Decomp::PVR:
-                result = pvr::PVRTDecompressPVRTC(src, true, width, height, chunk.bitmap.data()) == chunk.bitmap.size();
-                break;
-            case Decomp::ETC1:
-                result = etc1_decode_image(src, static_cast<etc1_byte*>(chunk.bitmap.data()), width, height, bytes, chunk.pitch) != 0;
-                break;
-            }
-
-            return result;
-        }
-
-        cLog::Error("PVR3 version mismatch.");
-
-        return false;
+        return loadPvr3(unpackedData, chunk, info);
     }
 
     cLog::Error("Unknown PVR format.");
 
     return false;
+}
+
+bool cFormatPvr::loadPvr2(const uint8_t* data, sChunkData& chunk, sImageInfo& info)
+{
+    info.formatName = "pvr2";
+
+    auto& header = *reinterpret_cast<const PVRv2TexHeader*>(data);
+
+    auto flags = header.flags;
+    auto pixelFormat = static_cast<PVR2TexturePixelFormat>(flags & PVR_TEXTURE_FLAG_TYPE_MASK);
+    auto flipped = (flags & static_cast<uint32_t>(PVR2TextureFlag::VerticalFlip)) != 0;
+    if (flipped)
+    {
+        cLog::Warning("Image is flipped. Regenerate it using PVRTexTool.");
+    }
+
+    auto width = header.width;
+    auto height = header.height;
+
+    cLog::Debug("-- PVR2 header");
+    cLog::Debug("  Header length  : {}", header.headerLength);
+    cLog::Debug("  Width          : {}", width);
+    cLog::Debug("  Height         : {}", height);
+    cLog::Debug("  Mipmaps        : {}", header.numMipmaps);
+    cLog::Debug("  Flags          : {:#x}", header.flags);
+    cLog::Debug("  Data length    : {}", header.dataLength);
+    cLog::Debug("  BPP            : {}", header.bpp);
+    cLog::Debug("  Mask R         : {:#010x}", header.bitmaskRed);
+    cLog::Debug("  Mask G         : {:#010x}", header.bitmaskGreen);
+    cLog::Debug("  Mask B         : {:#010x}", header.bitmaskBlue);
+    cLog::Debug("  Mask A         : {:#010x}", header.bitmaskAlpha);
+    cLog::Debug("  Surfaces       : {}", header.numSurfs);
+
+    enum class Decomp
+    {
+        Copy,
+        PVRTC2,
+        PVRTC4,
+        RGB555,
+    };
+    auto decompress = Decomp::Copy;
+    auto bytes = 0u;
+    switch (pixelFormat)
+    {
+    case PVR2TexturePixelFormat::RGBA4444:
+        bytes = 2;
+        chunk.format = ePixelFormat::RGBA4444;
+        break;
+    case PVR2TexturePixelFormat::RGBA5551:
+        bytes = 2;
+        chunk.format = ePixelFormat::RGBA5551;
+        break;
+    case PVR2TexturePixelFormat::RGBA8888:
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR2TexturePixelFormat::RGB565:
+        bytes = 2;
+        chunk.format = ePixelFormat::RGB565;
+        break;
+    case PVR2TexturePixelFormat::RGB555:
+        decompress = Decomp::RGB555;
+        bytes = 3;
+        chunk.format = ePixelFormat::RGB;
+        break;
+    case PVR2TexturePixelFormat::RGB888:
+        bytes = 3;
+        chunk.format = ePixelFormat::RGB;
+        break;
+    case PVR2TexturePixelFormat::BGRA8888:
+        bytes = 4;
+        chunk.format = ePixelFormat::BGRA;
+        break;
+    case PVR2TexturePixelFormat::A8:
+        bytes = 1;
+        chunk.format = ePixelFormat::Alpha;
+        break;
+    case PVR2TexturePixelFormat::I8:
+        bytes = 1;
+        chunk.format = ePixelFormat::Luminance;
+        break;
+    case PVR2TexturePixelFormat::AI88:
+        bytes = 2;
+        chunk.format = ePixelFormat::LuminanceAlpha;
+        break;
+    case PVR2TexturePixelFormat::PVRTC2BPP_RGBA:
+        decompress = Decomp::PVRTC2;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR2TexturePixelFormat::PVRTC4BPP_RGBA:
+        decompress = Decomp::PVRTC4;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+
+    default:
+        cLog::Error("Unsupported PVR2 pixel format: {:#x}.", static_cast<uint32_t>(pixelFormat));
+        return false;
+    }
+
+    chunk.bpp = bytes * 8;
+    info.bppImage = bytes * 8;
+    chunk.width = width;
+    chunk.height = height;
+    chunk.pitch = width * bytes;
+    chunk.resizeBitmap(chunk.pitch, chunk.height);
+    auto src = data + sizeof(PVRv2TexHeader);
+
+    switch (decompress)
+    {
+    case Decomp::Copy:
+        ::memcpy(chunk.bitmap.data(), src, chunk.bitmap.size());
+        break;
+    case Decomp::PVRTC2:
+        if (pvr::PVRTDecompressPVRTC(src, 1, width, height, chunk.bitmap.data()) == 0)
+        {
+            cLog::Error("PVRTC2 decompression failed.");
+            return false;
+        }
+        break;
+    case Decomp::PVRTC4:
+        if (pvr::PVRTDecompressPVRTC(src, 0, width, height, chunk.bitmap.data()) == 0)
+        {
+            cLog::Error("PVRTC4 decompression failed.");
+            return false;
+        }
+        break;
+    case Decomp::RGB555:
+        convertRgb555toRgb888(chunk.bitmap.data(), src, width * height);
+        break;
+    }
+
+    return true;
+}
+
+bool cFormatPvr::loadPvr3(const uint8_t* data, sChunkData& chunk, sImageInfo& info)
+{
+    info.formatName = "pvr3";
+
+    auto& header = *reinterpret_cast<const PVRv3TexHeader*>(data);
+
+    auto version = helpers::read_uint32(reinterpret_cast<const uint8_t*>(&header.version));
+    if (version != 0x50565203)
+    {
+        cLog::Error("PVR3 version mismatch: {:#x}.", version);
+        return false;
+    }
+
+    auto pixelFormat = static_cast<PVR3TexturePixelFormat>(header.pixelFormat);
+    auto flags = header.flags;
+    auto width = header.width;
+    auto height = header.height;
+
+    cLog::Debug("-- PVR3 header");
+    cLog::Debug("  Version       : {:#x}", version);
+    cLog::Debug("  Pixel format  : {:#x}", static_cast<uint64_t>(pixelFormat));
+    cLog::Debug("  Flags         : {:#x}", flags);
+    cLog::Debug("  Color space   : {}", header.colorSpace);
+    cLog::Debug("  Channel type  : {}", header.channelType);
+    cLog::Debug("  Width         : {}", width);
+    cLog::Debug("  Height        : {}", height);
+    cLog::Debug("  Depth         : {}", header.depth);
+    cLog::Debug("  Surfaces      : {}", header.numberOfSurfaces);
+    cLog::Debug("  Faces         : {}", header.numberOfFaces);
+    cLog::Debug("  Mipmaps       : {}", header.numberOfMipmaps);
+    cLog::Debug("  Metadata size : {}", header.metadataLength);
+
+    constexpr uint32_t PVR3_PREMULTIPLIED = 0x02;
+    if ((flags & PVR3_PREMULTIPLIED) != 0)
+    {
+        cLog::Warning("Image has premultiplied alpha.");
+    }
+
+    enum class Decomp
+    {
+        Copy,
+        PVRTC2,
+        PVRTC4,
+        GPU,
+    };
+    auto decompress = Decomp::Copy;
+    GpuDecodeFunc gpuDecoder = nullptr;
+    auto bytes = 0u;
+    switch (pixelFormat)
+    {
+    case PVR3TexturePixelFormat::RGBA8888:
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::BGRA8888:
+        bytes = 4;
+        chunk.format = ePixelFormat::BGRA;
+        break;
+    case PVR3TexturePixelFormat::RGB888:
+        bytes = 3;
+        chunk.format = ePixelFormat::RGB;
+        break;
+    case PVR3TexturePixelFormat::RGB565:
+        bytes = 2;
+        chunk.format = ePixelFormat::RGB565;
+        break;
+    case PVR3TexturePixelFormat::RGBA4444:
+        bytes = 2;
+        chunk.format = ePixelFormat::RGBA4444;
+        break;
+    case PVR3TexturePixelFormat::RGBA5551:
+        bytes = 2;
+        chunk.format = ePixelFormat::RGBA5551;
+        break;
+    case PVR3TexturePixelFormat::A8:
+        bytes = 1;
+        chunk.format = ePixelFormat::Alpha;
+        break;
+    case PVR3TexturePixelFormat::L8:
+        bytes = 1;
+        chunk.format = ePixelFormat::Luminance;
+        break;
+    case PVR3TexturePixelFormat::LA88:
+        bytes = 2;
+        chunk.format = ePixelFormat::LuminanceAlpha;
+        break;
+    case PVR3TexturePixelFormat::PVRTC2BPP_RGB:
+    case PVR3TexturePixelFormat::PVRTC2BPP_RGBA:
+        decompress = Decomp::PVRTC2;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::PVRTC4BPP_RGB:
+    case PVR3TexturePixelFormat::PVRTC4BPP_RGBA:
+        decompress = Decomp::PVRTC4;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+
+    // GPU compressed formats — all decode to RGBA
+    case PVR3TexturePixelFormat::ETC1:
+    case PVR3TexturePixelFormat::ETC2_RGB:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeETC2_RGB;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::ETC2_RGBA:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeETC2_RGBA;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::ETC2_RGBA1:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeETC2_RGBA1;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::EAC_R11_Unsigned:
+    case PVR3TexturePixelFormat::EAC_R11_Signed:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeEAC_R11;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::EAC_RG11_Unsigned:
+    case PVR3TexturePixelFormat::EAC_RG11_Signed:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeEAC_RG11;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::BC1:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeBC1;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::BC2:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeBC2;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::BC3:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeBC3;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::BC4:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeBC4;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::BC5:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeBC5;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+    case PVR3TexturePixelFormat::BC7:
+        decompress = Decomp::GPU;
+        gpuDecoder = gpu_decode::decodeBC7;
+        bytes = 4;
+        chunk.format = ePixelFormat::RGBA;
+        break;
+
+    default:
+        cLog::Error("Unsupported PVR3 pixel format: {:#x}.", static_cast<uint64_t>(pixelFormat));
+        return false;
+    }
+
+    chunk.bpp = bytes * 8;
+    info.bppImage = bytes * 8;
+    chunk.width = width;
+    chunk.height = height;
+    chunk.pitch = width * bytes;
+    chunk.resizeBitmap(chunk.pitch, chunk.height);
+    auto src = data + sizeof(PVRv3TexHeader) + header.metadataLength;
+
+    switch (decompress)
+    {
+    case Decomp::Copy:
+        ::memcpy(chunk.bitmap.data(), src, chunk.bitmap.size());
+        break;
+    case Decomp::PVRTC2:
+        if (pvr::PVRTDecompressPVRTC(src, 1, width, height, chunk.bitmap.data()) == 0)
+        {
+            cLog::Error("PVRTC2 decompression failed.");
+            return false;
+        }
+        break;
+    case Decomp::PVRTC4:
+        if (pvr::PVRTDecompressPVRTC(src, 0, width, height, chunk.bitmap.data()) == 0)
+        {
+            cLog::Error("PVRTC4 decompression failed.");
+            return false;
+        }
+        break;
+    case Decomp::GPU:
+        gpuDecoder(src, chunk.bitmap.data(), width, height);
+        break;
+    }
+
+    return true;
 }

@@ -81,6 +81,7 @@ add_subdirectory(third-party/imgui)
 add_subdirectory(third-party/lz4)
 add_subdirectory(third-party/fmtlib)
 add_subdirectory(third-party/astcenc)
+add_subdirectory(third-party/pvrtc)
 add_subdirectory(third-party/glad)
 
 # set(VERBOSE_PATHS TRUE)
@@ -422,8 +423,8 @@ else()
     add_executable(${APPLICATION_NAME} ${SVIEW_SOURCES})
 endif()
 
-add_dependencies(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec GLAD)
-target_link_libraries(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec GLAD)
+add_dependencies(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec PvrDec GLAD)
+target_link_libraries(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec PvrDec GLAD)
 
 if(OPENGL_FOUND)
     target_link_libraries(${APPLICATION_NAME} ${OPENGL_LIBRARY})
