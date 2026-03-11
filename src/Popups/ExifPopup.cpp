@@ -103,6 +103,13 @@ void cExifPopup::render()
     constexpr int flags = ImGuiWindowFlags_NoCollapse
         | ImGuiWindowFlags_NoFocusOnAppearing;
 
+    ImGui::SetNextWindowSize({ 300.0f, 400.0f }, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSizeConstraints({ 250.0f, 200.0f }, { FLT_MAX, FLT_MAX });
+
+    ImGuiWindowClass windowClass;
+    windowClass.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_AutoHideTabBar;
+    ImGui::SetNextWindowClass(&windowClass);
+
     if (ImGui::Begin("Metadata", nullptr, flags) == false)
     {
         ImGui::End();
