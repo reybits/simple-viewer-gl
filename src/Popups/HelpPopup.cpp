@@ -91,6 +91,11 @@ void cHelpPopup::render()
     {
         constexpr auto flags = ImGuiWindowFlags_NoCollapse
             | ImGuiWindowFlags_AlwaysAutoResize;
+
+        ImGuiWindowClass windowClass;
+        windowClass.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_AutoHideTabBar;
+        ImGui::SetNextWindowClass(&windowClass);
+
         if (ImGui::Begin("Help", nullptr, flags))
         {
             RenderSection("General", GeneralBindings, IM_ARRAYSIZE(GeneralBindings));
