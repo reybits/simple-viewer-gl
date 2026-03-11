@@ -48,6 +48,7 @@ public:
 
     void onRender();
     void onUpdate();
+    void processDeferred();
 
     sWindowEvents& getWindowEvents()
     {
@@ -148,6 +149,9 @@ private:
     bool m_cursorInside = false;
     bool m_mouseMB = false;
     bool m_mouseRB = false;
+    bool m_fullscreenRequested = false;
+    bool m_skipEnterEvents = false;
+    bool m_centerAfterToggle = false;
     Vectorf m_lastMouse;
     Vectorf m_camera;
     int m_angle = 0;

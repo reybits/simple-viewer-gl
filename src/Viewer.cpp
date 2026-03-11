@@ -137,6 +137,12 @@ void cViewer::onRender()
     // Recalculate scale after dock layout is up-to-date.
     calculateScale();
 
+    if (m_centerAfterToggle)
+    {
+        m_centerAfterToggle = false;
+        centerWindow();
+    }
+
     m_checkerBoard->render();
 
     const float scale = m_scale.getScale();
@@ -357,6 +363,26 @@ void cViewer::setFps(float fps)
     m_imgui->setFps(fps);
 }
 
+void cViewer::processDeferred()
+{
+    if (m_fullscreenRequested)
+    {
+        m_fullscreenRequested = false;
+        m_skipEnterEvents = true;
+        m_window.toggleFullscreen(m_config);
+        onContextRecreated();
+
+        if (m_window.isWindowed())
+        {
+            m_centerAfterToggle = true;
+        }
+    }
+    else
+    {
+        m_skipEnterEvents = false;
+    }
+}
+
 void cViewer::handlePreviewReady()
 {
     auto& p = m_previewData;
@@ -471,6 +497,8 @@ void cViewer::resetOrientation()
     m_flipV = false;
 }
 
+// TODO: Consider to apply on renderer side.
+// Atleast replace uint16_t with enum for better readability.
 void cViewer::applyExifOrientation(uint16_t orientation)
 {
     // EXIF orientation values:
@@ -809,11 +837,12 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
         break;
 
     case GLFW_KEY_ENTER:
-    case GLFW_KEY_KP_ENTER: {
-        m_window.toggleFullscreen(m_config);
-        onContextRecreated();
+    case GLFW_KEY_KP_ENTER:
+        if (m_skipEnterEvents == false && action == GLFW_PRESS)
+        {
+            m_fullscreenRequested = true;
+        }
         break;
-    }
 
     case GLFW_KEY_H:
     case GLFW_KEY_LEFT:
@@ -883,11 +912,10 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
     }
 }
 
+// Char events are only relevant for ImGui text input - no viewer handling needed.
 void cViewer::onCharEvent(uint32_t c)
 {
     m_imgui->onChar(c);
-
-    // Char events are only relevant for ImGui text input — no viewer handling needed.
 }
 
 void cViewer::onFileDrop(const StringsList& paths)
@@ -1124,8 +1152,8 @@ void cViewer::centerWindow()
     if (centralSize.x > 0.0f && centralSize.y > 0.0f)
     {
         const auto winSize = m_window.getWindowSize();
-        overheadX = static_cast<float>(winSize.x) - centralSize.x;
-        overheadY = static_cast<float>(winSize.y) - centralSize.y;
+        overheadX = std::max(0.0f, static_cast<float>(winSize.x) - centralSize.x);
+        overheadY = std::max(0.0f, static_cast<float>(winSize.y) - centralSize.y);
     }
 
     auto tickness = m_config.showImageBorder
@@ -1140,13 +1168,12 @@ void cViewer::centerWindow()
         std::swap(imgWidth, imgHeight);
     }
 
-    // For fit-to-window: compute scale from the maximum available area
-    // (screen minus overhead from infobar and docked windows).
+    // When fitImage is on, clamp scale so the window fits on screen.
     if (m_config.fitImage && m_image->getWidth() > 0 && m_image->getHeight() > 0)
     {
         auto maxW = (static_cast<float>(screen.x) - overheadX) * m_ratio.x;
         auto maxH = (static_cast<float>(screen.y) - overheadY) * m_ratio.y;
-        if (imgWidth > maxW || imgHeight > maxH)
+        if (imgWidth * scale > maxW || imgHeight * scale > maxH)
         {
             scale = std::min(maxW / imgWidth, maxH / imgHeight);
         }
@@ -1251,7 +1278,7 @@ void cViewer::loadSubImage(int subStep)
 
 void cViewer::updateInfobar()
 {
-    const auto* path = m_filesList->getName();
+    const auto path = m_filesList->getName();
 
     m_infoBar->setFileName(path);
     m_infoBar->setScale(m_scale.getScale());

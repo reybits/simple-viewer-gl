@@ -297,6 +297,7 @@ int main(int argc, char* argv[])
         viewer.onUpdate();
 
         window.pollEvents();
+        viewer.processDeferred();
 
         frames++;
         const auto now = timing::seconds();
