@@ -141,33 +141,59 @@ bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         }
     }
 
-    const auto svgWidth  = document->width();
-    const auto svgHeight = document->height();
-    if (svgWidth <= 0.0f || svgHeight <= 0.0f)
+    m_svgWidth  = document->width();
+    m_svgHeight = document->height();
+    if (m_svgWidth <= 0.0f || m_svgHeight <= 0.0f)
     {
-        cLog::Error("Invalid SVG dimensions: {} x {}.", svgWidth, svgHeight);
+        cLog::Error("Invalid SVG dimensions: {} x {}.", m_svgWidth, m_svgHeight);
         return false;
     }
+
+    m_document = std::move(document);
 
     auto scale         = 1.0f;
     const auto minSize = m_config->minSvgSize;
     cLog::Debug("Config SVG size: {:.1f}.", minSize);
 
-    if (svgWidth < minSize && svgHeight < minSize)
+    if (m_svgWidth < minSize && m_svgHeight < minSize)
     {
-        const auto sw = minSize / svgWidth;
-        const auto sh = minSize / svgHeight;
+        const auto sw = minSize / m_svgWidth;
+        const auto sh = minSize / m_svgHeight;
         scale         = std::min(sw, sh);
-        cLog::Info("SVG size too small, upscaling to {} x {}.", svgWidth * scale, svgHeight * scale);
+        cLog::Info("SVG size too small, upscaling to {} x {}.", m_svgWidth * scale, m_svgHeight * scale);
         cLog::Info("Calculated scale: {} x {}.", sw, sh);
     }
 
     cLog::Debug("Selected scale: {:.1f}.", scale);
 
-    const auto width  = static_cast<int>(svgWidth * scale);
-    const auto height = static_cast<int>(svgHeight * scale);
+    const auto width  = static_cast<uint32_t>(m_svgWidth * scale);
+    const auto height = static_cast<uint32_t>(m_svgHeight * scale);
 
-    auto bitmap = document->renderToBitmap(width, height);
+    return rasterize(width, height, chunk, info);
+}
+
+bool cFormatSvg::LoadSubImageImpl(uint32_t /*subImage*/, sChunkData& chunk, sImageInfo& info)
+{
+    if (m_document == nullptr)
+    {
+        return false;
+    }
+
+    const auto width  = m_targetWidth;
+    const auto height = m_targetHeight;
+    if (width == 0 || height == 0)
+    {
+        return false;
+    }
+
+    cLog::Debug("SVG re-rasterize: {} x {}.", width, height);
+
+    return rasterize(width, height, chunk, info);
+}
+
+bool cFormatSvg::rasterize(uint32_t width, uint32_t height, sChunkData& chunk, sImageInfo& info)
+{
+    auto bitmap = m_document->renderToBitmap(static_cast<int>(width), static_cast<int>(height));
     if (bitmap.isNull())
     {
         cLog::Error("Can't rasterize SVG document.");
@@ -175,6 +201,7 @@ bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     }
 
     info.images   = 1;
+    info.isVector = true;
     chunk.format  = ePixelFormat::BGRA;
     chunk.bpp     = 32;
     chunk.effects = eEffect::Unpremultiply;

@@ -102,6 +102,7 @@ private:
         Down,
     };
     void updateScale(ScaleDirection direction, const Vectorf* cursorFb = nullptr);
+    float getRenderScale() const;
     void updateFiltering();
     void updateInfobar();
     void updatePixelInfo(const Vectorf& pos);
@@ -171,6 +172,10 @@ private:
         }
     };
     AnimationState m_anim;
+
+    bool m_rerasterPending        = false;
+    double m_rerasterDebounceTime = 0.0;
+    Vectori m_vectorBaseSize;
 
     std::unique_ptr<cQuadImage> m_image;
     std::unique_ptr<cQuadImage> m_preview; // lazy: created on preview ready, destroyed when full-res upload completes

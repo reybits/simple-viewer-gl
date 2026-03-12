@@ -23,6 +23,7 @@ struct sImageInfo
     uint32_t current = 0;
 
     bool isAnimation = false;
+    bool isVector = false; // vector format that supports re-rasterization at different sizes
     uint32_t delay = 0; // frame animation delay
 
     enum class ExifCategory : uint8_t

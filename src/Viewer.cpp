@@ -145,7 +145,7 @@ void cViewer::onRender()
 
     m_checkerBoard->render();
 
-    const float scale = m_scale.getScale();
+    const float scale = getRenderScale();
 
     render::setGlobals(getAdjustedCamera(), m_angle, scale, m_flipH, m_flipV);
 
@@ -358,6 +358,34 @@ void cViewer::onUpdate()
             loadSubImage(1);
         }
     }
+
+    // Re-rasterization for vector formats: fire after debounce period.
+    if (m_rerasterPending && isUploading() == false
+        && timing::seconds() >= m_rerasterDebounceTime)
+    {
+        m_rerasterPending = false;
+
+        const float scale = m_scale.getScale();
+
+        if (m_vectorBaseSize.x > 0 && m_vectorBaseSize.y > 0)
+        {
+            auto targetW = static_cast<uint32_t>(m_vectorBaseSize.x * scale + 0.5f);
+            auto targetH = static_cast<uint32_t>(m_vectorBaseSize.y * scale + 0.5f);
+
+            constexpr uint32_t MaxRasterDim = 16384;
+            if (targetW > MaxRasterDim || targetH > MaxRasterDim)
+            {
+                const float clampScale = static_cast<float>(MaxRasterDim) / std::max(targetW, targetH);
+                targetW = static_cast<uint32_t>(targetW * clampScale + 0.5f);
+                targetH = static_cast<uint32_t>(targetH * clampScale + 0.5f);
+            }
+
+            if (targetW != m_image->getWidth() || targetH != m_image->getHeight())
+            {
+                m_loader->rerasterize(targetW, targetH);
+            }
+        }
+    }
 }
 
 bool cViewer::isUploading() const
@@ -467,9 +495,29 @@ void cViewer::handleImageReady()
                 m_camera = Vectorf();
             }
 
+            m_vectorBaseSize = info.isVector
+                ? Vectori{ static_cast<int>(chunk.width), static_cast<int>(chunk.height) }
+                : Vectori{};
+
             m_selection->setImageDimension(chunk.width, chunk.height);
             centerWindow();
             enablePixelInfo(m_config.showPixelInfo);
+
+        }
+    }
+    else if (m_loader->getMode() == cImageLoader::Mode::Rerasterize && chunk.width > 0)
+    {
+        // Re-rasterize: replace GPU data. Scale (user-facing zoom) stays unchanged;
+        // getRenderScale() compensates via m_vectorBaseSize / raster ratio.
+        const auto oldW = m_image->getWidth();
+        m_uploadActive.store(true, std::memory_order_relaxed);
+        m_uploadStartTime = timing::seconds();
+        m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData(), 0, chunk.effects);
+
+        if (oldW > 0)
+        {
+            const float sizeRatio = static_cast<float>(chunk.width) / static_cast<float>(oldW);
+            m_camera *= sizeRatio;
         }
     }
     else if (m_loader->getMode() == cImageLoader::Mode::SubImage && chunk.width > 0)
@@ -597,7 +645,7 @@ void cViewer::onWindowRefresh()
 
 Vectorf cViewer::calculateMousePosition(const Vectorf& pos) const
 {
-    return pos * m_ratio / m_scale.getScale();
+    return pos * m_ratio / getRenderScale();
 }
 
 void cViewer::onMouseMove(const Vectorf& pos)
@@ -631,7 +679,7 @@ void cViewer::onMouseMove(const Vectorf& pos)
         m_pixelPopup->setCursor(cursor);
 
         const Vectorf point = screenToImage(posFixed);
-        m_selection->mouseMove(point, m_scale.getScale());
+        m_selection->mouseMove(point, getRenderScale());
 
         updatePixelInfo(posFixed);
     }
@@ -657,7 +705,7 @@ void cViewer::onMouseScroll(const Vectorf& offset)
     }
     else
     {
-        auto panRatio = m_ratio * m_config.panRatio / m_scale.getScale();
+        auto panRatio = m_ratio * m_config.panRatio / getRenderScale();
         shiftCamera({ -offset.x * panRatio.x, -offset.y * panRatio.y });
     }
 }
@@ -679,7 +727,7 @@ void cViewer::onMouseButton(int button, int action, int /*mods*/)
         auto pressed        = (action == GLFW_PRESS);
         auto isHovered      = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
         const Vectorf point = screenToImage(m_lastMouse);
-        m_selection->mouseButton(point, m_scale.getScale(), pressed && isHovered == false);
+        m_selection->mouseButton(point, getRenderScale(), pressed && isHovered == false);
 
         auto& rect = m_selection->getRect();
         if (rect.isSet() == false)
@@ -943,7 +991,7 @@ float cViewer::getStepVert(bool byPixel) const
 {
     if (byPixel)
     {
-        return m_config.shiftInPixels / m_scale.getScale();
+        return m_config.shiftInPixels / getRenderScale();
     }
 
     auto percent = m_config.shiftInPercent;
@@ -954,7 +1002,7 @@ float cViewer::getStepHori(bool byPixel) const
 {
     if (byPixel)
     {
-        return m_config.shiftInPixels / m_scale.getScale();
+        return m_config.shiftInPixels / getRenderScale();
     }
 
     auto percent = m_config.shiftInPercent;
@@ -993,7 +1041,7 @@ void cViewer::shiftCamera(const Vectorf& delta)
 
 void cViewer::clampCamera()
 {
-    const float scale    = m_scale.getScale();
+    const float scale    = getRenderScale();
     const auto centralFb = getCentralAreaFbSize();
     const float halfVpW  = centralFb.x * 0.5f / scale;
     const float halfVpH  = centralFb.y * 0.5f / scale;
@@ -1018,8 +1066,12 @@ void cViewer::calculateScale()
 {
     if (m_config.fitImage && m_image->getWidth() > 0 && m_image->getHeight() > 0)
     {
-        auto w = static_cast<float>(m_image->getWidth());
-        auto h = static_cast<float>(m_image->getHeight());
+        auto w = (m_vectorBaseSize.x > 0)
+            ? static_cast<float>(m_vectorBaseSize.x)
+            : static_cast<float>(m_image->getWidth());
+        auto h = (m_vectorBaseSize.y > 0)
+            ? static_cast<float>(m_vectorBaseSize.y)
+            : static_cast<float>(m_image->getHeight());
         if (m_angle == 90 || m_angle == 270)
         {
             std::swap(w, h);
@@ -1080,13 +1132,22 @@ Vectorf cViewer::getCentralAreaFbCenter() const
     return { pos.x + size.x * 0.5f, pos.y + size.y * 0.5f };
 }
 
+float cViewer::getRenderScale() const
+{
+    if (m_vectorBaseSize.x > 0 && m_image->getWidth() > 0)
+    {
+        return m_scale.getScale() * static_cast<float>(m_vectorBaseSize.x) / m_image->getWidth();
+    }
+    return m_scale.getScale();
+}
+
 Vectorf cViewer::getAdjustedCamera(float scaleOverride) const
 {
     const auto& viewport     = render::getViewportSize();
     const auto centralCenter = getCentralAreaFbCenter();
     const float s            = (scaleOverride > 0.0f)
         ? scaleOverride
-        : m_scale.getScale();
+        : getRenderScale();
     return { m_camera.x - (centralCenter.x - viewport.x * 0.5f) / s,
              m_camera.y - (centralCenter.y - viewport.y * 0.5f) / s };
 }
@@ -1095,7 +1156,7 @@ void cViewer::updateScale(ScaleDirection direction, const Vectorf* cursorFb)
 {
     m_config.fitImage = false;
 
-    const float oldScale = m_scale.getScale();
+    const float oldRenderScale = getRenderScale();
 
     int scale = m_scale.getScalePercent();
 
@@ -1126,11 +1187,17 @@ void cViewer::updateScale(ScaleDirection direction, const Vectorf* cursorFb)
     // Zoom to cursor: keep the point under the cursor stationary
     if (cursorFb)
     {
-        const float newScale = m_scale.getScale();
-        const float invDelta = 1.0f / oldScale - 1.0f / newScale;
+        const float newRenderScale = getRenderScale();
+        const float invDelta       = 1.0f / oldRenderScale - 1.0f / newRenderScale;
         const Vectorf diff   = *cursorFb - getCentralAreaFbCenter();
         m_camera -= diff * invDelta;
         clampCamera();
+    }
+
+    if (m_loader->getImageInfo().isVector)
+    {
+        m_rerasterPending      = true;
+        m_rerasterDebounceTime = timing::seconds() + 0.3;
     }
 
     updateFiltering();
@@ -1185,7 +1252,7 @@ void cViewer::centerWindow()
     auto tickness = m_config.showImageBorder
         ? m_border->getThickness() * 2
         : 0.0f;
-    auto scale    = m_scale.getScale();
+    auto scale    = getRenderScale();
 
     auto imgWidth  = static_cast<float>(m_image->getWidth());
     auto imgHeight = static_cast<float>(m_image->getHeight());
@@ -1246,6 +1313,13 @@ void cViewer::resetViewAndUpdate(int scalePercent)
     m_scale.setScalePercent(scalePercent);
     m_camera          = Vectorf();
     m_config.fitImage = false;
+
+    if (m_loader->getImageInfo().isVector)
+    {
+        m_rerasterPending      = true;
+        m_rerasterDebounceTime = timing::seconds() + 0.3;
+    }
+
     centerWindow();
     updateInfobar();
 }
@@ -1278,7 +1352,9 @@ void cViewer::loadImage(const char* path)
     m_config.fitImage = m_config.keepScale == false && m_config.fitImage;
 
     m_anim.reset();
-    m_imageInfo = {};
+    m_rerasterPending = false;
+    m_vectorBaseSize  = {};
+    m_imageInfo       = {};
     m_image->reset();
     m_preview.reset();
     m_previewData = {};
@@ -1357,7 +1433,7 @@ void cViewer::updateInfobar()
 Vectorf cViewer::screenToImage(const Vectorf& pos) const
 {
     const auto& viewport = render::getViewportSize();
-    auto scale           = m_scale.getScale();
+    auto scale           = getRenderScale();
     auto size            = Vectorf{ viewport.x / scale - m_image->getWidth(),
                                     viewport.y / scale - m_image->getHeight() };
     return pos + getAdjustedCamera() - size * 0.5f;
@@ -1369,7 +1445,7 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
 
     const Vectorf point = screenToImage(pos);
 
-    pixelInfo.mouse = pos * m_scale.getScale();
+    pixelInfo.mouse = pos * getRenderScale();
     pixelInfo.point = point;
 
     if (m_loader->isLoaded())
@@ -1407,7 +1483,7 @@ void cViewer::updateCursorState(bool show)
 
 void cViewer::startLoading()
 {
-    if (m_anim.isAnimated == false)
+    if (m_anim.isAnimated == false && m_loader->getMode() != cImageLoader::Mode::Rerasterize)
     {
         m_progress->show();
     }

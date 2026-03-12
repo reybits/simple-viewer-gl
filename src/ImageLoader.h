@@ -45,12 +45,14 @@ public:
 
     void loadImage(const std::string& path);
     void loadSubImage(unsigned subImage);
+    void rerasterize(uint32_t targetWidth, uint32_t targetHeight);
     bool isLoaded() const;
 
     enum class Mode
     {
         Image,
-        SubImage
+        SubImage,
+        Rerasterize
     };
     Mode getMode() const
     {

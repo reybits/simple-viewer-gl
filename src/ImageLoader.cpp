@@ -12,6 +12,7 @@
 #include "Common/Config.h"
 #include "Common/File.h"
 #include "Common/Timing.h"
+#include "Formats/Format.h"
 #include "Formats/FormatRegistry.h"
 #include "Log/Log.h"
 #include "Network/Curl.h"
@@ -166,6 +167,37 @@ void cImageLoader::loadSubImage(unsigned subImage)
         m_callbacks->endLoading();
     },
                            subImage);
+}
+
+void cImageLoader::rerasterize(uint32_t targetWidth, uint32_t targetHeight)
+{
+    assert(m_activeReader != nullptr);
+
+    stop();
+
+    m_chunk.readyHeight.store(0, std::memory_order_relaxed);
+    m_chunk.consumedHeight.store(0, std::memory_order_relaxed);
+    m_chunk.lutData.clear();
+
+    m_metrics.reset();
+
+    m_activeReader->setTargetSize(targetWidth, targetHeight);
+
+    m_mode = Mode::Rerasterize;
+    m_completed.store(false, std::memory_order_relaxed);
+    m_loader = std::thread([this] {
+        const auto t0 = timing::seconds();
+        m_callbacks->startLoading();
+        if (m_activeReader->LoadSubImage(0, m_chunk, m_info) == false)
+        {
+            cLog::Error("Failed to re-rasterize image.");
+            m_chunk.reset();
+        }
+        m_metrics.bitmapBytes = m_chunk.bitmap.size();
+        m_metrics.totalMs     = (timing::seconds() - t0) * 1000.0;
+        m_completed.store(true, std::memory_order_release);
+        m_callbacks->endLoading();
+    });
 }
 
 bool cImageLoader::isLoaded() const

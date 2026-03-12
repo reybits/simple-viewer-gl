@@ -40,6 +40,12 @@ public:
     // Caller must set chunk.width, chunk.height, info.bppImage before calling.
     void setupBitmap(sChunkData& chunk, sImageInfo& info, uint32_t bpp, ePixelFormat format, const char* formatName);
 
+    void setTargetSize(uint32_t width, uint32_t height)
+    {
+        m_targetWidth = width;
+        m_targetHeight = height;
+    }
+
     virtual void stop()
     {
         m_stop = true;
@@ -74,4 +80,6 @@ private:
 protected:
     const sConfig* m_config = nullptr;
     bool m_stop = false;
+    uint32_t m_targetWidth = 0;
+    uint32_t m_targetHeight = 0;
 };
