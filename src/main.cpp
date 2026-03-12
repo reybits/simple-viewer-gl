@@ -295,11 +295,10 @@ int main(int argc, char* argv[])
     {
         const auto timeStart = timing::seconds();
 
-        viewer.onRender();
-        viewer.onUpdate();
-
         window.pollEvents();
         viewer.processDeferred();
+        viewer.onUpdate();
+        viewer.onRender();
 
         frames++;
         const auto now = timing::seconds();
