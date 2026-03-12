@@ -11,7 +11,6 @@
 #include "Common/ChunkData.h"
 #include "Common/Cms.h"
 #include "Common/File.h"
-
 #include "Common/Helpers.h"
 #include "Common/ImageInfo.h"
 #include "Log/Log.h"
@@ -32,7 +31,7 @@ public:
     {
         if (create())
         {
-            m_data = data;
+            m_data   = data;
             m_remain = size;
             m_offset = 0u;
 
@@ -91,14 +90,14 @@ private:
 
     void destroy()
     {
-        m_data = nullptr;
+        m_data   = nullptr;
         m_remain = 0u;
         m_offset = 0u;
 
         if (m_png != nullptr)
         {
             png_destroy_read_struct(&m_png, &m_info, nullptr);
-            m_png = nullptr;
+            m_png  = nullptr;
             m_info = nullptr;
         }
     }
@@ -127,11 +126,11 @@ private:
 
 private:
     png_structp m_png = nullptr;
-    png_infop m_info = nullptr;
+    png_infop m_info  = nullptr;
 
     const uint8_t* m_data = nullptr;
-    uint32_t m_remain = 0u;
-    uint32_t m_offset = 0u;
+    uint32_t m_remain     = 0u;
+    uint32_t m_offset     = 0u;
 };
 
 namespace
@@ -224,7 +223,7 @@ bool cPngReader::loadPng(sChunkData& chunk, sImageInfo& info, cFile& file)
 
 bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImageInfo& imgInfo)
 {
-    auto png = wrapper.getPng();
+    auto png  = wrapper.getPng();
     auto info = wrapper.getInfo();
 
     if (setjmp(png_jmpbuf(png)) != 0)
@@ -263,10 +262,10 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImage
     // Update info structure to apply transformations
     png_read_update_info(png, info);
 
-    chunk.width = png_get_image_width(png, info);
+    chunk.width  = png_get_image_width(png, info);
     chunk.height = png_get_image_height(png, info);
-    chunk.bpp = png_get_bit_depth(png, info) * png_get_channels(png, info);
-    chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+    chunk.bpp    = png_get_bit_depth(png, info) * png_get_channels(png, info);
+    chunk.pitch  = helpers::calculatePitch(chunk.width, chunk.bpp);
 
     auto srcPitch = png_get_rowbytes(png, info);
     if (chunk.pitch < srcPitch)
@@ -303,7 +302,7 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImage
 
     // Extract ICC profile early (available after png_read_info)
     uint32_t iccProfileSize = 0;
-    auto iccProfileData = locateICCProfile(png, info, iccProfileSize);
+    auto iccProfileData     = locateICCProfile(png, info, iccProfileSize);
     m_iccProfile.resize(iccProfileSize);
     if (iccProfileData != nullptr && iccProfileSize != 0)
     {
@@ -312,7 +311,9 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImage
 
     // Allocate band buffer
     constexpr uint32_t BandRows = 8192;
-    chunk.bandHeight = (BandRows < chunk.height) ? BandRows : chunk.height;
+    chunk.bandHeight            = BandRows < chunk.height
+        ? BandRows
+        : chunk.height;
     chunk.resizeBitmap(chunk.pitch, chunk.bandHeight);
 
     // Generate 3D LUT from ICC profile (applied on GPU during rendering)
@@ -322,7 +323,7 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImage
             m_iccProfile.data(), static_cast<uint32_t>(m_iccProfile.size()), chunk.format);
         if (chunk.lutData.empty() == false)
         {
-            chunk.lutSize = cms::LutGridSize;
+            chunk.effects |= eEffect::Lut;
         }
     }
 

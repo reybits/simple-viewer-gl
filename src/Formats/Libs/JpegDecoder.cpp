@@ -137,9 +137,9 @@ namespace
 } // namespace
 
 cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, sChunkData& chunk, sImageInfo& info,
-                                                const ProgressCallback& onProgress, const AllocatedCallback& onAllocated,
-                                                const ImageInfoCallback& onImageInfo, const PreviewCallback& onPreview,
-                                                const bool& stop)
+                                              const ProgressCallback& onProgress, const AllocatedCallback& onAllocated,
+                                              const ImageInfoCallback& onImageInfo, const PreviewCallback& onPreview,
+                                              const bool& stop)
 {
     Result result;
 
@@ -147,7 +147,7 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     jpeg_decompress_struct cinfo;
     sErrorMgr jerr;
 
-    cinfo.err = jpeg_std_error(&jerr.pub);
+    cinfo.err           = jpeg_std_error(&jerr.pub);
     jerr.pub.error_exit = ErrorExit;
     if (setjmp(jerr.setjmp_buffer))
     {
@@ -175,8 +175,8 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     jpeg_calc_output_dimensions(&cinfo);
 
     info.fileSize = size;
-    chunk.width = cinfo.output_width;
-    chunk.height = cinfo.output_height;
+    chunk.width   = cinfo.output_width;
+    chunk.height  = cinfo.output_height;
     info.bppImage = cinfo.num_components * static_cast<uint32_t>(cinfo.data_precision);
 
     // Extract markers (available after jpeg_read_header)
@@ -186,7 +186,9 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     // Set formatName based on ICC presence so the viewer shows
     // the correct type from the start.
     const bool hasIcc = result.iccProfile.empty() == false;
-    info.formatName = hasIcc ? "jpeg/icc" : "jpeg";
+    info.formatName   = hasIcc
+        ? "jpeg/icc"
+        : "jpeg";
 
     if (onImageInfo)
     {
@@ -197,7 +199,7 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     if (onPreview && result.exifData.empty() == false)
     {
         const uint8_t* thumbData = nullptr;
-        uint32_t thumbSize = 0;
+        uint32_t thumbSize       = 0;
         if (locateExifThumbnail(result.exifData, thumbData, thumbSize))
         {
             auto thumb = decodeThumbnail(thumbData, thumbSize);
@@ -220,7 +222,8 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     if (isCMYK)
     {
         // Upload raw CMYK bytes — GPU shader converts to RGB
-        fmt = ePixelFormat::CMYK;
+        fmt = ePixelFormat::RGBA;
+        chunk.effects |= eEffect::Cmyk;
         chunk.allocate(chunk.width, chunk.height, 32, fmt, BandRows);
     }
     else
@@ -234,16 +237,11 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     // Step 7: generate 3D LUT from ICC profile (applied on GPU during rendering)
     if (result.iccProfile.empty() == false)
     {
-        // For CMYK, the ICC profile is typically RGB — it applies after CMYK→RGB
-        // conversion in the shader. Pass the post-conversion format for LUT generation.
-        auto lutFormat = isCMYK
-            ? ePixelFormat::CMYK
-            : fmt;
         chunk.lutData = cms::generateLut3D(
-            result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size()), lutFormat);
+            result.iccProfile.data(), static_cast<uint32_t>(result.iccProfile.size()), fmt);
         if (chunk.lutData.empty() == false)
         {
-            chunk.lutSize = cms::LutGridSize;
+            chunk.effects |= eEffect::Lut;
         }
     }
 
@@ -272,7 +270,7 @@ cJpegDecoder::Bitmap cJpegDecoder::decodeThumbnail(const uint8_t* in, uint32_t s
     jpeg_decompress_struct cinfo;
     sErrorMgr jerr;
 
-    cinfo.err = jpeg_std_error(&jerr.pub);
+    cinfo.err           = jpeg_std_error(&jerr.pub);
     jerr.pub.error_exit = ErrorExit;
     if (setjmp(jerr.setjmp_buffer))
     {
@@ -286,10 +284,10 @@ cJpegDecoder::Bitmap cJpegDecoder::decodeThumbnail(const uint8_t* in, uint32_t s
     cinfo.out_color_space = JCS_RGB;
     jpeg_start_decompress(&cinfo);
 
-    bitmap.width = cinfo.output_width;
+    bitmap.width  = cinfo.output_width;
     bitmap.height = cinfo.output_height;
-    bitmap.bpp = static_cast<uint32_t>(cinfo.output_components) * 8;
-    bitmap.pitch = bitmap.width * cinfo.output_components;
+    bitmap.bpp    = static_cast<uint32_t>(cinfo.output_components) * 8;
+    bitmap.pitch  = bitmap.width * cinfo.output_components;
     bitmap.format = ePixelFormat::RGB;
     bitmap.data.resize(bitmap.pitch * bitmap.height);
 
@@ -314,7 +312,7 @@ void cJpegDecoder::setupMarkers(jpeg_decompress_struct* cinfo)
 
 bool cJpegDecoder::locateICCProfile(const jpeg_decompress_struct& cinfo, std::vector<uint8_t>& icc)
 {
-    constexpr char kSignature[] = "ICC_PROFILE";
+    constexpr char kSignature[]    = "ICC_PROFILE";
     constexpr size_t kHeaderLength = 14; // signature (12) + seq (1) + count (1)
 
     // First pass: count chunks and total size
@@ -422,7 +420,7 @@ bool cJpegDecoder::locateExifThumbnail(const std::vector<uint8_t>& exif, const u
         return false;
     }
 
-    const auto* tiff = exif.data() + kExifHeaderSize;
+    const auto tiff      = exif.data() + kExifHeaderSize;
     const size_t tiffLen = exif.size() - kExifHeaderSize;
 
     // Determine byte order
@@ -466,9 +464,9 @@ bool cJpegDecoder::locateExifThumbnail(const std::vector<uint8_t>& exif, const u
     }
 
     // Skip IFD0 to find IFD1
-    uint16_t entryCount = read16(tiff + ifdOffset);
+    uint16_t entryCount         = read16(tiff + ifdOffset);
     constexpr size_t kEntrySize = 12;
-    uint32_t nextIfdPtr = ifdOffset + 2 + entryCount * kEntrySize;
+    uint32_t nextIfdPtr         = ifdOffset + 2 + entryCount * kEntrySize;
     if (nextIfdPtr + 4 > tiffLen)
     {
         return false;
@@ -481,7 +479,7 @@ bool cJpegDecoder::locateExifThumbnail(const std::vector<uint8_t>& exif, const u
     }
 
     // Parse IFD1 for thumbnail offset and length
-    uint16_t ifd1Count = read16(tiff + ifd1Offset);
+    uint16_t ifd1Count   = read16(tiff + ifd1Offset);
     uint32_t thumbOffset = 0;
     uint32_t thumbLength = 0;
 

@@ -31,16 +31,16 @@ namespace
     // http://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
     enum class ColorMode : uint16_t
     {
-        MONO = 0,
+        MONO      = 0,
         GRAYSCALE = 1,
-        INDEXED = 2,
-        RGB = 3,
-        CMYK = 4,
+        INDEXED   = 2,
+        RGB       = 3,
+        CMYK      = 4,
         // UNUSED    = 5,
         // UNUSED    = 6,
         MULTICHANNEL = 7,
-        DUOTONE = 8,
-        LAB = 9
+        DUOTONE      = 8,
+        LAB          = 9
     };
 
 #pragma pack(push, 1)
@@ -83,15 +83,15 @@ namespace
 
     enum class CompressionMethod : uint16_t
     {
-        RAW = 0,        // Raw image data
-        RLE = 1,        // RLE compressed the image data starts with the byte counts
-                        // for all the scan lines (rows * channels), with each count
-                        // stored as a two-byte value. The RLE compressed data follows,
-                        // with each scan line compressed separately. The RLE compression
-                        // is the same compression algorithm used by the Macintosh ROM
-                        // routine PackBits, and the TIFF standard.
-        ZIP = 2,        // ZIP without prediction
-        ZIP_PREDICT = 3 // ZIP with prediction
+        RAW = 0,         // Raw image data
+        RLE = 1,         // RLE compressed the image data starts with the byte counts
+                         // for all the scan lines (rows * channels), with each count
+                         // stored as a two-byte value. The RLE compressed data follows,
+                         // with each scan line compressed separately. The RLE compression
+                         // is the same compression algorithm used by the Macintosh ROM
+                         // routine PackBits, and the TIFF standard.
+        ZIP         = 2, // ZIP without prediction
+        ZIP_PREDICT = 3  // ZIP with prediction
     };
 
     bool skipNextBlock(cFile& file, bool isPsb = false)
@@ -121,9 +121,9 @@ namespace
         return true;
     }
 
-    constexpr uint16_t PSD_THUMBNAIL_RESOURCE = 0x040C;
+    constexpr uint16_t PSD_THUMBNAIL_RESOURCE   = 0x040C;
     constexpr uint16_t PSD_ICC_PROFILE_RESOURCE = 0x040F;
-    constexpr uint16_t PSD_EXIF_DATA_RESOURCE = 0x0422;
+    constexpr uint16_t PSD_EXIF_DATA_RESOURCE   = 0x0422;
 
     // PSD thumbnail resource header (28 bytes before JPEG data)
     struct ThumbnailHeader
@@ -220,7 +220,7 @@ namespace
                 }
                 else
                 {
-                    auto format = helpers::read_uint32(reinterpret_cast<uint8_t*>(&th.format));
+                    auto format   = helpers::read_uint32(reinterpret_cast<uint8_t*>(&th.format));
                     auto jpegSize = helpers::read_uint32(reinterpret_cast<uint8_t*>(&th.compressedSize));
                     if (format == 1 && jpegSize > 0 && jpegSize <= dataSize - sizeof(ThumbnailHeader))
                     {
@@ -283,7 +283,7 @@ namespace
 
         // Read all remaining compressed data from file
         const auto compressedStart = file.getOffset();
-        const auto compressedSize = file.getSize() - compressedStart;
+        const auto compressedSize  = file.getSize() - compressedStart;
         if (compressedSize <= 0)
         {
             return false;
@@ -296,14 +296,14 @@ namespace
             return false;
         }
 
-        auto* inPtr = compressed.data();
+        auto inPtr       = compressed.data();
         auto inRemaining = static_cast<uInt>(bytesRead);
 
         channelBufs.resize(channels);
         for (uint32_t ch = 0; ch < channels; ch++)
         {
             z_stream strm = {};
-            strm.next_in = inPtr;
+            strm.next_in  = inPtr;
             strm.avail_in = inRemaining;
 
             if (inflateInit(&strm) != Z_OK)
@@ -313,7 +313,7 @@ namespace
             }
 
             channelBufs[ch].resize(channelSize);
-            strm.next_out = channelBufs[ch].data();
+            strm.next_out  = channelBufs[ch].data();
             strm.avail_out = channelSize;
 
             auto ret = inflate(&strm, Z_FINISH);
@@ -325,7 +325,7 @@ namespace
             }
 
             // Advance past consumed compressed data for next channel's stream
-            inPtr = const_cast<uint8_t*>(strm.next_in);
+            inPtr       = const_cast<uint8_t*>(strm.next_in);
             inRemaining = strm.avail_in;
 
             inflateEnd(&strm);
@@ -336,7 +336,7 @@ namespace
 
     void decodeRle(uint8_t* dst, uint32_t dstSize, const uint8_t* src, uint32_t lineLength)
     {
-        uint32_t bytesRead = 0;
+        uint32_t bytesRead    = 0;
         uint32_t bytesWritten = 0;
         while (bytesRead < lineLength)
         {
@@ -436,13 +436,13 @@ void cFormatPsd::decodePreview(const Buffer& jpegData, uint32_t fullWidth, uint3
     }
 
     sPreviewData data;
-    data.bitmap = std::move(bitmap.data);
-    data.width = bitmap.width;
-    data.height = bitmap.height;
-    data.pitch = bitmap.pitch;
-    data.bpp = bitmap.bpp;
-    data.format = bitmap.format;
-    data.fullImageWidth = fullWidth;
+    data.bitmap          = std::move(bitmap.data);
+    data.width           = bitmap.width;
+    data.height          = bitmap.height;
+    data.pitch           = bitmap.pitch;
+    data.bpp             = bitmap.bpp;
+    data.format          = bitmap.format;
+    data.fullImageWidth  = fullWidth;
     data.fullImageHeight = fullHeight;
 
     cLog::Debug("PSD preview: {}x{}, full: {}x{}.", bitmap.width, bitmap.height, fullWidth, fullHeight);
@@ -471,7 +471,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     }
 
     const uint16_t version = helpers::read_uint16(reinterpret_cast<uint8_t*>(&header.version));
-    const bool isPsb = (version == 2);
+    const bool isPsb       = (version == 2);
 
     info.formatName = isPsb
         ? "psb"
@@ -533,14 +533,14 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
 
-    const uint32_t fullWidth = helpers::read_uint32(reinterpret_cast<uint8_t*>(&header.columns));
+    const uint32_t fullWidth  = helpers::read_uint32(reinterpret_cast<uint8_t*>(&header.columns));
     const uint32_t fullHeight = helpers::read_uint32(reinterpret_cast<uint8_t*>(&header.rows));
     decodePreview(thumbnailJpeg, fullWidth, fullHeight);
 
 #if defined(EXIF_SUPPORT)
     if (exifData.empty() == false)
     {
-        auto* ed = exif_data_new_from_data(exifData.data(), static_cast<unsigned>(exifData.size()));
+        auto ed = exif_data_new_from_data(exifData.data(), static_cast<unsigned>(exifData.size()));
         if (ed != nullptr)
         {
             auto& exifList = info.exifList;
@@ -581,7 +581,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
             ExifEntry* orientEntry = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_ORIENTATION);
             if (orientEntry != nullptr)
             {
-                auto byteOrder = exif_data_get_byte_order(ed);
+                auto byteOrder       = exif_data_get_byte_order(ed);
                 info.exifOrientation = exif_get_short(orientEntry->data, byteOrder);
             }
 
@@ -614,7 +614,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
 
-    chunk.width = fullWidth;
+    chunk.width  = fullWidth;
     chunk.height = fullHeight;
 
     // this will be needed for RLE decompression
@@ -659,32 +659,33 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     // Determine output format early so setupBitmap/signalBitmapAllocated fires
     // before the heavy channel reading loop
-    uint32_t outBpp = 0;
+    uint32_t outBpp      = 0;
     uint32_t outChannels = 0;
-    auto outFormat = ePixelFormat::RGB;
+    auto outFormat       = ePixelFormat::RGB;
 
     if (colorMode == ColorMode::RGB)
     {
         if (channels == 3)
         {
-            outBpp = 24;
+            outBpp      = 24;
             outChannels = 3;
-            outFormat = ePixelFormat::RGB;
+            outFormat   = ePixelFormat::RGB;
         }
         else
         {
-            outBpp = 32;
+            outBpp      = 32;
             outChannels = 4;
-            outFormat = ePixelFormat::RGBA;
+            outFormat   = ePixelFormat::RGBA;
         }
     }
     else if (colorMode == ColorMode::CMYK)
     {
         if (channels >= 4)
         {
-            outBpp = 32;
+            outBpp      = 32;
             outChannels = 4;
-            outFormat = ePixelFormat::CMYK;
+            outFormat   = ePixelFormat::RGBA;
+            chunk.effects |= eEffect::Cmyk;
         }
     }
     else if (colorMode == ColorMode::GRAYSCALE || colorMode == ColorMode::DUOTONE)
@@ -693,15 +694,15 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         // Extra channels beyond 2 (spot colors etc.) are ignored
         if (channels >= 2)
         {
-            outBpp = 16;
+            outBpp      = 16;
             outChannels = 2;
-            outFormat = ePixelFormat::LuminanceAlpha;
+            outFormat   = ePixelFormat::LuminanceAlpha;
         }
         else
         {
-            outBpp = 8;
+            outBpp      = 8;
             outChannels = 1;
-            outFormat = ePixelFormat::Luminance;
+            outFormat   = ePixelFormat::Luminance;
         }
     }
     else if (colorMode == ColorMode::LAB)
@@ -709,13 +710,13 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         if (channels >= 3)
         {
             // Upload L,a,b as RGB; LAB→sRGB conversion via 3D LUT on GPU
-            outBpp = channels >= 4
+            outBpp      = channels >= 4
                 ? 32
                 : 24;
             outChannels = channels >= 4
                 ? 4
                 : 3;
-            outFormat = channels >= 4
+            outFormat   = channels >= 4
                 ? ePixelFormat::RGBA
                 : ePixelFormat::RGB;
         }
@@ -724,9 +725,13 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     {
         // 1 channel of palette indices → expand to RGB during interleave
         // 2 channels = index + alpha → RGBA
-        outBpp = channels >= 2 ? 32 : 24;
-        outChannels = channels >= 2 ? 4 : 3;
-        outFormat = channels >= 2
+        outBpp      = channels >= 2
+            ? 32
+            : 24;
+        outChannels = channels >= 2
+            ? 4
+            : 3;
+        outFormat   = channels >= 2
             ? ePixelFormat::RGBA
             : ePixelFormat::RGB;
     }
@@ -753,13 +758,13 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         chunk.lutData = cms::generateLabLut3D();
         if (chunk.lutData.empty() == false)
         {
-            chunk.lutSize = cms::LutGridSize;
+            chunk.effects |= eEffect::Lut;
         }
     }
 
     signalImageInfo();
 
-    const bool isZip = (compression == CompressionMethod::ZIP || compression == CompressionMethod::ZIP_PREDICT);
+    const bool isZip        = (compression == CompressionMethod::ZIP || compression == CompressionMethod::ZIP_PREDICT);
     const uint32_t rowBytes = chunk.width * bytesPerComponent;
 
     // For ZIP: decompress all channels upfront (one zlib stream, no per-row offsets).
@@ -894,7 +899,9 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
             const auto rowOff = isZip
                 ? row * rowBytes
                 : (row - batchStart) * rowBytes;
-            auto& srcBufs = isZip ? zipChannelBufs : batchBufs;
+            auto& srcBufs     = isZip
+                ? zipChannelBufs
+                : batchBufs;
 
             if (colorMode == ColorMode::INDEXED)
             {
@@ -904,9 +911,9 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 for (uint32_t x = 0; x < chunk.width; x++)
                 {
                     const uint8_t idx = srcBufs[0][rowOff + x];
-                    out[0] = palette[idx];
-                    out[1] = palette[256 + idx];
-                    out[2] = palette[512 + idx];
+                    out[0]            = palette[idx];
+                    out[1]            = palette[256 + idx];
+                    out[2]            = palette[512 + idx];
                     if (hasAlpha)
                     {
                         out[3] = srcBufs[1][rowOff + x];
@@ -924,7 +931,7 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                         if (bytesPerComponent == 4)
                         {
                             // 32-bit: IEEE 754 float (big-endian) → uint8_t
-                            const auto* p = srcBufs[ch].data() + idx;
+                            const auto p        = srcBufs[ch].data() + idx;
                             const uint32_t bits = helpers::read_uint32(p);
                             float val;
                             std::memcpy(&val, &bits, sizeof(float));

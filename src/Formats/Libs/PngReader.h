@@ -69,9 +69,9 @@ public:
     static const uint32_t HeaderSize = 8;
 
 private:
-    progressCallback m_progress = nullptr;
+    progressCallback m_progress   = nullptr;
     allocatedCallback m_allocated = nullptr;
-    const bool* m_stop = nullptr;
+    const bool* m_stop            = nullptr;
 
     IccProfile m_iccProfile;
 };

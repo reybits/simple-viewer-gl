@@ -88,7 +88,9 @@ namespace
             return static_cast<size_t>(-1);
         }
         auto bytesRead = ctx->file->read(buffer, size);
-        return bytesRead ? bytesRead : static_cast<size_t>(-1);
+        return bytesRead
+            ? bytesRead
+            : static_cast<size_t>(-1);
     }
 
     void streamClose(void* /*user*/)
@@ -148,27 +150,27 @@ namespace
 
         if (numcomps == 1)
         {
-            outBpp = 8;
+            outBpp    = 8;
             outFormat = ePixelFormat::Luminance;
         }
         else if (numcomps == 2)
         {
-            outBpp = 16;
+            outBpp    = 16;
             outFormat = ePixelFormat::LuminanceAlpha;
         }
         else if (numcomps == 3)
         {
-            outBpp = 24;
+            outBpp    = 24;
             outFormat = ePixelFormat::RGB;
         }
         else if (colorspace == OPJ_CLRSPC_CMYK)
         {
-            outBpp = 32;
-            outFormat = ePixelFormat::CMYK;
+            outBpp    = 32;
+            outFormat = ePixelFormat::RGBA;
         }
         else
         {
-            outBpp = 32;
+            outBpp    = 32;
             outFormat = ePixelFormat::RGBA;
         }
 
@@ -193,7 +195,7 @@ namespace
             }
         }
 
-        CodecContext(const CodecContext&) = delete;
+        CodecContext(const CodecContext&)            = delete;
         CodecContext& operator=(const CodecContext&) = delete;
         CodecContext(CodecContext&& o) noexcept
             : codec(o.codec)
@@ -206,10 +208,16 @@ namespace
         {
             if (this != &o)
             {
-                if (codec != nullptr) { opj_destroy_codec(codec); }
-                if (image != nullptr) { opj_image_destroy(image); }
-                codec = o.codec;
-                image = o.image;
+                if (codec != nullptr)
+                {
+                    opj_destroy_codec(codec);
+                }
+                if (image != nullptr)
+                {
+                    opj_image_destroy(image);
+                }
+                codec   = o.codec;
+                image   = o.image;
                 o.codec = nullptr;
                 o.image = nullptr;
             }
@@ -290,25 +298,25 @@ bool cFormatJp2k::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
         return false;
     }
 
-    auto cstrInfo = opj_get_cstr_info(headerCtx.codec);
-    const uint32_t numTilesX = cstrInfo->tw;
-    const uint32_t numTilesY = cstrInfo->th;
-    const uint32_t tdx = cstrInfo->tdx;
-    const uint32_t tdy = cstrInfo->tdy;
-    const uint32_t numTiles = numTilesX * numTilesY;
+    auto cstrInfo                 = opj_get_cstr_info(headerCtx.codec);
+    const uint32_t numTilesX      = cstrInfo->tw;
+    const uint32_t numTilesY      = cstrInfo->th;
+    const uint32_t tdx            = cstrInfo->tdx;
+    const uint32_t tdy            = cstrInfo->tdy;
+    const uint32_t numTiles       = numTilesX * numTilesY;
     const uint32_t numResolutions = cstrInfo->m_default_tile_info.tccp_info[0].numresolutions;
     opj_destroy_cstr_info(&cstrInfo);
 
-    const uint32_t fullWidth = headerCtx.image->comps[0].w;
+    const uint32_t fullWidth  = headerCtx.image->comps[0].w;
     const uint32_t fullHeight = headerCtx.image->comps[0].h;
 
     cLog::Debug("Tile grid: {}x{} ({}x{} per tile), {} total, {} resolutions.",
                 numTilesX, numTilesY, tdx, tdy, numTiles, numResolutions);
 
     // Determine if a reduced-resolution preview is worthwhile.
-    const uint32_t maxDim = std::max(fullWidth, fullHeight);
+    const uint32_t maxDim            = std::max(fullWidth, fullHeight);
     constexpr uint32_t PreviewTarget = 2000;
-    uint32_t reduceFactor = 0;
+    uint32_t reduceFactor            = 0;
     if (numResolutions > 1)
     {
         while (reduceFactor + 1 < numResolutions
@@ -356,10 +364,10 @@ bool cFormatJp2k::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
     }
 
     const uint32_t numcomps = fullCtx.image->numcomps;
-    chunk.width = fullCtx.image->comps[0].w;
-    chunk.height = fullCtx.image->comps[0].h;
-    info.bppImage = numcomps * fullCtx.image->comps[0].prec;
-    info.images = 1;
+    chunk.width             = fullCtx.image->comps[0].w;
+    chunk.height            = fullCtx.image->comps[0].h;
+    info.bppImage           = numcomps * fullCtx.image->comps[0].prec;
+    info.images             = 1;
 
     cLog::Debug("Components: {}.", numcomps);
     cLog::Debug("  Colorspace: {}.", getColorSpaceName(fullCtx.image->color_space));
@@ -370,9 +378,15 @@ bool cFormatJp2k::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
 
     const bool hasIcc = fullCtx.image->icc_profile_buf != nullptr
         && fullCtx.image->icc_profile_len > 0;
-    info.formatName = hasIcc ? "jpeg2000/icc" : "jpeg2000";
+    info.formatName = hasIcc
+        ? "jpeg2000/icc"
+        : "jpeg2000";
 
     chunk.allocate(chunk.width, chunk.height, bpp, format);
+    if (fullCtx.image->color_space == OPJ_CLRSPC_CMYK)
+    {
+        chunk.effects |= eEffect::Cmyk;
+    }
 
     // Generate ICC LUT before signalBitmapAllocated so it's correct from the first frame.
     if (hasIcc)
@@ -389,7 +403,7 @@ bool cFormatJp2k::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
     {
         // Single-tile image: strip-based decoding via opj_set_decode_area().
         constexpr uint32_t StripHeight = 4096;
-        const uint32_t numStrips = (chunk.height + StripHeight - 1) / StripHeight;
+        const uint32_t numStrips       = (chunk.height + StripHeight - 1) / StripHeight;
 
         for (uint32_t strip = 0; strip < numStrips && m_stop == false; strip++)
         {
@@ -510,32 +524,36 @@ void cFormatJp2k::decodePreview(cFile& file, long fileSize, uint32_t reduceFacto
     }
 
     sPreviewData preview;
-    preview.width = previewChunk.width;
-    preview.height = previewChunk.height;
-    preview.pitch = previewChunk.pitch;
-    preview.bpp = bpp;
-    preview.format = format;
-    preview.fullImageWidth = fullWidth;
+    preview.width           = previewChunk.width;
+    preview.height          = previewChunk.height;
+    preview.pitch           = previewChunk.pitch;
+    preview.bpp             = bpp;
+    preview.format          = format;
+    preview.fullImageWidth  = fullWidth;
     preview.fullImageHeight = fullHeight;
-    preview.bitmap = std::move(previewChunk.bitmap);
+    preview.bitmap          = std::move(previewChunk.bitmap);
 
     signalPreviewReady(std::move(preview));
 }
 
 void cFormatJp2k::convertPixels(opj_image_t* image, sChunkData& chunk, uint32_t dstX, uint32_t dstY)
 {
-    const uint32_t tileW = image->comps[0].w;
-    const uint32_t tileH = image->comps[0].h;
-    const uint32_t numcomps = image->numcomps;
+    const uint32_t tileW         = image->comps[0].w;
+    const uint32_t tileH         = image->comps[0].h;
+    const uint32_t numcomps      = image->numcomps;
     const uint32_t bytesPerPixel = chunk.bpp / 8;
-    const uint32_t prec = image->comps[0].prec;
-    const uint32_t shift = (prec > 8) ? prec - 8 : 0;
-    const bool sgnd = image->comps[0].sgnd != 0;
+    const uint32_t prec          = image->comps[0].prec;
+    const uint32_t shift         = prec > 8
+        ? (prec - 8)
+        : 0u;
+    const bool sgnd              = image->comps[0].sgnd != 0;
 
     // Read a component sample and normalize to 8-bit.
     auto read8 = [sgnd, shift](const opj_image_comp_t& comp, uint32_t pos) -> uint8_t {
         auto value = static_cast<uint32_t>(comp.data[pos]);
-        value += (sgnd ? 1u << (comp.prec - 1) : 0u);
+        value += sgnd
+            ? (1u << (comp.prec - 1))
+            : 0u;
         return static_cast<uint8_t>(value >> shift);
     };
 
