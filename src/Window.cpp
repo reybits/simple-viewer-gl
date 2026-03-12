@@ -412,7 +412,10 @@ void cWindow::toggleFullscreen(const sConfig& config)
     if (m_windowed)
     {
         // Save windowed geometry for later restore.
-        glfwGetWindowPos(m_window, &m_savedPos.x, &m_savedPos.y);
+        if (helpers::getPlatform() != helpers::Platform::Wayland)
+        {
+            glfwGetWindowPos(m_window, &m_savedPos.x, &m_savedPos.y);
+        }
         glfwGetWindowSize(m_window, &m_savedSize.x, &m_savedSize.y);
 
         if (helpers::getPlatform() == helpers::Platform::Cocoa)
@@ -442,19 +445,23 @@ void cWindow::toggleFullscreen(const sConfig& config)
     }
     else
     {
+        auto width = std::max(m_savedSize.x, DefaultWindowSize.w);
+        auto height = std::max(m_savedSize.y, DefaultWindowSize.h);
+
         if (helpers::getPlatform() == helpers::Platform::Cocoa)
         {
             glfwSetWindowAttrib(m_window, GLFW_DECORATED, GLFW_TRUE);
+            glfwSetWindowSize(m_window, width, height);
+            if (config.centerWindow == false)
+            {
+                glfwSetWindowPos(m_window, m_savedPos.x, m_savedPos.y);
+            }
         }
         else
         {
-            glfwSetWindowMonitor(m_window, nullptr, 0, 0, 0, 0, 0);
-        }
-
-        if (config.centerWindow == false)
-        {
-            glfwSetWindowSize(m_window, m_savedSize.x, m_savedSize.y);
-            glfwSetWindowPos(m_window, m_savedPos.x, m_savedPos.y);
+            glfwSetWindowMonitor(m_window, nullptr,
+                                 m_savedPos.x, m_savedPos.y,
+                                 width, height, 0);
         }
     }
 
