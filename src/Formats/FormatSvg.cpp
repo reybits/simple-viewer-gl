@@ -17,9 +17,49 @@
 #include <cstring>
 #include <lunasvg.h>
 
+namespace
+{
+    void registerFallbackFonts()
+    {
+        static auto isRegistered = false;
+        if (isRegistered)
+        {
+            return;
+        }
+        isRegistered = true;
+
+        // lunasvg's built-in fallback assumes DejaVu (Linux) or Arial (macOS),
+        // which may not be installed. Register a fallback with empty family name
+        // so any unresolved font-family still renders.
+        constexpr const char* candidates[] = {
+#if defined(__APPLE__)
+            "/System/Library/Fonts/Helvetica.ttc",
+            "/System/Library/Fonts/SFNSText.ttf",
+            "/Library/Fonts/Arial.ttf",
+#else
+            "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/TTF/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+#endif
+        };
+
+        for (auto path : candidates)
+        {
+            if (lunasvg_add_font_face_from_file("", false, false, path))
+            {
+                return;
+            }
+        }
+    }
+
+} // namespace
+
 cFormatSvg::cFormatSvg(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
+    registerFallbackFonts();
 }
 
 cFormatSvg::~cFormatSvg()
@@ -62,7 +102,7 @@ bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     {
         // Try extracting embedded <svg>...</svg> block (e.g. from HTML files).
         auto svgStart = helpers::memfind(data.data(), data.size(), "<svg");
-        auto svgEnd = helpers::memfind(data.data(), data.size(), "</svg>");
+        auto svgEnd   = helpers::memfind(data.data(), data.size(), "</svg>");
         if (svgStart != nullptr && svgEnd != nullptr && svgEnd > svgStart)
         {
             svgEnd += 6; // include "</svg>"
@@ -75,7 +115,7 @@ bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         }
     }
 
-    const auto svgWidth = document->width();
+    const auto svgWidth  = document->width();
     const auto svgHeight = document->height();
     if (svgWidth <= 0.0f || svgHeight <= 0.0f)
     {
@@ -83,7 +123,7 @@ bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
 
-    auto scale = 1.0f;
+    auto scale         = 1.0f;
     const auto minSize = m_config->minSvgSize;
     cLog::Debug("Config SVG size: {:.1f}.", minSize);
 
@@ -91,14 +131,14 @@ bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     {
         const auto sw = minSize / svgWidth;
         const auto sh = minSize / svgHeight;
-        scale = std::min(sw, sh);
+        scale         = std::min(sw, sh);
         cLog::Info("SVG size too small, upscaling to {} x {}.", svgWidth * scale, svgHeight * scale);
         cLog::Info("Calculated scale: {} x {}.", sw, sh);
     }
 
     cLog::Debug("Selected scale: {:.1f}.", scale);
 
-    const auto width = static_cast<int>(svgWidth * scale);
+    const auto width  = static_cast<int>(svgWidth * scale);
     const auto height = static_cast<int>(svgHeight * scale);
 
     auto bitmap = document->renderToBitmap(width, height);
@@ -108,14 +148,14 @@ bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
 
-    info.images = 1;
-    chunk.format = ePixelFormat::BGRA;
-    chunk.bpp = 32;
+    info.images   = 1;
+    chunk.format  = ePixelFormat::BGRA;
+    chunk.bpp     = 32;
     chunk.effects = eEffect::Unpremultiply;
     info.bppImage = 32;
-    chunk.width = bitmap.width();
-    chunk.height = bitmap.height();
-    chunk.pitch = bitmap.stride();
+    chunk.width   = bitmap.width();
+    chunk.height  = bitmap.height();
+    chunk.pitch   = bitmap.stride();
     chunk.bitmap.assign(bitmap.data(), bitmap.data() + chunk.pitch * chunk.height);
 
     info.formatName = "svg";
