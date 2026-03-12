@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "Common/Effects.h"
 #include "Common/PixelFormat.h"
 #include "Types/Color.h"
 #include "Types/Rect.h"
@@ -70,16 +71,9 @@ namespace render
     void setTextureFilter(GLuint tex, GLenum minFilter, GLenum magFilter);
     void setTextureWrap(GLuint tex, GLenum wrap);
 
-    enum PostProcess : uint32_t
-    {
-        PP_None = 0,
-        PP_Lut  = 1 << 0,
-        PP_Cmyk = 1 << 1,
-    };
-
     void render(const Line& line);
     void render(const Quad& quad);
-    void renderPostProcessed(const Quad& quad, GLuint lutTex, uint32_t flags);
+    void renderPostProcessed(const Quad& quad, GLuint lutTex, eEffect effects);
     void renderLines(const Vertex* vertices, uint32_t vertexCount);
 
     GLuint createLutTexture(const uint8_t* data, uint32_t gridSize);

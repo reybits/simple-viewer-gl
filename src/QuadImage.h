@@ -27,9 +27,14 @@ public:
     ~cQuadImage();
 
     void clear();
-    void setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePixelFormat format, uint32_t bpp, const uint8_t* image, uint32_t bandHeight = 0);
-    void setLutData(const std::vector<uint8_t>& data, uint32_t gridSize);
-    bool hasLut() const { return m_lutTexture != 0; }
+    void setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePixelFormat format, uint32_t bpp, const uint8_t* image, uint32_t bandHeight = 0, eEffect effects = eEffect::None);
+
+    void setLutData(const std::vector<uint8_t>& data);
+    bool hasLut() const
+    {
+        return m_lutTexture != 0;
+    }
+
     void setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image);
     bool upload(uint32_t readyHeight);
 
@@ -98,25 +103,25 @@ private:
     uint32_t getChunkWidth(uint32_t col) const;
 
 private:
-    bool m_started = false;
-    bool m_filter = false;
-    bool m_compressed = false;
+    bool m_started              = false;
+    bool m_filter               = false;
+    bool m_compressed           = false;
     uint32_t m_compressedFormat = 0; // GL internal format for compressed textures
-    uint32_t m_compressedSize = 0;
+    uint32_t m_compressedSize   = 0;
 
-    uint32_t m_texWidth = 0;
+    uint32_t m_texWidth  = 0;
     uint32_t m_texHeight = 0;
-    uint32_t m_texPitch = 0;
-    uint32_t m_cols = 0;
-    uint32_t m_rows = 0;
+    uint32_t m_texPitch  = 0;
+    uint32_t m_cols      = 0;
+    uint32_t m_rows      = 0;
 
-    uint32_t m_width = 0;
-    uint32_t m_height = 0;
-    uint32_t m_pitch = 0;
-    uint32_t m_bandHeight = 0;
-    ePixelFormat m_format = ePixelFormat::RGB;
+    uint32_t m_width        = 0;
+    uint32_t m_height       = 0;
+    uint32_t m_pitch        = 0;
+    uint32_t m_bandHeight   = 0;
+    ePixelFormat m_format   = ePixelFormat::RGB;
     uint32_t m_bitsPerPixel = 0;
-    const uint8_t* m_image = nullptr;
+    const uint8_t* m_image  = nullptr;
 
     size_t chunkGpuBytes(uint32_t tw, uint32_t th) const;
 
@@ -129,14 +134,13 @@ private:
     // GPU ICC: 3D LUT texture + CPU-side data for getPixel()
     GLuint m_lutTexture = 0;
     std::vector<uint8_t> m_lutData;
-    uint32_t m_lutSize = 0;
-    uint32_t m_ppFlags = 0; // render::PostProcess flags
+    eEffect m_effects = eEffect::None;
 
     // Pixel readback cache: stores the last-read pixel
     mutable struct PixelCache
     {
-        uint32_t x = std::numeric_limits<uint32_t>::max();
-        uint32_t y = std::numeric_limits<uint32_t>::max();
+        uint32_t x      = std::numeric_limits<uint32_t>::max();
+        uint32_t y      = std::numeric_limits<uint32_t>::max();
         uint8_t rgba[4] = {};
     } m_pixelCache;
 };

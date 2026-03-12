@@ -34,15 +34,15 @@ void cFormat::setConfig(const sConfig* config)
 
 bool cFormat::Load(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
-    m_stop = false;
-    m_chunk = &chunk;
-    m_info = &info;
+    m_stop     = false;
+    m_chunk    = &chunk;
+    m_info     = &info;
     m_decodeMs = 0.0;
-    m_iccMs = 0.0;
+    m_iccMs    = 0.0;
 
     const auto t0 = timing::seconds();
-    bool result = LoadImpl(filename, chunk, info);
-    m_decodeMs = (timing::seconds() - t0) * 1000.0 - m_iccMs;
+    bool result   = LoadImpl(filename, chunk, info);
+    m_decodeMs    = (timing::seconds() - t0) * 1000.0 - m_iccMs;
 
     if (result)
     {
@@ -50,21 +50,21 @@ bool cFormat::Load(const char* filename, sChunkData& chunk, sImageInfo& info)
         chunk.readyHeight.store(chunk.height, std::memory_order_release);
     }
     m_chunk = nullptr;
-    m_info = nullptr;
+    m_info  = nullptr;
     return result;
 }
 
 bool cFormat::LoadSubImage(uint32_t subImage, sChunkData& chunk, sImageInfo& info)
 {
-    m_stop = false;
-    m_chunk = &chunk;
-    m_info = &info;
+    m_stop     = false;
+    m_chunk    = &chunk;
+    m_info     = &info;
     m_decodeMs = 0.0;
-    m_iccMs = 0.0;
+    m_iccMs    = 0.0;
 
     const auto t0 = timing::seconds();
-    bool result = LoadSubImageImpl(subImage, chunk, info);
-    m_decodeMs = (timing::seconds() - t0) * 1000.0 - m_iccMs;
+    bool result   = LoadSubImageImpl(subImage, chunk, info);
+    m_decodeMs    = (timing::seconds() - t0) * 1000.0 - m_iccMs;
 
     if (result)
     {
@@ -72,7 +72,7 @@ bool cFormat::LoadSubImage(uint32_t subImage, sChunkData& chunk, sImageInfo& inf
         chunk.readyHeight.store(chunk.height, std::memory_order_release);
     }
     m_chunk = nullptr;
-    m_info = nullptr;
+    m_info  = nullptr;
     return result;
 }
 
@@ -140,7 +140,7 @@ void cFormat::setupBitmap(sChunkData& chunk, sImageInfo& info, uint32_t bpp, ePi
 
 bool cFormat::openFile(cFile& file, const char* filename, sImageInfo& info) const
 {
-    if (!file.open(filename))
+    if (file.open(filename) == false)
     {
         return false;
     }
@@ -171,7 +171,7 @@ bool cFormat::applyIccProfile(sChunkData& chunk, const void* iccProfile, uint32_
     m_iccMs += (timing::seconds() - t0) * 1000.0;
     if (chunk.lutData.empty() == false)
     {
-        chunk.lutSize = cms::LutGridSize;
+        chunk.effects |= eEffect::Lut;
         return true;
     }
     return false;
@@ -185,7 +185,7 @@ bool cFormat::applyIccProfile(sChunkData& chunk, const float* chr, const float* 
     m_iccMs += (timing::seconds() - t0) * 1000.0;
     if (chunk.lutData.empty() == false)
     {
-        chunk.lutSize = cms::LutGridSize;
+        chunk.effects |= eEffect::Lut;
         return true;
     }
     return false;

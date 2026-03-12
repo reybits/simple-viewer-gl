@@ -45,7 +45,7 @@ namespace
         }
 
         auto profileSpace = cmsGetColorSpace(inProfile);
-        auto profileType = ProfileType::Rgb;
+        auto profileType  = ProfileType::Rgb;
 
         switch (profileSpace)
         {
@@ -56,7 +56,6 @@ namespace
             case ePixelFormat::RGBA:
             case ePixelFormat::BGR:
             case ePixelFormat::BGRA:
-            case ePixelFormat::CMYK:
                 break;
             default:
                 cmsCloseProfile(inProfile);
@@ -76,7 +75,7 @@ namespace
             }
             break;
         case cmsSigCmykData:
-            if (format != ePixelFormat::CMYK)
+            if (format != ePixelFormat::RGBA)
             {
                 cmsCloseProfile(inProfile);
                 return {};
@@ -200,8 +199,8 @@ std::vector<uint8_t> cms::generateLut3D(const void* iccProfile, uint32_t iccProf
 }
 
 std::vector<uint8_t> cms::generateLut3D(const float* chr, const float* wp,
-                                         const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
-                                         ePixelFormat format)
+                                        const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
+                                        ePixelFormat format)
 {
 #if defined(LCMS2_SUPPORT)
     if (chr == nullptr || wp == nullptr)
@@ -210,12 +209,12 @@ std::vector<uint8_t> cms::generateLut3D(const float* chr, const float* wp,
     }
 
     cmsCIExyYTRIPLE primaries;
-    primaries.Red.x = chr[0];
-    primaries.Red.y = chr[1];
+    primaries.Red.x   = chr[0];
+    primaries.Red.y   = chr[1];
     primaries.Green.x = chr[2];
     primaries.Green.y = chr[3];
-    primaries.Blue.x = chr[4];
-    primaries.Blue.y = chr[5];
+    primaries.Blue.x  = chr[4];
+    primaries.Blue.y  = chr[5];
     primaries.Red.Y = primaries.Green.Y = primaries.Blue.Y = 1.0;
 
     cmsCIExyY whitePoint;

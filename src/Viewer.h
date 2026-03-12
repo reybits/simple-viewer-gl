@@ -131,10 +131,10 @@ private:
     sPreviewData m_previewData;
     struct ImageInfo
     {
-        uint32_t width = 0;
-        uint32_t height = 0;
-        uint32_t bpp = 0;
-        long size = -1;
+        uint32_t width         = 0;
+        uint32_t height        = 0;
+        uint32_t bpp           = 0;
+        long size              = -1;
         const char* formatName = nullptr;
     };
     std::atomic<bool> m_imageInfoReady{ false };
@@ -143,27 +143,27 @@ private:
     std::atomic<bool> m_uploadActive{ false };
     std::atomic<bool> m_imagePrepared{ false };
     std::atomic<float> m_loadProgress{ -1.0f };
-    bool m_uploadFinal = false;
+    bool m_uploadFinal       = false;
     double m_uploadStartTime = 0.0;
     cScale m_scale;
-    bool m_cursorInside = false;
-    bool m_mouseMB = false;
-    bool m_mouseRB = false;
+    bool m_cursorInside        = false;
+    bool m_mouseMB             = false;
+    bool m_mouseRB             = false;
     bool m_fullscreenRequested = false;
-    bool m_skipEnterEvents = false;
-    bool m_centerAfterToggle = false;
+    bool m_skipEnterEvents     = false;
+    bool m_centerAfterToggle   = false;
     Vectorf m_lastMouse;
     Vectorf m_camera;
-    int m_angle = 0;
+    int m_angle  = 0;
     bool m_flipH = false;
     bool m_flipV = false;
 
     struct AnimationState
     {
-        bool isAnimated = false;     // image has animation frames (descriptive)
-        bool autoAdvance = true;     // auto-advance enabled (user intent)
-        double nextFrameTime = 0.0;  // absolute time for next frame
-        bool timerStarted = false;   // nextFrameTime has been set
+        bool isAnimated      = false; // image has animation frames (descriptive)
+        bool autoAdvance     = true;  // auto-advance enabled (user intent)
+        double nextFrameTime = 0.0;   // absolute time for next frame
+        bool timerStarted    = false; // nextFrameTime has been set
 
         void reset()
         {

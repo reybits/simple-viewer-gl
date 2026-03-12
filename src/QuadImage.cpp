@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "QuadImage.h"
+#include "Common/Cms.h"
 #include "Common/Helpers.h"
 #include "Log/Log.h"
 #include "Quad.h"
@@ -26,22 +27,22 @@ cQuadImage::~cQuadImage()
 
 void cQuadImage::clear()
 {
-    m_compressed = false;
+    m_compressed       = false;
     m_compressedFormat = 0;
-    m_compressedSize = 0;
+    m_compressedSize   = 0;
 
-    m_texWidth = 0;
+    m_texWidth  = 0;
     m_texHeight = 0;
-    m_texPitch = 0;
-    m_cols = 0;
-    m_rows = 0;
+    m_texPitch  = 0;
+    m_cols      = 0;
+    m_rows      = 0;
 
-    m_width = 0;
-    m_height = 0;
-    m_pitch = 0;
-    m_format = ePixelFormat::RGB;
+    m_width        = 0;
+    m_height       = 0;
+    m_pitch        = 0;
+    m_format       = ePixelFormat::RGB;
     m_bitsPerPixel = 0;
-    m_image = nullptr;
+    m_image        = nullptr;
 
     clearOld();
     m_chunks.clear();
@@ -55,8 +56,7 @@ void cQuadImage::clear()
         m_lutTexture = 0;
     }
     m_lutData.clear();
-    m_lutSize = 0;
-    m_ppFlags = 0;
+    m_effects = eEffect::None;
 
     m_pixelCache.x = std::numeric_limits<uint32_t>::max();
     m_pixelCache.y = std::numeric_limits<uint32_t>::max();
@@ -78,9 +78,11 @@ size_t cQuadImage::chunkGpuBytes(uint32_t tw, uint32_t th) const
         : static_cast<size_t>(tw) * th * (m_bitsPerPixel / 8);
 }
 
-void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePixelFormat format, uint32_t bpp, const uint8_t* image, uint32_t bandHeight)
+void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch,
+                           ePixelFormat format, uint32_t bpp, const uint8_t* image,
+                           uint32_t bandHeight, eEffect effects)
 {
-    m_texWidth = render::calculateTextureSize(width);
+    m_texWidth  = render::calculateTextureSize(width);
     m_texHeight = render::calculateTextureSize(height);
 
     m_texPitch = helpers::calculatePitch(m_texWidth, bpp);
@@ -91,19 +93,17 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePix
     clearOld();
     m_chunks.clear();
 
-    m_width = width;
-    m_height = height;
-    m_pitch = pitch;
-    m_bandHeight = (bandHeight > 0) ? bandHeight : height;
-    m_format = format;
+    m_width        = width;
+    m_height       = height;
+    m_pitch        = pitch;
+    m_bandHeight   = (bandHeight > 0) ? bandHeight : height;
+    m_format       = format;
     m_bitsPerPixel = bpp;
-    m_image = image;
+    m_image        = image;
 
     m_buffer.resize(m_texPitch * m_texHeight);
 
-    m_ppFlags = (format == ePixelFormat::CMYK)
-        ? render::PP_Cmyk
-        : render::PP_None;
+    m_effects = effects;
 
     m_pixelCache.x = std::numeric_limits<uint32_t>::max();
     m_pixelCache.y = std::numeric_limits<uint32_t>::max();
@@ -111,7 +111,7 @@ void cQuadImage::setBuffer(uint32_t width, uint32_t height, uint32_t pitch, ePix
     m_started = true;
 }
 
-void cQuadImage::setLutData(const std::vector<uint8_t>& data, uint32_t gridSize)
+void cQuadImage::setLutData(const std::vector<uint8_t>& data)
 {
     if (m_lutTexture != 0)
     {
@@ -119,38 +119,38 @@ void cQuadImage::setLutData(const std::vector<uint8_t>& data, uint32_t gridSize)
         m_lutTexture = 0;
     }
 
-    m_lutData = data;
-    m_lutSize = gridSize;
-    m_lutTexture = render::createLutTexture(data.data(), gridSize);
-    m_ppFlags |= render::PP_Lut;
+    m_lutData    = data;
+    m_lutTexture = render::createLutTexture(data.data(), cms::LutGridSize);
 
     m_pixelCache.x = std::numeric_limits<uint32_t>::max();
     m_pixelCache.y = std::numeric_limits<uint32_t>::max();
 }
 
-void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t compressedSize, const uint8_t* image)
+void cQuadImage::setCompressedBuffer(uint32_t width, uint32_t height,
+                                     uint32_t format, uint32_t compressedSize,
+                                     const uint8_t* image)
 {
     moveToOld();
 
     m_pixelCache.x = std::numeric_limits<uint32_t>::max();
     m_pixelCache.y = std::numeric_limits<uint32_t>::max();
 
-    m_compressed = true;
+    m_compressed       = true;
     m_compressedFormat = format;
-    m_compressedSize = compressedSize;
+    m_compressedSize   = compressedSize;
 
-    m_texWidth = width;
+    m_texWidth  = width;
     m_texHeight = height;
-    m_texPitch = 0;
-    m_cols = 1;
-    m_rows = 1;
+    m_texPitch  = 0;
+    m_cols      = 1;
+    m_rows      = 1;
 
-    m_width = width;
-    m_height = height;
-    m_pitch = 0;
-    m_format = ePixelFormat::RGBA;
+    m_width        = width;
+    m_height       = height;
+    m_pitch        = 0;
+    m_format       = ePixelFormat::RGBA;
     m_bitsPerPixel = 0;
-    m_image = image;
+    m_image        = image;
 
     m_started = true;
 }
@@ -171,25 +171,25 @@ uint32_t cQuadImage::getChunkWidth(uint32_t col) const
 
 void cQuadImage::createChunk(uint32_t col, uint32_t row, uint32_t readyHeight)
 {
-    const uint32_t chunkTop = row * m_texHeight;
-    const uint32_t chunkH = getChunkHeight(row);
-    const uint32_t w = getChunkWidth(col);
+    const uint32_t chunkTop  = row * m_texHeight;
+    const uint32_t chunkH    = getChunkHeight(row);
+    const uint32_t w         = getChunkWidth(col);
     const uint32_t available = std::min(readyHeight - chunkTop, chunkH);
 
     const uint32_t bytesPerPixel = m_bitsPerPixel / 8;
-    const uint32_t sx = col * m_texWidth * bytesPerPixel;
-    const uint32_t dstPitch = helpers::calculatePitch(w, m_bitsPerPixel);
+    const uint32_t sx            = col * m_texWidth * bytesPerPixel;
+    const uint32_t dstPitch      = helpers::calculatePitch(w, m_bitsPerPixel);
 
     // Zero-fill for the full chunk, then copy available rows
     ::memset(m_buffer.data(), 0, dstPitch * chunkH);
 
-    auto out = m_buffer.data();
+    auto out      = m_buffer.data();
     const auto in = m_image;
 
     for (uint32_t y = 0; y < available; y++)
     {
         const auto bandRow = (chunkTop + y) % m_bandHeight;
-        const auto src = static_cast<size_t>(sx) + static_cast<size_t>(bandRow) * m_pitch;
+        const auto src     = static_cast<size_t>(sx) + static_cast<size_t>(bandRow) * m_pitch;
         const uint32_t dst = y * dstPitch;
         ::memcpy(out + dst, in + src, dstPitch);
     }
@@ -203,7 +203,8 @@ void cQuadImage::createChunk(uint32_t col, uint32_t row, uint32_t readyHeight)
         newQuad->useFilter(m_filter);
         if (available < chunkH)
         {
-            newQuad->setTextureRect({ 0.0f, 0.0f }, { static_cast<float>(w), static_cast<float>(available) });
+            newQuad->setTextureRect({ 0.0f, 0.0f },
+                                    { static_cast<float>(w), static_cast<float>(available) });
         }
         m_gpuMemory += chunkGpuBytes(w, chunkH);
         m_chunks.push_back({ col, row, available, std::move(newQuad) });
@@ -214,7 +215,8 @@ void cQuadImage::createChunk(uint32_t col, uint32_t row, uint32_t readyHeight)
         quad->useFilter(m_filter);
         if (available < chunkH)
         {
-            quad->setTextureRect({ 0.0f, 0.0f }, { static_cast<float>(w), static_cast<float>(available) });
+            quad->setTextureRect({ 0.0f, 0.0f },
+                                 { static_cast<float>(w), static_cast<float>(available) });
         }
         else
         {
@@ -227,20 +229,20 @@ void cQuadImage::createChunk(uint32_t col, uint32_t row, uint32_t readyHeight)
 
 void cQuadImage::updateChunkSubData(Chunk& chunk, uint32_t available)
 {
-    const uint32_t w = getChunkWidth(chunk.col);
-    const uint32_t newRows = available - chunk.uploadedHeight;
+    const uint32_t w             = getChunkWidth(chunk.col);
+    const uint32_t newRows       = available - chunk.uploadedHeight;
     const uint32_t bytesPerPixel = m_bitsPerPixel / 8;
-    const uint32_t sx = chunk.col * m_texWidth * bytesPerPixel;
-    const uint32_t sy = chunk.row * m_texHeight + chunk.uploadedHeight;
-    const uint32_t dstPitch = helpers::calculatePitch(w, m_bitsPerPixel);
+    const uint32_t sx            = chunk.col * m_texWidth * bytesPerPixel;
+    const uint32_t sy            = chunk.row * m_texHeight + chunk.uploadedHeight;
+    const uint32_t dstPitch      = helpers::calculatePitch(w, m_bitsPerPixel);
 
-    auto out = m_buffer.data();
+    auto out      = m_buffer.data();
     const auto in = m_image;
 
     for (uint32_t y = 0; y < newRows; y++)
     {
         const auto bandRow = (sy + y) % m_bandHeight;
-        const auto src = static_cast<size_t>(sx) + static_cast<size_t>(bandRow) * m_pitch;
+        const auto src     = static_cast<size_t>(sx) + static_cast<size_t>(bandRow) * m_pitch;
         const uint32_t dst = y * dstPitch;
         ::memcpy(out + dst, in + src, dstPitch);
     }
@@ -249,7 +251,7 @@ void cQuadImage::updateChunkSubData(Chunk& chunk, uint32_t available)
     chunk.uploadedHeight = available;
 
     const uint32_t chunkH = getChunkHeight(chunk.row);
-    const auto fw = static_cast<float>(w);
+    const auto fw         = static_cast<float>(w);
     if (available < chunkH)
     {
         chunk.quad->setTextureRect({ 0.0f, 0.0f }, { fw, static_cast<float>(available) });
@@ -281,7 +283,7 @@ bool cQuadImage::upload(uint32_t readyHeight)
     for (auto& chunk : m_chunks)
     {
         const uint32_t chunkTop = chunk.row * m_texHeight;
-        const uint32_t chunkH = getChunkHeight(chunk.row);
+        const uint32_t chunkH   = getChunkHeight(chunk.row);
 
         if (chunk.uploadedHeight >= chunkH)
         {
@@ -301,9 +303,9 @@ bool cQuadImage::upload(uint32_t readyHeight)
     // Phase 2: Create new chunks when data becomes available
     while (m_chunks.size() < totalChunks)
     {
-        const auto idx = m_chunks.size();
-        const uint32_t col = idx % m_cols;
-        const uint32_t row = idx / m_cols;
+        const auto idx          = m_chunks.size();
+        const uint32_t col      = idx % m_cols;
+        const uint32_t row      = idx / m_cols;
         const uint32_t chunkTop = row * m_texHeight;
 
         if (readyHeight <= chunkTop)
@@ -326,7 +328,7 @@ bool cQuadImage::upload(uint32_t readyHeight)
 void cQuadImage::stop()
 {
     clearOld();
-    m_buffer = {};
+    m_buffer  = {};
     m_started = false;
 }
 
@@ -335,8 +337,8 @@ void cQuadImage::reset()
     stop();
     m_chunks.clear();
     m_gpuMemory = 0;
-    m_width = 0;
-    m_height = 0;
+    m_width     = 0;
+    m_height    = 0;
 
     if (m_lutTexture != 0)
     {
@@ -344,8 +346,7 @@ void cQuadImage::reset()
         m_lutTexture = 0;
     }
     m_lutData.clear();
-    m_lutSize = 0;
-    m_ppFlags = 0;
+    m_effects = eEffect::None;
 }
 
 bool cQuadImage::isUploading() const
@@ -411,7 +412,7 @@ void cQuadImage::useFilter(bool filter)
 
 bool cQuadImage::isInsideViewport(const Chunk& chunk, const Vectorf& pos) const
 {
-    auto& rc = render::getRect();
+    auto& rc         = render::getRect();
     const auto& size = chunk.quad->getSize();
     const Rectf rcQuad{ pos, pos + size };
     return rc.intersect(rcQuad);
@@ -419,10 +420,10 @@ bool cQuadImage::isInsideViewport(const Chunk& chunk, const Vectorf& pos) const
 
 void cQuadImage::render()
 {
-    const float halfWidth = static_cast<float>((m_width + 1) >> 1);
+    const float halfWidth  = static_cast<float>((m_width + 1) >> 1);
     const float halfHeight = static_cast<float>((m_height + 1) >> 1);
-    const float texWidth = m_texWidth;
-    const float texHeight = m_texHeight;
+    const float texWidth   = m_texWidth;
+    const float texHeight  = m_texHeight;
 
     bool isInside = render::getAngle() != 0;
 
@@ -433,10 +434,10 @@ void cQuadImage::render()
         };
         if (isInside || isInsideViewport(chunk, pos))
         {
-            if (m_ppFlags != render::PP_None)
+            if (m_effects != eEffect::None)
             {
                 chunk.quad->setupVertices(pos);
-                render::renderPostProcessed(chunk.quad->getQuad(), m_lutTexture, m_ppFlags);
+                render::renderPostProcessed(chunk.quad->getQuad(), m_lutTexture, m_effects);
             }
             else
             {
@@ -495,7 +496,7 @@ bool cQuadImage::getPixel(uint32_t x, uint32_t y, cColor& color) const
     // Read a single pixel from the texture via FBO
     const uint32_t lx = x - col * m_texWidth;
     const uint32_t ly = y - row * m_texHeight;
-    uint8_t rgba[4] = {};
+    uint8_t rgba[4]   = {};
     render::readTexPixel(quad->getQuad().tex, lx, ly, rgba);
 
     // FBO readback returns raw stored channels without applying texture swizzle
@@ -506,42 +507,54 @@ bool cQuadImage::getPixel(uint32_t x, uint32_t y, cColor& color) const
     if (m_format == ePixelFormat::Luminance)
     {
         r = g = b = rgba[0] / 255.0f;
-        alpha = 1.0f;
+        alpha     = 1.0f;
     }
     else if (m_format == ePixelFormat::LuminanceAlpha)
     {
         r = g = b = rgba[0] / 255.0f;
-        alpha = rgba[1] / 255.0f;
+        alpha     = rgba[1] / 255.0f;
     }
     else if (m_format == ePixelFormat::Alpha)
     {
         r = g = b = 0.0f;
-        alpha = rgba[0] / 255.0f;
-    }
-    else if (m_format == ePixelFormat::CMYK)
-    {
-        r = (rgba[0] / 255.0f) * (rgba[3] / 255.0f);
-        g = (rgba[1] / 255.0f) * (rgba[3] / 255.0f);
-        b = (rgba[2] / 255.0f) * (rgba[3] / 255.0f);
-        alpha = 1.0f;
+        alpha     = rgba[0] / 255.0f;
     }
     else
     {
-        r = rgba[0] / 255.0f;
-        g = rgba[1] / 255.0f;
-        b = rgba[2] / 255.0f;
+        r     = rgba[0] / 255.0f;
+        g     = rgba[1] / 255.0f;
+        b     = rgba[2] / 255.0f;
         alpha = rgba[3] / 255.0f;
     }
 
-    // Apply 3D LUT (trilinear interpolation matching GPU shader)
-    if (m_lutData.empty() == false && m_lutSize > 1)
+    // Apply effects matching GPU shader order: CMYK→RGB, unpremultiply, LUT
+    if (m_effects & eEffect::Cmyk)
     {
-        auto lookupLut = [this](float coord) -> std::pair<uint32_t, float> {
-            float scaled = coord * static_cast<float>(m_lutSize - 1);
-            auto idx = static_cast<uint32_t>(scaled);
-            if (idx >= m_lutSize - 1)
+        r     = r * alpha;
+        g     = g * alpha;
+        b     = b * alpha;
+        alpha = 1.0f;
+    }
+
+    if (m_effects & eEffect::Unpremultiply)
+    {
+        if (alpha > 0.0f)
+        {
+            r /= alpha;
+            g /= alpha;
+            b /= alpha;
+        }
+    }
+
+    // Apply 3D LUT (trilinear interpolation matching GPU shader)
+    if (m_lutData.empty() == false && cms::LutGridSize > 1)
+    {
+        auto lookupLut = [](float coord) -> std::pair<uint32_t, float> {
+            float scaled = coord * static_cast<float>(cms::LutGridSize - 1);
+            auto idx     = static_cast<uint32_t>(scaled);
+            if (idx >= cms::LutGridSize - 1)
             {
-                idx = m_lutSize - 2;
+                idx = cms::LutGridSize - 2;
             }
             return { idx, scaled - idx };
         };
@@ -551,7 +564,7 @@ bool cQuadImage::getPixel(uint32_t x, uint32_t y, cColor& color) const
         auto [bi, bf] = lookupLut(b);
 
         auto sample = [this](uint32_t ri, uint32_t gi, uint32_t bi) -> const uint8_t* {
-            return &m_lutData[(static_cast<size_t>(bi) * m_lutSize * m_lutSize + gi * m_lutSize + ri) * 3];
+            return &m_lutData[(static_cast<size_t>(bi) * cms::LutGridSize * cms::LutGridSize + gi * cms::LutGridSize + ri) * 3];
         };
 
         // Trilinear interpolation
@@ -591,8 +604,8 @@ bool cQuadImage::getPixel(uint32_t x, uint32_t y, cColor& color) const
     color.a = static_cast<uint8_t>(alpha * 255.0f + 0.5f);
 
     // Cache this pixel
-    m_pixelCache.x = x;
-    m_pixelCache.y = y;
+    m_pixelCache.x       = x;
+    m_pixelCache.y       = y;
     m_pixelCache.rgba[0] = color.r;
     m_pixelCache.rgba[1] = color.g;
     m_pixelCache.rgba[2] = color.b;
@@ -607,7 +620,7 @@ void cQuadImage::moveToOld()
 
     for (size_t i = 0, size = m_chunks.size(); i < size; i++)
     {
-        auto idx = size - i - 1;
+        auto idx    = size - i - 1;
         auto& chunk = m_chunks[idx];
         if (chunk.col >= m_cols || chunk.row >= m_rows)
         {
@@ -627,12 +640,12 @@ cQuad* cQuadImage::findAndRemoveOld(uint32_t col, uint32_t row)
 
     for (size_t i = 0, size = m_chunksOld.size(); i < size; i++)
     {
-        auto idx = size - i - 1;
+        auto idx    = size - i - 1;
         auto& chunk = m_chunksOld[idx];
         if (chunk.col == col && chunk.row == row)
         {
             m_gpuMemory -= chunkGpuBytes(chunk.quad->getTexWidth(), chunk.quad->getTexHeight());
-            quad = chunk.quad.release();
+            quad             = chunk.quad.release();
             m_chunksOld[idx] = std::move(m_chunksOld.back());
             m_chunksOld.pop_back();
             break;

@@ -51,38 +51,38 @@ cViewer::cViewer(sConfig& config, cWindow& window)
     : m_config(config)
     , m_window(window)
 {
-    m_windowEvents.onWindowResize = [this](const Vectori& s) { onWindowResize(s); };
+    m_windowEvents.onWindowResize      = [this](const Vectori& s) { onWindowResize(s); };
     m_windowEvents.onFramebufferResize = [this](const Vectori& s) { onFramebufferResize(s); };
-    m_windowEvents.onWindowPosition = [this](const Vectori& p) { onWindowPosition(p); };
-    m_windowEvents.onWindowRefresh = [this]() { onWindowRefresh(); };
-    m_windowEvents.onKeyEvent = [this](int k, int s, int a, int m) { onKeyEvent(k, s, a, m); };
-    m_windowEvents.onCharEvent = [this](uint32_t c) { onCharEvent(c); };
-    m_windowEvents.onMouseButton = [this](int b, int a, int m) { onMouseButton(b, a, m); };
-    m_windowEvents.onMouseMove = [this](const Vectorf& p) { onMouseMove(p); };
-    m_windowEvents.onMouseScroll = [this](const Vectorf& o) { onMouseScroll(o); };
-    m_windowEvents.onFileDrop = [this](const StringsList& p) { onFileDrop(p); };
+    m_windowEvents.onWindowPosition    = [this](const Vectori& p) { onWindowPosition(p); };
+    m_windowEvents.onWindowRefresh     = [this]() { onWindowRefresh(); };
+    m_windowEvents.onKeyEvent          = [this](int k, int s, int a, int m) { onKeyEvent(k, s, a, m); };
+    m_windowEvents.onCharEvent         = [this](uint32_t c) { onCharEvent(c); };
+    m_windowEvents.onMouseButton       = [this](int b, int a, int m) { onMouseButton(b, a, m); };
+    m_windowEvents.onMouseMove         = [this](const Vectorf& p) { onMouseMove(p); };
+    m_windowEvents.onMouseScroll       = [this](const Vectorf& o) { onMouseScroll(o); };
+    m_windowEvents.onFileDrop          = [this](const StringsList& p) { onFileDrop(p); };
 
-    m_callbacks.startLoading = [this]() { startLoading(); };
-    m_callbacks.onImageInfo = [this](const sChunkData& c, const sImageInfo& i) { onImageInfo(c, i); };
-    m_callbacks.onPreviewReady = [this](sPreviewData&& p) { onPreviewReady(std::move(p)); };
+    m_callbacks.startLoading      = [this]() { startLoading(); };
+    m_callbacks.onImageInfo       = [this](const sChunkData& c, const sImageInfo& i) { onImageInfo(c, i); };
+    m_callbacks.onPreviewReady    = [this](sPreviewData&& p) { onPreviewReady(std::move(p)); };
     m_callbacks.onBitmapAllocated = [this](const sChunkData& c) { onBitmapAllocated(c); };
-    m_callbacks.doProgress = [this](float p) { doProgress(p); };
-    m_callbacks.endLoading = [this]() { endLoading(); };
+    m_callbacks.doProgress        = [this](float p) { doProgress(p); };
+    m_callbacks.endLoading        = [this]() { endLoading(); };
 
-    m_image = std::make_unique<cQuadImage>();
-    m_loader = std::make_unique<cImageLoader>(&config, &m_callbacks);
+    m_image        = std::make_unique<cQuadImage>();
+    m_loader       = std::make_unique<cImageLoader>(&config, &m_callbacks);
     m_checkerBoard = std::make_unique<cCheckerboard>(config);
     m_deletionMark = std::make_unique<cDeletionMark>();
-    m_infoBar = std::make_unique<cInfoBar>(config);
-    m_imgui = std::make_unique<cGui>(window, config);
-    m_pixelPopup = std::make_unique<cPixelPopup>();
-    m_exifPopup = std::make_unique<cExifPopup>();
-    m_helpPopup = std::make_unique<cHelpPopup>();
-    m_progress = std::make_unique<cProgress>();
-    m_border = std::make_unique<cImageBorder>();
-    m_grid = std::make_unique<cImageGrid>();
-    m_selection = std::make_unique<cSelection>();
-    m_filesList = std::make_unique<cFilesList>(config.skipFilter, config.recursiveScan);
+    m_infoBar      = std::make_unique<cInfoBar>(config);
+    m_imgui        = std::make_unique<cGui>(window, config);
+    m_pixelPopup   = std::make_unique<cPixelPopup>();
+    m_exifPopup    = std::make_unique<cExifPopup>();
+    m_helpPopup    = std::make_unique<cHelpPopup>();
+    m_progress     = std::make_unique<cProgress>();
+    m_border       = std::make_unique<cImageBorder>();
+    m_grid         = std::make_unique<cImageGrid>();
+    m_selection    = std::make_unique<cSelection>();
+    m_filesList    = std::make_unique<cFilesList>(config.skipFilter, config.recursiveScan);
     m_fileSelector = std::make_unique<cFileBrowser>();
 
     onContextRecreated();
@@ -104,7 +104,7 @@ void cViewer::onContextRecreated()
     m_pixelPopup->init();
     m_selection->init();
 
-    auto fbSize = m_window.getFramebufferSize();
+    auto fbSize  = m_window.getFramebufferSize();
     auto winSize = m_window.getWindowSize();
     onResize(winSize, fbSize);
 }
@@ -162,7 +162,7 @@ void cViewer::onRender()
         if (m_config.fitImage)
         {
             const auto centralFb = getCentralAreaFbSize();
-            displayScale = (fw >= centralFb.x || fh >= centralFb.y)
+            displayScale         = (fw >= centralFb.x || fh >= centralFb.y)
                 ? std::min(centralFb.x / fw, centralFb.y / fh)
                 : 1.0f;
         }
@@ -239,10 +239,12 @@ void cViewer::onRender()
         }
         else
         {
-            m_progress->setStatus(progress < -2.5f ? "decoding..." : "loading...");
+            m_progress->setStatus(progress < -2.5f
+                                      ? "decoding..."
+                                      : "loading...");
         }
 
-        const auto& centralPos = m_imgui->getCentralPos();
+        const auto& centralPos  = m_imgui->getCentralPos();
         const auto& centralSize = m_imgui->getCentralSize();
         m_progress->render(centralPos.x + centralSize.x, centralPos.y + centralSize.y);
     }
@@ -291,7 +293,7 @@ void cViewer::onUpdate()
     if (isUploading())
     {
         const uint32_t ready = m_loader->getReadyHeight();
-        const bool isDone = m_image->upload(ready);
+        const bool isDone    = m_image->upload(ready);
         m_loader->setConsumedHeight(ready);
 
         const float uploadProgress = m_image->getProgress();
@@ -310,7 +312,9 @@ void cViewer::onUpdate()
                             uploadMs,
                             m_image->getTexWidth(), m_image->getTexHeight(),
                             m_image->getCols(), m_image->getRows(),
-                            m_uploadFinal ? "final" : "progressive");
+                            m_uploadFinal
+                                ? "final"
+                                : "progressive");
             }
 
             if (m_uploadFinal)
@@ -324,11 +328,11 @@ void cViewer::onUpdate()
             }
 
             const auto& uploadInfo = m_loader->getImageInfo();
-            m_anim.isAnimated = uploadInfo.isAnimation;
+            m_anim.isAnimated      = uploadInfo.isAnimation;
             if (m_anim.isAnimated && m_anim.timerStarted == false)
             {
                 m_anim.nextFrameTime = timing::seconds() + uploadInfo.delay * 0.001;
-                m_anim.timerStarted = true;
+                m_anim.timerStarted  = true;
             }
 
             // Full-res upload complete — discard preview.
@@ -371,7 +375,7 @@ void cViewer::processDeferred()
     if (m_fullscreenRequested)
     {
         m_fullscreenRequested = false;
-        m_skipEnterEvents = true;
+        m_skipEnterEvents     = true;
         m_window.toggleFullscreen(m_config);
 
         if (m_window.isWindowed() && m_config.centerWindow)
@@ -387,7 +391,7 @@ void cViewer::processDeferred()
 
 void cViewer::handlePreviewReady()
 {
-    auto& p = m_previewData;
+    auto& p   = m_previewData;
     m_preview = std::make_unique<cQuadImage>();
     m_preview->setBuffer(p.width, p.height, p.pitch, p.format, p.bpp, p.bitmap.data());
     m_preview->upload(p.height);
@@ -399,11 +403,11 @@ void cViewer::handleBitmapAllocated()
     m_uploadStartTime = timing::seconds();
 
     const auto& chunk = m_loader->getChunkData();
-    m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData(), chunk.bandHeight);
+    m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData(), chunk.bandHeight, chunk.effects);
 
     if (chunk.lutData.empty() == false)
     {
-        m_image->setLutData(chunk.lutData, chunk.lutSize);
+        m_image->setLutData(chunk.lutData);
     }
 
     if (m_loader->getMode() == cImageLoader::Mode::Image)
@@ -426,13 +430,15 @@ void cViewer::handleBitmapAllocated()
 void cViewer::handleImageReady()
 {
     const auto& chunk = m_loader->getChunkData();
-    const auto& info = m_loader->getImageInfo();
+    const auto& info  = m_loader->getImageInfo();
 
     if (m_config.debug)
     {
         const auto& met = m_loader->getMetrics();
         cLog::Debug("--- {} {}x{} {}-bit ---",
-                    info.formatName ? info.formatName : "?",
+                    info.formatName
+                        ? info.formatName
+                        : "?",
                     chunk.width, chunk.height, info.bppImage);
         cLog::Debug("  file read:  {:.1f} ms", met.fileReadMs);
         cLog::Debug("  decode:     {:.1f} ms", met.decodeMs);
@@ -450,7 +456,7 @@ void cViewer::handleImageReady()
     {
         m_uploadActive.store(true, std::memory_order_relaxed);
         m_uploadStartTime = timing::seconds();
-        m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData());
+        m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData(), 0, chunk.effects);
 
         if (m_loader->getMode() == cImageLoader::Mode::Image)
         {
@@ -472,7 +478,7 @@ void cViewer::handleImageReady()
         // so the previous frame is swapped out atomically with the new upload.
         m_uploadActive.store(true, std::memory_order_relaxed);
         m_uploadStartTime = timing::seconds();
-        m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData());
+        m_image->setBuffer(chunk.width, chunk.height, chunk.pitch, chunk.format, chunk.bpp, m_loader->getBitmapData(), 0, chunk.effects);
     }
     else if (isUploading() == false)
     {
@@ -484,7 +490,7 @@ void cViewer::handleImageReady()
     // Wire LUT for batch ICC formats (generated after decode, not at allocation time)
     if (chunk.lutData.empty() == false && m_image->hasLut() == false)
     {
-        m_image->setLutData(chunk.lutData, chunk.lutSize);
+        m_image->setLutData(chunk.lutData);
     }
 
     if (m_loader->getMode() == cImageLoader::Mode::Image)
@@ -551,7 +557,7 @@ void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
 
     m_ratio = { static_cast<float>(fbSize.x) / winSize.x, static_cast<float>(fbSize.y) / winSize.y };
 
-    auto width = std::max(DefaultWindowSize.x, winSize.x);
+    auto width  = std::max(DefaultWindowSize.x, winSize.x);
     auto height = std::max(DefaultWindowSize.y, winSize.y);
 
     if (m_window.isWindowed())
@@ -642,7 +648,7 @@ void cViewer::onMouseScroll(const Vectorf& offset)
 
     if (m_config.wheelZoom)
     {
-        auto cursorPos = m_window.getCursorPos();
+        auto cursorPos   = m_window.getCursorPos();
         Vectorf cursorFb = cursorPos * m_ratio;
         updateScale(offset.y > 0.0f
                         ? ScaleDirection::Up
@@ -670,8 +676,8 @@ void cViewer::onMouseButton(int button, int action, int /*mods*/)
     switch (button)
     {
     case GLFW_MOUSE_BUTTON_LEFT: {
-        auto pressed = (action == GLFW_PRESS);
-        auto isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
+        auto pressed        = (action == GLFW_PRESS);
+        auto isHovered      = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
         const Vectorf point = screenToImage(m_lastMouse);
         m_selection->mouseButton(point, m_scale.getScale(), pressed && isHovered == false);
 
@@ -732,7 +738,7 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
         if (m_fileSelector->isVisible() == false)
         {
             auto currentFile = m_filesList->getName();
-            auto dir = helpers::getDirectoryFromPath(currentFile);
+            auto dir         = helpers::getDirectoryFromPath(currentFile);
             m_fileSelector->setWindowSize(m_config.windowSize.x, m_config.windowSize.y);
             m_fileSelector->open(
                 [this](cFileBrowser::Result result) {
@@ -987,10 +993,10 @@ void cViewer::shiftCamera(const Vectorf& delta)
 
 void cViewer::clampCamera()
 {
-    const float scale = m_scale.getScale();
+    const float scale    = m_scale.getScale();
     const auto centralFb = getCentralAreaFbSize();
-    const float halfVpW = centralFb.x * 0.5f / scale;
-    const float halfVpH = centralFb.y * 0.5f / scale;
+    const float halfVpW  = centralFb.x * 0.5f / scale;
+    const float halfVpH  = centralFb.y * 0.5f / scale;
     const float halfImgW = m_image->getWidth() * 0.5f;
     const float halfImgH = m_image->getHeight() * 0.5f;
 
@@ -1004,8 +1010,8 @@ void cViewer::clampCamera()
     // Image smaller than viewport: allow nudging off-center by ~25% of viewport
     const float limitX = std::max(halfImgW - halfVpW, 0.0f) + halfVpW * 0.25f;
     const float limitY = std::max(halfImgH - halfVpH, 0.0f) + halfVpH * 0.25f;
-    m_camera.x = std::clamp(m_camera.x, -limitX, limitX);
-    m_camera.y = std::clamp(m_camera.y, -limitY, limitY);
+    m_camera.x         = std::clamp(m_camera.x, -limitX, limitX);
+    m_camera.y         = std::clamp(m_camera.y, -limitY, limitY);
 }
 
 void cViewer::calculateScale()
@@ -1020,18 +1026,18 @@ void cViewer::calculateScale()
         }
 
         const auto centralFb = getCentralAreaFbSize();
-        const auto borderPx = m_config.showImageBorder
+        const auto borderPx  = m_config.showImageBorder
             ? m_border->getThickness() * 2.0f
             : 0.0f;
-        const float vpW = centralFb.x - borderPx;
-        const float vpH = centralFb.y - borderPx;
+        const float vpW      = centralFb.x - borderPx;
+        const float vpH      = centralFb.y - borderPx;
         if (w >= vpW || h >= vpH)
         {
             auto aspect = w / h;
-            auto dx = w / vpW;
-            auto dy = h / vpH;
-            auto new_w = 0.0f;
-            auto new_h = 0.0f;
+            auto dx     = w / vpW;
+            auto dy     = h / vpH;
+            auto new_w  = 0.0f;
+            auto new_h  = 0.0f;
             if (dx > dy)
             {
                 if (w > vpW)
@@ -1069,16 +1075,16 @@ Vectorf cViewer::getCentralAreaFbSize() const
 
 Vectorf cViewer::getCentralAreaFbCenter() const
 {
-    auto pos = m_imgui->getCentralPos() * m_ratio;
+    auto pos  = m_imgui->getCentralPos() * m_ratio;
     auto size = getCentralAreaFbSize();
     return { pos.x + size.x * 0.5f, pos.y + size.y * 0.5f };
 }
 
 Vectorf cViewer::getAdjustedCamera(float scaleOverride) const
 {
-    const auto& viewport = render::getViewportSize();
+    const auto& viewport     = render::getViewportSize();
     const auto centralCenter = getCentralAreaFbCenter();
-    const float s = (scaleOverride > 0.0f)
+    const float s            = (scaleOverride > 0.0f)
         ? scaleOverride
         : m_scale.getScale();
     return { m_camera.x - (centralCenter.x - viewport.x * 0.5f) / s,
@@ -1095,7 +1101,14 @@ void cViewer::updateScale(ScaleDirection direction, const Vectorf* cursorFb)
 
     if (direction == ScaleDirection::Up)
     {
-        const int step = scale >= 100 ? 25 : (scale >= 50 ? 10 : (scale >= 30 ? 5 : 1));
+        // FIXME: Rewrite that ugly nested ternary to something more readable.
+        const int step = scale >= 100
+            ? 25
+            : (scale >= 50
+                   ? 10
+                   : (scale >= 30
+                          ? 5
+                          : 1));
         AlignScale(scale, step);
         scale += step;
     }
@@ -1115,7 +1128,7 @@ void cViewer::updateScale(ScaleDirection direction, const Vectorf* cursorFb)
     {
         const float newScale = m_scale.getScale();
         const float invDelta = 1.0f / oldScale - 1.0f / newScale;
-        const Vectorf diff = *cursorFb - getCentralAreaFbCenter();
+        const Vectorf diff   = *cursorFb - getCentralAreaFbCenter();
         m_camera -= diff * invDelta;
         clampCamera();
     }
@@ -1157,24 +1170,24 @@ void cViewer::centerWindow()
     // Compute overhead from docked windows + infobar.
     // The central area (from the last frame) already excludes these.
     const auto centralSize = m_imgui->getCentralSize();
-    float overheadX = 0.0f;
-    float overheadY = m_config.hideInfobar
+    float overheadX        = 0.0f;
+    float overheadY        = m_config.hideInfobar
         ? 0.0f
         : m_imgui->getInfoBarHeight();
 
     if (centralSize.x > 0.0f && centralSize.y > 0.0f)
     {
         const auto winSize = m_window.getWindowSize();
-        overheadX = std::max(0.0f, static_cast<float>(winSize.x) - centralSize.x);
-        overheadY = std::max(0.0f, static_cast<float>(winSize.y) - centralSize.y);
+        overheadX          = std::max(0.0f, static_cast<float>(winSize.x) - centralSize.x);
+        overheadY          = std::max(0.0f, static_cast<float>(winSize.y) - centralSize.y);
     }
 
     auto tickness = m_config.showImageBorder
         ? m_border->getThickness() * 2
         : 0.0f;
-    auto scale = m_scale.getScale();
+    auto scale    = m_scale.getScale();
 
-    auto imgWidth = static_cast<float>(m_image->getWidth());
+    auto imgWidth  = static_cast<float>(m_image->getWidth());
     auto imgHeight = static_cast<float>(m_image->getHeight());
     if (m_angle == 90 || m_angle == 270)
     {
@@ -1195,10 +1208,10 @@ void cViewer::centerWindow()
     auto imgw = imgWidth * scale + tickness;
     auto imgh = imgHeight * scale + tickness;
 
-    auto width = std::max<int>(imgw / m_ratio.x + overheadX, DefaultWindowSize.w);
+    auto width  = std::max<int>(imgw / m_ratio.x + overheadX, DefaultWindowSize.w);
     auto height = std::max<int>(imgh / m_ratio.y + overheadY, DefaultWindowSize.h);
 
-    width = std::min<int>(width, screen.x);
+    width  = std::min<int>(width, screen.x);
     height = std::min<int>(height, screen.y);
 
     m_config.windowSize = { width, height };
@@ -1206,8 +1219,8 @@ void cViewer::centerWindow()
 
     if (m_config.centerWindow)
     {
-        auto x = (screen.x - width) / 2;
-        auto y = (screen.y - height) / 2;
+        auto x             = (screen.x - width) / 2;
+        auto y             = (screen.y - height) / 2;
         m_config.windowPos = { x, y };
         m_window.setPosition({ x, y });
     }
@@ -1216,8 +1229,8 @@ void cViewer::centerWindow()
         // Keep current position but clamp so the window stays on screen.
         auto x = m_config.windowPos.x;
         auto y = m_config.windowPos.y;
-        x = std::max(0, std::min(x, screen.x - width));
-        y = std::max(0, std::min(y, screen.y - height));
+        x      = std::max(0, std::min(x, screen.x - width));
+        y      = std::max(0, std::min(y, screen.y - height));
         if (x != m_config.windowPos.x || y != m_config.windowPos.y)
         {
             m_config.windowPos = { x, y };
@@ -1231,7 +1244,7 @@ void cViewer::centerWindow()
 void cViewer::resetViewAndUpdate(int scalePercent)
 {
     m_scale.setScalePercent(scalePercent);
-    m_camera = Vectorf();
+    m_camera          = Vectorf();
     m_config.fitImage = false;
     centerWindow();
     updateInfobar();
@@ -1291,7 +1304,7 @@ void cViewer::loadSubImage(int subStep)
     }
 
     m_anim.timerStarted = false;
-    m_imageInfo = {};
+    m_imageInfo         = {};
 
     m_loader->loadSubImage(next);
 }
@@ -1307,7 +1320,7 @@ void cViewer::updateInfobar()
     if (m_loader->isLoaded())
     {
         const auto& chunk = m_loader->getChunkData();
-        const auto& info = m_loader->getImageInfo();
+        const auto& info  = m_loader->getImageInfo();
         m_infoBar->setFormat(m_loader->getImageType());
         m_infoBar->setDimensions(chunk.width, chunk.height, info.bppImage);
         m_infoBar->setSubImage(info.current, info.images);
@@ -1332,7 +1345,7 @@ void cViewer::updateInfobar()
     if (path != nullptr)
     {
         const char* name = path;
-        const char* p = std::strrchr(path, '/');
+        const char* p    = std::strrchr(path, '/');
         if (p != nullptr)
         {
             name = p + 1;
@@ -1344,9 +1357,9 @@ void cViewer::updateInfobar()
 Vectorf cViewer::screenToImage(const Vectorf& pos) const
 {
     const auto& viewport = render::getViewportSize();
-    auto scale = m_scale.getScale();
-    auto size = Vectorf{ viewport.x / scale - m_image->getWidth(),
-                         viewport.y / scale - m_image->getHeight() };
+    auto scale           = m_scale.getScale();
+    auto size            = Vectorf{ viewport.x / scale - m_image->getWidth(),
+                                    viewport.y / scale - m_image->getHeight() };
     return pos + getAdjustedCamera() - size * 0.5f;
 }
 
@@ -1362,7 +1375,7 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
     if (m_loader->isLoaded())
     {
         const auto& chunk = m_loader->getChunkData();
-        pixelInfo.bpp = chunk.bpp;
+        pixelInfo.bpp     = chunk.bpp;
 
         const int x = static_cast<int>(point.x);
         const int y = static_cast<int>(point.y);
@@ -1374,9 +1387,9 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
             m_image->getPixel(static_cast<uint32_t>(x), static_cast<uint32_t>(y), pixelInfo.color);
         }
 
-        pixelInfo.imgWidth = m_image->getWidth();
+        pixelInfo.imgWidth  = m_image->getWidth();
         pixelInfo.imgHeight = m_image->getHeight();
-        pixelInfo.rc = m_selection->getRect();
+        pixelInfo.rc        = m_selection->getRect();
     }
 
     m_pixelPopup->setPixelInfo(pixelInfo);
@@ -1386,7 +1399,7 @@ void cViewer::updateCursorState(bool show)
 {
     auto cursorPos = m_window.getCursorPos();
 
-    auto& size = m_config.windowSize;
+    auto& size     = m_config.windowSize;
     m_cursorInside = !(cursorPos.x < 0.0f || cursorPos.x >= size.w || cursorPos.y < 0.0f || cursorPos.y >= size.h);
 
     m_window.setCursorVisible(show);
@@ -1413,10 +1426,10 @@ void cViewer::startLoading()
 
 void cViewer::onImageInfo(const sChunkData& chunk, const sImageInfo& info)
 {
-    m_imageInfo.width = chunk.width;
-    m_imageInfo.height = chunk.height;
-    m_imageInfo.bpp = info.bppImage;
-    m_imageInfo.size = info.fileSize;
+    m_imageInfo.width      = chunk.width;
+    m_imageInfo.height     = chunk.height;
+    m_imageInfo.bpp        = info.bppImage;
+    m_imageInfo.size       = info.fileSize;
     m_imageInfo.formatName = info.formatName;
     m_imageInfoReady.store(true, std::memory_order_release);
 }
@@ -1451,7 +1464,7 @@ void cViewer::endLoading()
 void cViewer::updateMousePosition()
 {
     auto cursorPos = m_window.getCursorPos();
-    m_lastMouse = calculateMousePosition(cursorPos);
+    m_lastMouse    = calculateMousePosition(cursorPos);
 }
 
 void cViewer::enablePixelInfo(bool show)

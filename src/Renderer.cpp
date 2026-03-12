@@ -24,25 +24,26 @@ namespace
 {
     Rectf ViewRect;
     float ViewZoom = 1.0f;
-    int ViewAngle = 0;
+    int ViewAngle  = 0;
     Vectori ViewportSize;
-    GLuint CurrentTextureId = 0;
+    GLuint CurrentTextureId   = 0;
     uint32_t TextureSizeLimit = 1024;
 
     // Shader programs
-    constexpr uint32_t PostProcessVariants = 4;
+    // FIXME: Consider to generate shaders on demand instead of compiling all variants at startup.
+    constexpr uint32_t PostProcessVariants = 8;
 
     struct PostProcessProgram
     {
         GLuint program = 0;
-        GLint projLoc = -1;
-        GLint texLoc = -1;
-        GLint lutLoc = -1;
+        GLint projLoc  = -1;
+        GLint texLoc   = -1;
+        GLint lutLoc   = -1;
     };
 
     PostProcessProgram PPPrograms[PostProcessVariants];
     GLuint ColoredProgram = 0;
-    GLint ColoredProjLoc = -1;
+    GLint ColoredProjLoc  = -1;
 
     // VAO/VBO/IBO
     GLuint Vao = 0;
@@ -57,14 +58,14 @@ namespace
 
     struct GLState
     {
-        GLuint texture = 0;
-        GLint viewport[4] = { 0 };
-        GLint scissorBox[4] = { 0 };
-        GLboolean blendEnabled = GL_FALSE;
+        GLuint texture           = 0;
+        GLint viewport[4]        = { 0 };
+        GLint scissorBox[4]      = { 0 };
+        GLboolean blendEnabled   = GL_FALSE;
         GLboolean scissorEnabled = GL_FALSE;
-        GLint arrayBuffer = 0;
-        GLint vertexArray = 0;
-        GLint program = 0;
+        GLint arrayBuffer        = 0;
+        GLint vertexArray        = 0;
+        GLint program            = 0;
         Matrix4 projection;
     };
 
@@ -100,6 +101,10 @@ void main()
     vec4 texel = texture(uTexture, vTexCoord);
     vec3 rgb = texel.rgb;
     float alpha = texel.a;
+#ifdef UNPREMULTIPLY
+    if (alpha > 0.0)
+        rgb /= alpha;
+#endif
 #ifdef CMYK
 #ifdef HAS_LUT
     // ICC path: LUT maps raw (C,M,Y) → ICC-correct RGB, then darken by K
@@ -135,13 +140,17 @@ void main()
     std::string buildPostProcessFrag(uint32_t flags)
     {
         std::string src = "#version 330 core\n";
-        if (flags & render::PP_Lut)
-        {
-            src += "#define HAS_LUT\n";
-        }
-        if (flags & render::PP_Cmyk)
+        if (flags & static_cast<uint32_t>(eEffect::Cmyk))
         {
             src += "#define CMYK\n";
+        }
+        if (flags & static_cast<uint32_t>(eEffect::Unpremultiply))
+        {
+            src += "#define UNPREMULTIPLY\n";
+        }
+        if (flags & static_cast<uint32_t>(eEffect::Lut))
+        {
+            src += "#define HAS_LUT\n";
         }
         src += PostProcessFragBody;
         return src;
@@ -197,17 +206,17 @@ void render::init()
     int maxSize = 0;
     GL(glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize));
     constexpr uint32_t MaxChunkSize = 4096;
-    TextureSizeLimit = std::min<uint32_t>(static_cast<uint32_t>(maxSize), MaxChunkSize);
+    TextureSizeLimit                = std::min<uint32_t>(static_cast<uint32_t>(maxSize), MaxChunkSize);
 
     // Create post-process shader variants (mega-shader)
     for (uint32_t flags = 0; flags < PostProcessVariants; flags++)
     {
         auto fragSrc = buildPostProcessFrag(flags);
-        auto& pp = PPPrograms[flags];
-        pp.program = createProgram(VertexShaderSource, fragSrc.c_str());
-        pp.projLoc = glGetUniformLocation(pp.program, "uProjection");
-        pp.texLoc = glGetUniformLocation(pp.program, "uTexture");
-        pp.lutLoc = glGetUniformLocation(pp.program, "uLut");
+        auto& pp     = PPPrograms[flags];
+        pp.program   = createProgram(VertexShaderSource, fragSrc.c_str());
+        pp.projLoc   = glGetUniformLocation(pp.program, "uProjection");
+        pp.texLoc    = glGetUniformLocation(pp.program, "uTexture");
+        pp.lutLoc    = glGetUniformLocation(pp.program, "uLut");
     }
 
     ColoredProgram = createProgram(VertexShaderSource, ColoredFragSource);
@@ -279,8 +288,8 @@ void render::shutdown()
         ReadbackFbo = 0;
     }
 
-    ViewZoom = 1.0f;
-    ViewAngle = 0;
+    ViewZoom         = 1.0f;
+    ViewAngle        = 0;
     CurrentTextureId = 0;
     TextureSizeLimit = 1024;
 
@@ -313,7 +322,7 @@ void render::pushState()
     state.texture = CurrentTextureId;
     GL(glGetIntegerv(GL_VIEWPORT, state.viewport));
     GL(glGetIntegerv(GL_SCISSOR_BOX, state.scissorBox));
-    state.blendEnabled = glIsEnabled(GL_BLEND);
+    state.blendEnabled   = glIsEnabled(GL_BLEND);
     state.scissorEnabled = glIsEnabled(GL_SCISSOR_TEST);
     GL(glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &state.arrayBuffer));
     GL(glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &state.vertexArray));
@@ -406,7 +415,6 @@ namespace
         { ePixelFormat::RGB565, GL_RGB8, GL_RGB, GL_UNSIGNED_SHORT_5_6_5 },
         { ePixelFormat::RGBA5551, GL_RGB5_A1, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1 },
         { ePixelFormat::RGBA4444, GL_RGBA4, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4 },
-        { ePixelFormat::CMYK, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE },
     };
 
     const FormatMapping* getFormatMapping(ePixelFormat format)
@@ -576,9 +584,9 @@ void render::render(const Line& line)
 {
     bindTexture(line.tex);
 
-    auto& pp = PPPrograms[PP_None];
+    auto& pp       = PPPrograms[static_cast<uint32_t>(eEffect::None)];
     GLuint program = (line.tex != 0) ? pp.program : ColoredProgram;
-    GLint projLoc = (line.tex != 0) ? pp.projLoc : ColoredProjLoc;
+    GLint projLoc  = (line.tex != 0) ? pp.projLoc : ColoredProjLoc;
 
     GL(glUseProgram(program));
     GL(glUniformMatrix4fv(projLoc, 1, GL_FALSE, Projection.m));
@@ -595,9 +603,9 @@ void render::render(const Quad& quad)
 {
     bindTexture(quad.tex);
 
-    auto& pp = PPPrograms[PP_None];
+    auto& pp       = PPPrograms[static_cast<uint32_t>(eEffect::None)];
     GLuint program = (quad.tex != 0) ? pp.program : ColoredProgram;
-    GLint projLoc = (quad.tex != 0) ? pp.projLoc : ColoredProjLoc;
+    GLint projLoc  = (quad.tex != 0) ? pp.projLoc : ColoredProjLoc;
 
     GL(glUseProgram(program));
     GL(glUniformMatrix4fv(projLoc, 1, GL_FALSE, Projection.m));
@@ -610,16 +618,17 @@ void render::render(const Quad& quad)
     GL(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr));
 }
 
-void render::renderPostProcessed(const Quad& quad, GLuint lutTex, uint32_t flags)
+void render::renderPostProcessed(const Quad& quad, GLuint lutTex, eEffect effects)
 {
     bindTexture(quad.tex);
 
-    auto& pp = PPPrograms[flags & (PostProcessVariants - 1)];
+    auto flags = static_cast<uint32_t>(effects);
+    auto& pp   = PPPrograms[flags & (PostProcessVariants - 1)];
     GL(glUseProgram(pp.program));
     GL(glUniformMatrix4fv(pp.projLoc, 1, GL_FALSE, Projection.m));
     GL(glUniform1i(pp.texLoc, 0));
 
-    if ((flags & PP_Lut) && lutTex != 0)
+    if ((effects & eEffect::Lut) && lutTex != 0)
     {
         GL(glActiveTexture(GL_TEXTURE1));
         GL(glBindTexture(GL_TEXTURE_3D, lutTex));
@@ -705,12 +714,12 @@ void render::setGlobals(const Vectorf& offset, int angle, float zoom, bool flipH
     const float x = offset.x - w * 0.5f;
     const float y = offset.y - h * 0.5f;
 
-    ViewRect = { { x, y }, { x + w, y + h } };
-    ViewZoom = zoom;
+    ViewRect  = { { x, y }, { x + w, y + h } };
+    ViewZoom  = zoom;
     ViewAngle = angle;
 
-    auto ortho = Matrix4::Ortho(x, x + w, y + h, y, -1.0f, 1.0f);
+    auto ortho  = Matrix4::Ortho(x, x + w, y + h, y, -1.0f, 1.0f);
     auto rotate = Matrix4::RotateZ(static_cast<float>(-angle));
-    auto flip = Matrix4::Scale(flipH ? -1.0f : 1.0f, flipV ? -1.0f : 1.0f);
-    Projection = ortho * rotate * flip;
+    auto flip   = Matrix4::Scale(flipH ? -1.0f : 1.0f, flipV ? -1.0f : 1.0f);
+    Projection  = ortho * rotate * flip;
 }

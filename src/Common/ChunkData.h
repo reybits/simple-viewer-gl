@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Bitmap.h"
+#include "Effects.h"
 #include "Helpers.h"
 
 #include <atomic>
@@ -20,18 +21,19 @@ struct sChunkData : sBitmap
     void reset()
     {
         bitmap.clear();
-        format = ePixelFormat::RGB;
-        bpp = 0;
-        pitch = 0;
-        width = 0;
-        height = 0;
+        format     = ePixelFormat::RGB;
+        bpp        = 0;
+        pitch      = 0;
+        width      = 0;
+        height     = 0;
         bandHeight = 0;
 
+        effects = eEffect::None;
+
         isCompressedTexture = false;
-        compressedSize = 0;
+        compressedSize      = 0;
 
         lutData.clear();
-        lutSize = 0;
 
         readyHeight.store(0, std::memory_order_relaxed);
         consumedHeight.store(0, std::memory_order_relaxed);
@@ -48,11 +50,11 @@ struct sChunkData : sBitmap
     // Uses a band buffer of bandRows height (0 = full image).
     void allocate(uint32_t w, uint32_t h, uint32_t bitsPerPixel, ePixelFormat fmt, uint32_t bandRows = 0)
     {
-        width = w;
-        height = h;
-        bpp = bitsPerPixel;
-        format = fmt;
-        pitch = helpers::calculatePitch(w, bitsPerPixel);
+        width      = w;
+        height     = h;
+        bpp        = bitsPerPixel;
+        format     = fmt;
+        pitch      = helpers::calculatePitch(w, bitsPerPixel);
         bandHeight = (bandRows > 0 && bandRows < h) ? bandRows : h;
         resizeBitmap(pitch, bandHeight);
     }
@@ -70,14 +72,16 @@ struct sChunkData : sBitmap
 
     // Streaming progress
     std::atomic<uint32_t> readyHeight{ 0 };    // rows decoded so far (decoder → viewer)
-    std::atomic<uint32_t> consumedHeight{ 0 };  // rows uploaded to GPU (viewer → decoder)
-    uint32_t bandHeight = 0; // band buffer height (== height when no banding)
+    std::atomic<uint32_t> consumedHeight{ 0 }; // rows uploaded to GPU (viewer → decoder)
+    uint32_t bandHeight = 0;                   // band buffer height (== height when no banding)
+
+    // GPU post-processing effects (CMYK conversion, unpremultiply, LUT)
+    eEffect effects = eEffect::None;
 
     // GPU-compressed texture (ASTC, ETC2, BC)
     bool isCompressedTexture = false;
-    uint32_t compressedSize = 0; // size of compressed texture data in bytes
+    uint32_t compressedSize  = 0; // size of compressed texture data in bytes
 
-    // 3D LUT for GPU ICC color correction (33³×3 RGB bytes)
+    // 3D LUT for GPU ICC color correction (LutGridSize³ × 3 RGB bytes)
     std::vector<uint8_t> lutData;
-    uint32_t lutSize = 0; // grid dimension (e.g. 33)
 };

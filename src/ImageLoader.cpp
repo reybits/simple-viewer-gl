@@ -67,12 +67,12 @@ bool cImageLoader::loadFromFile(const char* path)
     m_metrics.fileReadMs = (timing::seconds() - t0) * 1000.0;
 
     m_activeReader = getOrCreateReader(*entry);
-    bool result = m_activeReader->Load(path, m_chunk, m_info);
+    bool result    = m_activeReader->Load(path, m_chunk, m_info);
 
     if (result)
     {
         m_metrics.decodeMs = m_activeReader->getDecodeMs();
-        m_metrics.iccMs = m_activeReader->getIccMs();
+        m_metrics.iccMs    = m_activeReader->getIccMs();
     }
 
     return result;
@@ -97,13 +97,14 @@ void cImageLoader::load(const char* path)
     }
 
     // Fallback to "not available"
-    static const char* naKey = "n/a";
-    auto it = m_formatCache.find(naKey);
+    constexpr auto NAkey = "n/a";
+
+    auto it = m_formatCache.find(NAkey);
     if (it == m_formatCache.end())
     {
         auto na = std::make_unique<cNotAvailable>();
-        m_formatCache.emplace(naKey, std::move(na));
-        it = m_formatCache.find(naKey);
+        m_formatCache.emplace(NAkey, std::move(na));
+        it = m_formatCache.find(NAkey);
     }
     m_activeReader = it->second.get();
     m_activeReader->Load(path, m_chunk, m_info);
@@ -130,7 +131,7 @@ void cImageLoader::loadImage(const std::string& path)
             m_info.images = 1;
         }
         m_metrics.bitmapBytes = m_chunk.bitmap.size();
-        m_metrics.totalMs = (timing::seconds() - t0) * 1000.0;
+        m_metrics.totalMs     = (timing::seconds() - t0) * 1000.0;
         m_completed.store(true, std::memory_order_release);
         m_callbacks->endLoading();
     },
@@ -146,7 +147,6 @@ void cImageLoader::loadSubImage(unsigned subImage)
     m_chunk.readyHeight.store(0, std::memory_order_relaxed);
     m_chunk.consumedHeight.store(0, std::memory_order_relaxed);
     m_chunk.lutData.clear();
-    m_chunk.lutSize = 0;
 
     m_metrics.reset();
 
@@ -161,7 +161,7 @@ void cImageLoader::loadSubImage(unsigned subImage)
             m_chunk.reset();
         }
         m_metrics.bitmapBytes = m_chunk.bitmap.size();
-        m_metrics.totalMs = (timing::seconds() - t0) * 1000.0;
+        m_metrics.totalMs     = (timing::seconds() - t0) * 1000.0;
         m_completed.store(true, std::memory_order_release);
         m_callbacks->endLoading();
     },
