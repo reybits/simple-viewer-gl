@@ -32,6 +32,7 @@ struct sImageInfo
         Exposure,
         Image,
         Date,
+        GPS,
         Software,
         Info,
         Other,

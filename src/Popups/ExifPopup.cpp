@@ -54,6 +54,7 @@ const char* cExifPopup::categoryName(eCategory category)
         "Exposure",
         "Image",
         "Date",
+        "GPS",
         "Software",
         "Info",
         "Other",

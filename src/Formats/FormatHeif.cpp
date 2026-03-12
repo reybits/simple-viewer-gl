@@ -13,40 +13,12 @@
 #include "Common/Callbacks.h"
 #include "Common/ChunkData.h"
 #include "Common/File.h"
-#include "Common/Helpers.h"
 #include "Common/ImageInfo.h"
+#include "Libs/ExifHelper.h"
 #include "Log/Log.h"
 
 #include <cstring>
 #include <libheif/heif.h>
-
-#if defined(EXIF_SUPPORT)
-#include <libexif/exif-data.h>
-#endif
-
-namespace
-{
-#if defined(EXIF_SUPPORT)
-    using eCategory = sImageInfo::ExifCategory;
-
-    void AddExifTag(ExifData* d, ExifIfd ifd, ExifTag tag, eCategory category, sImageInfo::ExifList& exifList)
-    {
-        ExifEntry* entry = exif_content_get_entry(d->ifd[ifd], tag);
-        if (entry != nullptr)
-        {
-            char buf[1024];
-            exif_entry_get_value(entry, buf, sizeof(buf));
-
-            helpers::trimRightSpaces(buf);
-            if (*buf)
-            {
-                exifList.push_back({ category, exif_tag_get_title_in_ifd(tag, ifd), buf });
-            }
-        }
-    }
-#endif
-
-} // namespace
 
 bool cFormatHeif::isSupported(cFile& file, Buffer& buffer) const
 {
@@ -186,7 +158,6 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
     }
 
     // Extract EXIF metadata
-#if defined(EXIF_SUPPORT)
     {
         const int metaCount = heif_image_handle_get_number_of_metadata_blocks(handle, "Exif");
         if (metaCount > 0)
@@ -201,76 +172,21 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
                 err = heif_image_handle_get_metadata(handle, metaId, exifRaw.data());
                 if (err.code == heif_error_Ok)
                 {
-                    // HEIF EXIF metadata has a 4-byte offset prefix before the TIFF header
-                    const uint8_t* exifData = exifRaw.data();
-                    size_t exifSize = exifRaw.size();
-                    if (exifSize > 4)
+                    // HEIF EXIF metadata has a 4-byte big-endian offset prefix;
+                    // the rest (including "Exif\0\0" header) is passed to libexif as-is.
+                    // libheif already applies orientation transforms during decode,
+                    // so extract tags for display but ignore the orientation value.
+                    if (exifRaw.size() > 4)
                     {
-                        auto tiffOffset = static_cast<size_t>(helpers::read_uint32(exifData));
-                        if (tiffOffset + 4 < exifSize)
-                        {
-                            exifData += 4 + tiffOffset;
-                            exifSize -= 4 + tiffOffset;
-                        }
-                        else
-                        {
-                            exifData += 4;
-                            exifSize -= 4;
-                        }
-                    }
-
-                    auto ed = exif_data_new_from_data(exifData, static_cast<unsigned>(exifSize));
-                    if (ed != nullptr)
-                    {
-                        auto& exifList = info.exifList;
-
-                        // Camera
-                        AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_MAKE, eCategory::Camera, exifList);
-                        AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_MODEL, eCategory::Camera, exifList);
-                        AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_SOFTWARE, eCategory::Camera, exifList);
-                        AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_ORIENTATION, eCategory::Camera, exifList);
-
-                        // Exposure
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_TIME, eCategory::Exposure, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FNUMBER, eCategory::Exposure, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_MAX_APERTURE_VALUE, eCategory::Exposure, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FOCAL_LENGTH, eCategory::Exposure, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_MODE, eCategory::Exposure, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_PROGRAM, eCategory::Exposure, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, eCategory::Exposure, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_FLASH, eCategory::Exposure, exifList);
-
-                        // Image
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_X_DIMENSION, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_Y_DIMENSION, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_X_RESOLUTION, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_0, EXIF_TAG_Y_RESOLUTION, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_COLOR_SPACE, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_CONTRAST, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SATURATION, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SHARPNESS, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_SCENE_CAPTURE_TYPE, eCategory::Image, exifList);
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_DIGITAL_ZOOM_RATIO, eCategory::Image, exifList);
-
-                        // Date
-                        AddExifTag(ed, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_ORIGINAL, eCategory::Date, exifList);
-
-                        // Store EXIF orientation for renderer
-                        ExifEntry* orientEntry = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_ORIENTATION);
-                        if (orientEntry != nullptr)
-                        {
-                            auto byteOrder = exif_data_get_byte_order(ed);
-                            info.exifOrientation = exif_get_short(orientEntry->data, byteOrder);
-                        }
-
-                        exif_data_unref(ed);
+                        uint16_t unusedOrientation = 0;
+                        exif::extractAll(exifRaw.data() + 4,
+                                         static_cast<unsigned>(exifRaw.size() - 4),
+                                         info.exifList, unusedOrientation);
                     }
                 }
             }
         }
     }
-#endif
 
     heif_image_release(img);
     heif_image_handle_release(handle);
