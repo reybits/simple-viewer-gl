@@ -7,7 +7,7 @@
     <key>CFBundleExecutable</key>
     <string>sviewgl</string>
     <key>CFBundleGetInfoString</key>
-    <string>© 2008-2018, Andrey A. Ugolnik</string>
+    <string>© 2008-2026, Andrey A. Ugolnik</string>
     <key>CFBundleIconFile</key>
     <string>Icon.icns</string>
     <key>CFBundleIdentifier</key>
@@ -27,7 +27,7 @@
     <key>CSResourcesFileMapped</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
-    <string>© 2008-2018, Andrey A. Ugolnik</string>
+    <string>© 2008-2026, Andrey A. Ugolnik</string>
     <key>NSHighResolutionCapable</key>
     <true/>
 
@@ -77,6 +77,9 @@
                 <string>psd</string>
                 <string>pvr</string>
                 <string>pvrtc</string>
+                <string>heif</string>
+                <string>avif</string>
+                <string>heic</string>
                 <string>raw</string>
                 <string>s</string>
                 <string>scr</string>
