@@ -84,6 +84,9 @@ add_subdirectory(third-party/astcenc)
 add_subdirectory(third-party/pvrtc)
 add_subdirectory(third-party/glad)
 
+set(LUNASVG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+add_subdirectory(third-party/lunasvg)
+
 # set(VERBOSE_PATHS TRUE)
 
 find_package(OpenGL QUIET REQUIRED)
@@ -423,8 +426,8 @@ else()
     add_executable(${APPLICATION_NAME} ${SVIEW_SOURCES})
 endif()
 
-add_dependencies(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec PvrDec GLAD)
-target_link_libraries(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec PvrDec GLAD)
+add_dependencies(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec PvrDec GLAD lunasvg)
+target_link_libraries(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec PvrDec GLAD lunasvg)
 
 if(OPENGL_FOUND)
     target_link_libraries(${APPLICATION_NAME} ${OPENGL_LIBRARY})

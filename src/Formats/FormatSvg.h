@@ -11,8 +11,6 @@
 
 #include "Format.h"
 
-struct NSVGrasterizer;
-
 class cFormatSvg final : public cFormat
 {
 public:
@@ -23,7 +21,4 @@ public:
 
 private:
     bool LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info) override;
-
-private:
-    NSVGrasterizer* m_rasterizer;
 };

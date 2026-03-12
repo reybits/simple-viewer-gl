@@ -14,26 +14,16 @@
 #include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
-#include <cfloat>
-#include <cmath>
 #include <cstring>
-
-#define NANOSVG_ALL_COLOR_KEYWORDS
-#define NANOSVG_IMPLEMENTATION
-#include "Libs/NanoSvg.h"
-
-#define NANOSVGRAST_IMPLEMENTATION
-#include "Libs/NanoSvgRast.h"
+#include <lunasvg.h>
 
 cFormatSvg::cFormatSvg(sCallbacks* callbacks)
     : cFormat(callbacks)
 {
-    m_rasterizer = nsvgCreateRasterizer();
 }
 
 cFormatSvg::~cFormatSvg()
 {
-    nsvgDeleteRasterizer(m_rasterizer);
 }
 
 bool cFormatSvg::isSupported(cFile& file, Buffer& buffer) const
@@ -53,12 +43,6 @@ bool cFormatSvg::isSupported(cFile& file, Buffer& buffer) const
 
 bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
-    if (m_rasterizer == nullptr)
-    {
-        cLog::Error("Can't create SVG rasterizer.");
-        return false;
-    }
-
     cFile file;
     if (!openFile(file, filename, info))
     {
@@ -73,43 +57,68 @@ bool cFormatSvg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
 
-    auto image = nsvgParse(data.data(), "px", 96.0f);
-    if (image == nullptr)
+    auto document = lunasvg::Document::loadFromData(data.data(), data.size());
+    if (document == nullptr)
     {
-        cLog::Error("Can't parse SVG image.");
+        // Try extracting embedded <svg>...</svg> block (e.g. from HTML files).
+        auto svgStart = helpers::memfind(data.data(), data.size(), "<svg");
+        auto svgEnd = helpers::memfind(data.data(), data.size(), "</svg>");
+        if (svgStart != nullptr && svgEnd != nullptr && svgEnd > svgStart)
+        {
+            svgEnd += 6; // include "</svg>"
+            document = lunasvg::Document::loadFromData(svgStart, svgEnd - svgStart);
+        }
+        if (document == nullptr)
+        {
+            cLog::Error("Can't parse SVG document.");
+            return false;
+        }
+    }
+
+    const auto svgWidth = document->width();
+    const auto svgHeight = document->height();
+    if (svgWidth <= 0.0f || svgHeight <= 0.0f)
+    {
+        cLog::Error("Invalid SVG dimensions: {} x {}.", svgWidth, svgHeight);
         return false;
     }
 
     auto scale = 1.0f;
-
     const auto minSize = m_config->minSvgSize;
     cLog::Debug("Config SVG size: {:.1f}.", minSize);
 
-    if (image->width < minSize && image->height < minSize)
+    if (svgWidth < minSize && svgHeight < minSize)
     {
-        const auto sw = minSize / image->width;
-        const auto sh = minSize / image->height;
+        const auto sw = minSize / svgWidth;
+        const auto sh = minSize / svgHeight;
         scale = std::min(sw, sh);
-        cLog::Info("SVG size too small, upscaling to {} x {}.", image->width * scale, image->height * scale);
+        cLog::Info("SVG size too small, upscaling to {} x {}.", svgWidth * scale, svgHeight * scale);
         cLog::Info("Calculated scale: {} x {}.", sw, sh);
     }
 
     cLog::Debug("Selected scale: {:.1f}.", scale);
 
+    const auto width = static_cast<int>(svgWidth * scale);
+    const auto height = static_cast<int>(svgHeight * scale);
+
+    auto bitmap = document->renderToBitmap(width, height);
+    if (bitmap.isNull())
+    {
+        cLog::Error("Can't rasterize SVG document.");
+        return false;
+    }
+
     info.images = 1;
-    chunk.format = ePixelFormat::RGBA;
+    chunk.format = ePixelFormat::BGRA;
     chunk.bpp = 32;
+    chunk.effects = eEffect::Unpremultiply;
     info.bppImage = 32;
-    chunk.width = image->width * scale;
-    chunk.height = image->height * scale;
-    chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::RGBA);
-    auto pix = chunk.bitmap.data();
-    // std::fill(chunk.bitmap.begin(), chunk.bitmap.end(), 0);
+    chunk.width = bitmap.width();
+    chunk.height = bitmap.height();
+    chunk.pitch = bitmap.stride();
+    chunk.bitmap.assign(bitmap.data(), bitmap.data() + chunk.pitch * chunk.height);
 
     info.formatName = "svg";
-
-    nsvgRasterize(m_rasterizer, image, 0.0f, 0.0f, scale, pix, chunk.width, chunk.height, chunk.pitch);
-    nsvgDelete(image);
 
     return true;
 }
