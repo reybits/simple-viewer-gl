@@ -13,30 +13,29 @@
 #include "Common/ImageInfo.h"
 #include "Libs/Xcf.h"
 
-#include <cstdio>
 #include <cstring>
 
 bool cFormatXcf::isSupported(cFile& file, Buffer& buffer) const
 {
-    const char header[8] = { 'g', 'i', 'm', 'p', ' ', 'x', 'c', 'f' };
+    constexpr char Header[] = { 'g', 'i', 'm', 'p', ' ', 'x', 'c', 'f' };
 
-    if (!readBuffer(file, buffer, sizeof(header)))
+    if (readBuffer(file, buffer, sizeof(Header)) == false)
     {
         return false;
     }
 
-    return ::memcmp(buffer.data(), header, sizeof(header)) == 0;
+    return std::memcmp(buffer.data(), Header, sizeof(Header)) == 0;
 }
 
 bool cFormatXcf::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& info)
 {
     cFile file;
-    if (!openFile(file, filename, info))
+    if (openFile(file, filename, info) == false)
     {
         return false;
     }
 
     info.formatName = "xcf";
 
-    return import_xcf(file, chunk, info);
+    return xcf::import(file, chunk, info);
 }

@@ -13,4 +13,7 @@ class cFile;
 struct sChunkData;
 struct sImageInfo;
 
-bool import_xcf(cFile& file, sChunkData& chunk, sImageInfo& info);
+namespace xcf
+{
+    bool import(cFile& file, sChunkData& chunk, sImageInfo& info);
+}

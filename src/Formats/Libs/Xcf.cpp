@@ -8,1183 +8,700 @@
 \**********************************************/
 
 #include "Common/ChunkData.h"
-#include "Common/ImageInfo.h"
 #include "Common/File.h"
+#include "Common/ImageInfo.h"
 #include "Log/Log.h"
 
 #include <algorithm>
 #include <array>
-#include <cmath>
-#include <cstdint>
-#include <limits>
-#include <memory>
-#include <string>
+#include <cstring>
 #include <vector>
+#include <zlib.h>
 
 namespace
 {
+    // --- Big-endian file reading ---
+
     template <typename T>
-    std::string toBits(T val)
+    T ReadBE(cFile& file)
     {
-        std::string s;
-        for (size_t i = 0; i < sizeof(T) * 8; i++)
+        T val{};
+        file.read(reinterpret_cast<char*>(&val), sizeof(T));
+        auto p = reinterpret_cast<uint8_t*>(&val);
+        std::reverse(p, p + sizeof(T));
+        return val;
+    }
+
+    std::string ReadString(cFile& file)
+    {
+        auto len = ReadBE<uint32_t>(file);
+        if (len == 0)
         {
-            bool bit = val & ((T)1);
-            s += bit ? "1" : "0";
-            val >>= 1;
+            return {};
+        }
+
+        std::string s(len, '\0');
+        file.read(s.data(), len);
+        // Strip null terminator if present
+        if (s.empty() == false && s.back() == '\0')
+        {
+            s.pop_back();
         }
         return s;
     }
 
-#pragma pack(push, 1)
-    struct xcf_col_t
+    // --- XCF types ---
+
+    enum class ColorMode : uint32_t
+    {
+        RGB       = 0,
+        Grayscale = 1,
+        Indexed   = 2,
+    };
+
+    enum class LayerType : uint32_t
+    {
+        RGB      = 0,
+        RGBA     = 1,
+        Gray     = 2,
+        GrayA    = 3,
+        Indexed  = 4,
+        IndexedA = 5,
+    };
+
+    enum class Compression : uint8_t
+    {
+        None = 0,
+        RLE  = 1,
+        Zlib = 2,
+    };
+
+    enum class PropType : uint32_t
+    {
+        End          = 0,
+        ColorMap     = 1,
+        Opacity      = 6,
+        Mode         = 7,
+        Visible      = 8,
+        Offset       = 15,
+        Compression  = 17,
+        FloatOpacity = 33,
+    };
+
+    struct Color
     {
         uint8_t r, g, b;
-        xcf_col_t(uint8_t r, uint8_t g, uint8_t b)
-            : r(r), g(g), b(b)
+    };
+    using Palette = std::array<Color, 256>;
+
+    constexpr uint32_t TileSize     = 64;
+    constexpr uint32_t MaxCanvasDim = 262144;
+
+    // Read file offset: 32-bit for v0-v10, 64-bit for v11+
+    uint64_t ReadOffset(cFile& file, bool wide)
+    {
+        if (wide)
         {
+            return ReadBE<uint64_t>(file);
         }
-        xcf_col_t()
-            : xcf_col_t(0, 0, 0)
-        {
-        }
-    };
-#pragma pack(pop)
-
-    typedef std::array<xcf_col_t, 256> Palette;
-
-    enum struct xcf_property_type : uint32_t
-    {
-        end = 0,
-        col_map = 1,
-        layer_mode = 7,
-        layer_offset = 15,
-        compression = 17,
-        guides = 18,
-        resolution = 19,
-        tattoo = 20,
-        parasites = 21,
-        unit = 22,
-        paths = 23,
-        user_unit = 24,
-        vectors = 25,
-        sample_points = 27,
-    };
-
-    enum struct xcf_col_mode : uint32_t
-    {
-        rgb = 0,
-        grayscale = 1,
-        indexed = 2
-    };
-
-    enum struct xcf_layer_col_mode : uint32_t
-    {
-        rgb = 0,
-        rgb_a = 1,
-        grayscale = 2,
-        grayscale_a = 3,
-        indexed = 4,
-        indexed_a = 5
-    };
-
-    enum struct xcf_comp_mode : uint8_t
-    {
-        none = 0,
-        rle = 1,
-        zlib = 2,
-        fractal = 3
-    };
-
-    const char* toCompMode(xcf_comp_mode mode)
-    {
-        const char* Names[] = {
-            "None",
-            "RLE",
-            "ZLib",
-            "Fractal",
-        };
-
-        return Names[(uint32_t)mode];
+        return ReadBE<uint32_t>(file);
     }
 
-    enum struct xcf_layer_mode : uint32_t
+    // --- Property reading ---
+
+    struct Property
     {
-        normal = 0,
-        dissolve = 1,
-        behind = 2,
-        multiply = 3,
-        screen = 4,
-        overlay = 5,
-        difference = 6,
-        addition = 7,
-        subtract = 8,
-        darken_only = 9,
-        lighten_only = 10,
-        hue = 11,
-        saturation = 12,
-        colour = 13,
-        value = 14,
-        divide = 15,
-        dodge = 16,
-        burn = 17,
-        hard_light = 18,
-        soft_light = 19,
-        grain_extract = 20,
-        grain_merge = 21
+        PropType type;
+        uint32_t length;
     };
 
-    template <typename T>
-    T fread(cFile& file, bool big_endian = false)
+    Property ReadProperty(cFile& file)
     {
-        T res{};
-        file.read(reinterpret_cast<char*>(&res), sizeof(T));
-        if (big_endian)
-        {
-            auto beg = reinterpret_cast<char*>(&res);
-            std::reverse(beg, beg + sizeof(T));
-        }
-        return res;
+        Property p;
+        p.type   = ReadBE<PropType>(file);
+        p.length = ReadBE<uint32_t>(file);
+        return p;
     }
 
-    void fread_force(cFile& file, char* buff, size_t size)
+    // --- Tile decompression ---
+
+    // Uncompressed: interleaved pixel data
+    bool ReadTileNone(cFile& file, uint8_t* dst, uint32_t tileBytes)
     {
-        size_t pos = file.getOffset();
-        size_t len = file.getSize();
-        size_t real_len = size;
-
-        if (pos + size > len)
-        {
-            real_len = len - pos;
-        }
-
-        file.read(buff, real_len);
-
-        auto const extra_len = size - real_len;
-        if (extra_len > 0)
-        {
-            std::fill_n(buff + real_len, extra_len, 0);
-        }
+        return file.read(reinterpret_cast<char*>(dst), tileBytes) == tileBytes;
     }
 
-    struct xcf_rect_t
+    // RLE: per-channel planar encoding
+    bool ReadTileRLE(cFile& file, uint8_t* dst, uint32_t tileW, uint32_t tileH, uint32_t bpp, uint32_t dataLen)
     {
-        uint32_t x, y, w, h;
-        xcf_rect_t(uint32_t x, uint32_t y, uint32_t w, uint32_t h)
-            : x(x), y(y), w(w), h(h)
-        {
-        }
-    };
+        auto tilePixels = tileW * tileH;
 
-    struct xcf_property_t
-    {
-        xcf_property_type type;
-        uint32_t payload;
-    };
-
-    using property_pair_t = std::pair<xcf_property_t, uint32_t>;
-    inline std::string xcf_read_string(cFile& file, bool big_endian = false);
-    inline xcf_property_t xcf_read_property(cFile& file, bool big_endian = false);
-    inline std::vector<property_pair_t> xcf_query_properties_list(cFile& file);
-
-    struct xcf_property_col_map_t
-    {
-        xcf_property_t head;
-        uint32_t count;
-        std::unique_ptr<xcf_col_t[]> palette;
-        xcf_property_col_map_t(xcf_property_t head, cFile& file)
-            : head(head)
-            , count(fread<uint32_t>(file, true))
-            , palette(std::make_unique<xcf_col_t[]>(count))
-        {
-            file.read(reinterpret_cast<char*>(palette.get()), count * sizeof(xcf_col_t));
-        }
-    };
-
-    struct xcf_property_comp_t
-    {
-        xcf_property_t head;
-        xcf_comp_mode compression;
-        xcf_property_comp_t(xcf_property_t head, cFile& file)
-            : head(head), compression(fread<xcf_comp_mode>(file))
-        {
-        }
-    };
-
-    struct xcf_property_res_t
-    {
-        xcf_property_t head;
-        float hres, vres; // ppi
-        xcf_property_res_t(xcf_property_t head, cFile& file)
-            : head(head), hres(fread<float>(file, true)), vres(fread<float>(file, true))
-        {
-        }
-    };
-
-    struct xcf_property_layer_mode_t
-    {
-        xcf_property_t head;
-        xcf_layer_mode mode;
-        xcf_property_layer_mode_t(xcf_property_t head, cFile& file)
-            : head(head), mode(fread<xcf_layer_mode>(file, true))
-        {
-        }
-    };
-
-    struct xcf_property_layer_offset_t
-    {
-        xcf_property_t head;
-        int32_t x_offset, y_offset;
-        xcf_property_layer_offset_t(xcf_property_t head, cFile& file)
-            : head(head), x_offset(fread<int32_t>(file, true)), y_offset(fread<int32_t>(file, true))
-        {
-        }
-    };
-
-    struct xcf_layer_t
-    {
-        uint32_t width, height;
-        xcf_layer_col_mode type;
-        std::string name;
-        std::vector<property_pair_t> properties;
-        uint32_t hierarchy_ptr, mask_ptr;
-        xcf_layer_t(cFile& file)
-            : width(fread<uint32_t>(file, true))
-            , height(fread<uint32_t>(file, true))
-            , type(fread<xcf_layer_col_mode>(file, true))
-            , name(xcf_read_string(file, true))
-            , properties(xcf_query_properties_list(file))
-            , hierarchy_ptr(fread<uint32_t>(file, true))
-            , mask_ptr(fread<uint32_t>(file, true))
-        {
-#if defined(DEBUG)
-            for (const auto& property : properties)
-            {
-                auto prop = property.first;
-                auto pos = property.second;
-                cLog::Debug("Property {} at position {}.",
-                            static_cast<uint32_t>(prop.type),
-                            pos);
-            }
-#endif
-        }
-    };
-
-    struct xcf_hierarchy_t
-    {
-        uint32_t width, height, bpp, level_ptr;
-        xcf_hierarchy_t(cFile& file)
-            : width(fread<uint32_t>(file, true)), height(fread<uint32_t>(file, true)), bpp(fread<uint32_t>(file, true)), level_ptr(fread<uint32_t>(file, true))
-        {
-        }
-    };
-
-    std::vector<uint32_t> xcf_read_level_ptrs(cFile& file)
-    {
-        std::vector<uint32_t> res;
-        res.reserve(0x10);
-
-        while (true)
-        {
-            auto const level = fread<uint32_t>(file, true);
-            if (level != 0)
-            {
-                res.push_back(level);
-            }
-            else
-            {
-                break;
-            }
-        }
-        return res;
-    }
-
-    constexpr size_t xcf_tile_width = 64;
-    constexpr size_t xcf_tile_height = 64;
-    constexpr float xcf_tile_max_data_len_factor = 1.5f;
-
-    struct xcf_level_t
-    {
-        uint32_t width, height, tile_x, tile_y, tile_c;
-        xcf_level_t(cFile& file)
-            : width(fread<uint32_t>(file, true)), height(fread<uint32_t>(file, true)), tile_x(uint32_t(std::ceil(float(width) / float(xcf_tile_width)))), tile_y(uint32_t(std::ceil(float(height) / float(xcf_tile_height)))), tile_c(tile_x * tile_y)
-        {
-        }
-    };
-
-    inline std::vector<uint32_t> xcf_read_tile_ptrs(xcf_level_t const& level, cFile& file)
-    {
-        std::vector<uint32_t> res;
-        res.reserve(level.tile_c);
-
-        uint32_t tile_ptr = 0;
-        do
-        {
-            if ((tile_ptr = fread<uint32_t>(file, true)) != 0)
-            {
-                res.push_back(tile_ptr);
-            }
-        } while (tile_ptr != 0);
-        return res;
-    }
-
-    inline std::string raw_read_string(cFile& file, size_t length)
-    {
-        std::string res(length, '\0');
-        file.read(reinterpret_cast<char*>(const_cast<char*>(res.data())), length);
-        return res.substr(0, length - 1);
-    }
-
-    inline std::string xcf_read_string(cFile& file, bool big_endian)
-    {
-        const uint32_t length = fread<uint32_t>(file, big_endian);
-        if (length != 0)
-        {
-            return raw_read_string(file, length);
-        }
-        else
-        {
-            return std::string("null");
-        }
-    }
-
-    inline xcf_property_t xcf_read_property(cFile& file, bool big_endian)
-    {
-        xcf_property_t res = {};
-        res.type = fread<xcf_property_type>(file, big_endian);
-        res.payload = fread<uint32_t>(file, big_endian);
-        return res;
-    }
-
-    inline std::vector<property_pair_t> xcf_query_properties_list(cFile& file)
-    {
-        std::vector<property_pair_t> res;
-        res.reserve(0x100);
-
-        xcf_property_t property = {};
-        uint32_t pos = 0;
-        do
-        {
-            pos = file.getOffset();
-            property = xcf_read_property(file, true);
-
-            if (property.payload != 0)
-            {
-                file.seek(property.payload, SEEK_CUR);
-            }
-
-            res.push_back(std::make_pair(property, pos));
-        } while (property.type != xcf_property_type::end);
-        return res;
-    }
-
-    inline std::vector<uint32_t> xcf_read_layer_pointers(cFile& file)
-    {
-        std::vector<uint32_t> res;
-        res.reserve(0x100);
-
-        uint32_t pointer = 0;
-        do
-        {
-            if ((pointer = fread<uint32_t>(file, true)) != 0)
-            {
-                res.push_back(pointer);
-            }
-        } while (pointer != 0);
-
-        return res;
-    }
-
-    inline xcf_rect_t xcf_calc_tile_rect(xcf_level_t const& level, uint32_t tile_id)
-    {
-        auto const tile_col_count = level.tile_x;
-        auto const tile_row_count = level.tile_y;
-
-        if (tile_id > tile_row_count * tile_col_count - 1)
-        {
-            return xcf_rect_t(0, 0, 0, 0);
-        }
-
-        auto const tile_rows = tile_id / tile_col_count;
-        auto const tile_cols = tile_id % tile_col_count;
-
-        xcf_rect_t rect(
-            tile_cols * xcf_tile_width,
-            tile_rows * xcf_tile_height,
-            0, 0);
-
-        if (tile_cols == tile_col_count - 1)
-        {
-            rect.w = level.width - rect.x;
-        }
-        else
-        {
-            rect.w = xcf_tile_width;
-        }
-
-        if (tile_rows == tile_row_count - 1)
-        {
-            rect.h = level.height - rect.y;
-        }
-        else
-        {
-            rect.h = xcf_tile_height;
-        }
-
-        return rect;
-    }
-
-    bool xcf_read_tile_rle(cFile& file, const xcf_rect_t& tile_rect, uint32_t data_len, const xcf_hierarchy_t& hierarchy, const xcf_level_t& level, uint32_t ver, uint8_t* out_buffer, size_t& buffer_pos)
-    {
-        (void)level;
-
-        auto const tile_size = hierarchy.bpp * tile_rect.w * tile_rect.h;
-        auto tile_data = std::make_unique<uint8_t[]>(tile_size);
-
-        if (data_len == 0)
+        std::vector<uint8_t> compressed(dataLen);
+        auto bytesRead = file.read(reinterpret_cast<char*>(compressed.data()), dataLen);
+        if (bytesRead == 0)
         {
             return false;
         }
 
-        auto xcf_data_smart = std::make_unique<uint8_t[]>(data_len);
+        auto src    = compressed.data();
+        auto srcEnd = src + bytesRead;
 
-        uint8_t* xcf_o_data = xcf_data_smart.get();
-        uint8_t* xcf_data = xcf_o_data;
+        // Decode per-channel (planar), then de-planarize
+        std::vector<uint8_t> planar(tilePixels * bpp);
 
-        auto const beg = file.getOffset();
-        fread_force(file, reinterpret_cast<char*>(xcf_data_smart.get()), data_len);
-        auto const bytes_read = file.getOffset() - beg;
-
-        auto xcf_data_limit = &xcf_o_data[bytes_read - 1];
-
-        for (size_t i = 0; i < hierarchy.bpp; i++)
+        for (uint32_t ch = 0; ch < bpp; ch++)
         {
-            auto data = tile_data.get() + i;
-            auto size = int32_t(tile_rect.w * tile_rect.h);
-            // auto count = size_t(0);
+            auto chDst     = planar.data() + ch * tilePixels;
+            auto remaining = tilePixels;
 
-            while (size > 0)
+            while (remaining > 0)
             {
-                if (xcf_data > xcf_data_limit)
+                if (src >= srcEnd)
                 {
                     return false;
                 }
 
-                auto length = size_t(*xcf_data++);
+                auto cmd = *src++;
 
-                if (length >= 128)
+                if (cmd >= 128)
                 {
-                    if ((length = 255 - (length - 1)) == 128)
+                    // Non-repeating run
+                    uint32_t count = 256 - cmd;
+                    if (count == 128)
                     {
-                        if (xcf_data >= xcf_data_limit)
+                        if (src + 2 > srcEnd)
                         {
                             return false;
                         }
-
-                        length = (*xcf_data << 8) + xcf_data[1];
-                        xcf_data += 2;
+                        count = (static_cast<uint32_t>(src[0]) << 8) | src[1];
+                        src += 2;
                     }
 
-                    // count += length;
-                    size -= length;
-
-                    if (size < 0 || &xcf_data[length - 1] > xcf_data_limit)
+                    if (count > remaining || src + count > srcEnd)
                     {
                         return false;
                     }
 
-                    while (length-- > 0)
-                    {
-                        *data = *xcf_data++;
-                        data += hierarchy.bpp;
-                    }
+                    std::memcpy(chDst, src, count);
+                    src += count;
+                    chDst += count;
+                    remaining -= count;
                 }
                 else
                 {
-                    length += 1;
-                    if (length == 128)
+                    // Repeating run
+                    uint32_t count = cmd + 1;
+                    if (count == 128)
                     {
-                        if (xcf_data >= xcf_data_limit)
+                        if (src + 2 > srcEnd)
                         {
                             return false;
                         }
-
-                        length = (*xcf_data << 8) + xcf_data[1];
-                        xcf_data += 2;
+                        count = (static_cast<uint32_t>(src[0]) << 8) | src[1];
+                        src += 2;
                     }
 
-                    // count += length;
-                    size -= length;
-
-                    if (size < 0 || xcf_data > xcf_data_limit)
+                    if (count > remaining || src >= srcEnd)
                     {
                         return false;
                     }
 
-                    const auto val = *xcf_data++;
-                    for (size_t j = 0; j < length; j++)
-                    {
-                        *data = val;
-                        data += hierarchy.bpp;
-                    }
+                    auto val = *src++;
+                    std::memset(chDst, val, count);
+                    chDst += count;
+                    remaining -= count;
                 }
             }
         }
 
-        if (ver >= 12)
+        // De-planarize: channel-separate → interleaved
+        for (uint32_t i = 0; i < tilePixels; i++)
         {
-            // const auto comps = 0;
-            cLog::Warning("Unsupported XCF version: {}.", ver);
+            for (uint32_t ch = 0; ch < bpp; ch++)
+            {
+                dst[i * bpp + ch] = planar[ch * tilePixels + i];
+            }
         }
-
-        const auto tile_stride = tile_rect.w * hierarchy.bpp;
-        // const auto full_stride = hierarchy.width * hierarchy.bpp;
-
-        for (size_t row = 0; row < tile_rect.h; row++)
-        {
-            const auto pos_src = (row * tile_rect.w) * hierarchy.bpp;
-            const auto pos_dst = ((row + tile_rect.y) * hierarchy.width + tile_rect.x) * hierarchy.bpp;
-            std::copy_n(tile_data.get() + pos_src, tile_stride, out_buffer + pos_dst);
-        }
-
-        buffer_pos += tile_size;
 
         return true;
     }
 
-    inline uint32_t tag_to_ver_num(const std::string& ver)
+    // Zlib: compressed interleaved pixel data
+    bool ReadTileZlib(cFile& file, uint8_t* dst, uint32_t tileBytes, uint32_t dataLen)
     {
-        if (ver.find_first_of("file") != std::string::npos)
+        std::vector<uint8_t> compressed(dataLen);
+        auto bytesRead = file.read(reinterpret_cast<char*>(compressed.data()), dataLen);
+        if (bytesRead == 0)
         {
-            return 0;
-        }
-        else if (ver[0] == 'v')
-        {
-            return std::atoi(std::string(ver.substr(1).data()).c_str());
+            return false;
         }
 
-        return std::numeric_limits<uint32_t>::max();
+        auto outSize = static_cast<uLongf>(tileBytes);
+        auto res     = uncompress(dst, &outSize, compressed.data(),
+                                  static_cast<uLong>(bytesRead));
+        return res == Z_OK;
     }
 
-    struct raw_layer_t
+    // Convert layer pixels to RGBA ---
+    void ConvertToRGBA(const uint8_t* src, uint32_t pixelCount,
+                       LayerType type, const Palette& palette, uint8_t* dst)
     {
-        uint8_t* buffer;
-        int32_t w, h, x, y;
-        uint32_t bpp;
-        xcf_col_mode mode;
-        raw_layer_t()
-            : buffer(nullptr), w(0), h(0), x(0), y(0), bpp(0), mode(xcf_col_mode::rgb)
+        for (uint32_t i = 0; i < pixelCount; i++)
         {
-        }
-    };
+            uint8_t r, g, b, a;
 
-    typedef std::vector<raw_layer_t> LayersList;
-
-    inline xcf_col_t blend(xcf_col_t const& dst, xcf_col_t const& src, uint8_t alpha)
-    {
-        if (alpha == 0)
-        {
-            return dst;
-        }
-        if (alpha == 255)
-        {
-            return src;
-        }
-
-        const uint8_t alpha_inverse = 255 - alpha;
-
-        return xcf_col_t(
-            (src.r * alpha + dst.r * alpha_inverse) >> 8,
-            (src.g * alpha + dst.g * alpha_inverse) >> 8,
-            (src.b * alpha + dst.b * alpha_inverse) >> 8);
-    }
-
-    void draw_pixel(const Palette& palette,
-                    size_t src_pos, size_t src_bpp, xcf_col_mode src_mode, const uint8_t* src_buff,
-                    size_t dst_pos, size_t dst_bpp, xcf_col_mode dst_mode, uint8_t* dst_buff, bool swap = false)
-    {
-        if (src_mode == xcf_col_mode::indexed)
-        {
-            if (dst_mode == xcf_col_mode::indexed)
+            switch (type)
             {
-                switch (src_bpp)
-                {
-                case 1:
-                    switch (dst_bpp)
-                    {
-                    case 1:
-                        dst_buff[dst_pos] = src_buff[src_pos];
-                        break;
-
-                    case 2:
-                        dst_buff[dst_pos * 2 + 0] = src_buff[src_pos];
-                        dst_buff[dst_pos * 2 + 1] = 255;
-                        break;
-                    }
-                    break;
-
-                case 2:
-                    switch (dst_bpp)
-                    {
-                    case 2:
-                        dst_buff[dst_pos * 2 + 0] = src_buff[src_pos * 2 + 0];
-                        dst_buff[dst_pos * 2 + 1] = src_buff[src_pos * 2 + 1];
-                        break;
-                    }
-                    break;
-
-                default:
-                    cLog::Debug("Unexpected indexed|indexed src bpp: {}.", src_bpp);
-                    break;
-                }
-            }
-            else if (dst_mode == xcf_col_mode::rgb)
-            {
-                switch (src_bpp)
-                {
-                case 1:
-                    switch (dst_bpp)
-                    {
-                    case 3:
-                        if (1)
-                        {
-                            auto const col = palette[src_buff[src_pos]];
-                            dst_buff[dst_pos * 3 + 0] = col.b;
-                            dst_buff[dst_pos * 3 + 1] = col.g;
-                            dst_buff[dst_pos * 3 + 2] = col.r;
-                        }
-                        break;
-
-                    case 4:
-                        if (1)
-                        {
-                            auto const col = palette[src_buff[src_pos]];
-                            dst_buff[dst_pos * 4 + 0] = col.b;
-                            dst_buff[dst_pos * 4 + 1] = col.g;
-                            dst_buff[dst_pos * 4 + 2] = col.r;
-                            dst_buff[dst_pos * 4 + 3] = 255;
-                        }
-                        break;
-                    }
-                    break;
-
-                case 2:
-                    switch (dst_bpp)
-                    {
-                    case 3:
-                        if (src_buff[src_pos * 2 + 1] > 0)
-                        {
-                            auto const src = palette[src_buff[src_pos * 2 + 0]];
-                            auto const dst = blend(
-                                xcf_col_t(
-                                    dst_buff[dst_pos * 3 + 2],
-                                    dst_buff[dst_pos * 3 + 1],
-                                    dst_buff[dst_pos * 3 + 0]),
-                                src, src_buff[src_pos * 2 + 1]);
-
-                            dst_buff[dst_pos * 3 + 0] = dst.b;
-                            dst_buff[dst_pos * 3 + 1] = dst.g;
-                            dst_buff[dst_pos * 3 + 2] = dst.r;
-                        }
-                        break;
-
-                    case 4:
-                        if (src_buff[src_pos * 2 + 1] > 0)
-                        {
-                            auto const src = palette[src_buff[src_pos * 2 + 0]];
-                            auto const dst = blend(
-                                xcf_col_t(
-                                    dst_buff[dst_pos * 4 + 2],
-                                    dst_buff[dst_pos * 4 + 1],
-                                    dst_buff[dst_pos * 4 + 0]),
-                                src, src_buff[src_pos * 2 + 1]);
-
-                            dst_buff[dst_pos * 4 + 0] = dst.b;
-                            dst_buff[dst_pos * 4 + 1] = dst.g;
-                            dst_buff[dst_pos * 4 + 2] = dst.r;
-                            dst_buff[dst_pos * 4 + 3] = src_buff[src_pos * 2 + 1];
-                        }
-                        break;
-                    }
-                    break;
-
-                default:
-                    cLog::Debug("Unexpected indexed|rgb src bpp: {}.", src_bpp);
-                    break;
-                }
-            }
-            else
-            {
-                cLog::Debug("Unexpected dst mode: {}.", static_cast<uint32_t>(dst_mode));
-            }
-        }
-        else if (src_mode == xcf_col_mode::rgb)
-        {
-            if (dst_mode == xcf_col_mode::rgb)
-            {
-                switch (src_bpp)
-                {
-                case 3: {
-                    switch (dst_bpp)
-                    {
-                    case 3:
-                        if (swap)
-                        {
-                            dst_buff[dst_pos * 3 + 0] = src_buff[src_pos * 3 + 2];
-                            dst_buff[dst_pos * 3 + 1] = src_buff[src_pos * 3 + 1];
-                            dst_buff[dst_pos * 3 + 2] = src_buff[src_pos * 3 + 0];
-                        }
-                        else
-                        {
-                            dst_buff[dst_pos * 3 + 0] = src_buff[src_pos * 3 + 0];
-                            dst_buff[dst_pos * 3 + 1] = src_buff[src_pos * 3 + 1];
-                            dst_buff[dst_pos * 3 + 2] = src_buff[src_pos * 3 + 2];
-                        }
-                        break;
-
-                    case 4:
-                        if (swap)
-                        {
-                            dst_buff[dst_pos * 4 + 0] = src_buff[src_pos * 3 + 2];
-                            dst_buff[dst_pos * 4 + 1] = src_buff[src_pos * 3 + 1];
-                            dst_buff[dst_pos * 4 + 2] = src_buff[src_pos * 3 + 0];
-                        }
-                        else
-                        {
-                            dst_buff[dst_pos * 4 + 0] = src_buff[src_pos * 3 + 0];
-                            dst_buff[dst_pos * 4 + 1] = src_buff[src_pos * 3 + 1];
-                            dst_buff[dst_pos * 4 + 2] = src_buff[src_pos * 3 + 2];
-                        }
-                        dst_buff[dst_pos * 4 + 3] = 255;
-                        break;
-                    }
-                }
+            case LayerType::RGB:
+                r = src[i * 3 + 0];
+                g = src[i * 3 + 1];
+                b = src[i * 3 + 2];
+                a = 255;
                 break;
 
-                case 4:
-                    switch (dst_bpp)
-                    {
-                    case 3:
-                        if (src_buff[src_pos * 4 + 3] > 0)
-                        {
-                            if (swap)
-                            {
-                                dst_buff[dst_pos * 3 + 0] = src_buff[src_pos * 4 + 2];
-                                dst_buff[dst_pos * 3 + 1] = src_buff[src_pos * 4 + 1];
-                                dst_buff[dst_pos * 3 + 2] = src_buff[src_pos * 4 + 0];
-                            }
-                            else
-                            {
-                                dst_buff[dst_pos * 3 + 0] = src_buff[src_pos * 4 + 0];
-                                dst_buff[dst_pos * 3 + 1] = src_buff[src_pos * 4 + 1];
-                                dst_buff[dst_pos * 3 + 2] = src_buff[src_pos * 4 + 2];
-                            }
-                        }
-                        break;
+            case LayerType::RGBA:
+                r = src[i * 4 + 0];
+                g = src[i * 4 + 1];
+                b = src[i * 4 + 2];
+                a = src[i * 4 + 3];
+                break;
 
-                    case 4:
-                        if (src_buff[src_pos * 4 + 3] > 0)
-                        {
-                            auto const dst = blend(
-                                xcf_col_t(
-                                    dst_buff[dst_pos * 4 + 2],
-                                    dst_buff[dst_pos * 4 + 1],
-                                    dst_buff[dst_pos * 4 + 0]),
-                                xcf_col_t(
-                                    src_buff[src_pos * 4 + 2],
-                                    src_buff[src_pos * 4 + 1],
-                                    src_buff[src_pos * 4 + 0]),
-                                src_buff[src_pos * 4 + 3]);
+            case LayerType::Gray:
+                r = g = b = src[i];
+                a         = 255;
+                break;
 
-                            if (swap)
-                            {
-                                dst_buff[dst_pos * 4 + 0] = dst.r;
-                                dst_buff[dst_pos * 4 + 1] = dst.g;
-                                dst_buff[dst_pos * 4 + 2] = dst.b;
-                            }
-                            else
-                            {
-                                dst_buff[dst_pos * 4 + 0] = dst.b;
-                                dst_buff[dst_pos * 4 + 1] = dst.g;
-                                dst_buff[dst_pos * 4 + 2] = dst.r;
-                            }
-                            dst_buff[dst_pos * 4 + 3] = 255;
-                        }
-                        break;
-                    }
-                    break;
+            case LayerType::GrayA:
+                r = g = b = src[i * 2 + 0];
+                a         = src[i * 2 + 1];
+                break;
 
-                default:
-                    cLog::Debug("Unexpected rgb|rgb src bpp: {}.", src_bpp);
-                    break;
-                }
+            case LayerType::Indexed: {
+                auto& c = palette[src[i]];
+                r       = c.r;
+                g       = c.g;
+                b       = c.b;
+                a       = 255;
+                break;
             }
-            else
-            {
-                cLog::Debug("Unexpected dst mode: {}.", static_cast<uint32_t>(dst_mode));
+
+            case LayerType::IndexedA: {
+                auto& c = palette[src[i * 2 + 0]];
+                r       = c.r;
+                g       = c.g;
+                b       = c.b;
+                a       = src[i * 2 + 1];
+                break;
             }
-        }
-        else if (src_mode == xcf_col_mode::grayscale)
-        {
-            if (dst_mode == xcf_col_mode::rgb)
-            {
-                switch (src_bpp)
-                {
-                case 1:
-                    switch (dst_bpp)
-                    {
-                    case 3:
-                        dst_buff[dst_pos * 3 + 0] = src_buff[src_pos];
-                        dst_buff[dst_pos * 3 + 1] = src_buff[src_pos];
-                        dst_buff[dst_pos * 3 + 2] = src_buff[src_pos];
-                        break;
-
-                    case 4:
-                        dst_buff[dst_pos * 4 + 0] = src_buff[src_pos];
-                        dst_buff[dst_pos * 4 + 1] = src_buff[src_pos];
-                        dst_buff[dst_pos * 4 + 2] = src_buff[src_pos];
-                        dst_buff[dst_pos * 4 + 3] = 255;
-                        break;
-                    }
-                    break;
-
-                case 2:
-                    switch (dst_bpp)
-                    {
-                    case 3:
-                        if (src_buff[src_pos * 2 + 1] > 0)
-                        {
-                            auto const scale = src_buff[src_pos * 2 + 0];
-                            dst_buff[dst_pos * 3 + 0] = scale;
-                            dst_buff[dst_pos * 3 + 1] = scale;
-                            dst_buff[dst_pos * 3 + 2] = scale;
-                        }
-                        break;
-
-                    case 4:
-                        if (src_buff[src_pos * 2 + 1] > 0)
-                        {
-                            auto const scale = src_buff[src_pos * 2 + 0];
-                            dst_buff[dst_pos * 4 + 0] = scale;
-                            dst_buff[dst_pos * 4 + 1] = scale;
-                            dst_buff[dst_pos * 4 + 2] = scale;
-                            dst_buff[dst_pos * 4 + 3] = src_buff[src_pos * 2 + 1];
-                        }
-                        break;
-                    }
-                    break;
-
-                default:
-                    cLog::Debug("Unexpected grayscale|rgb src bpp: {}.", src_bpp);
-                    break;
-                }
             }
-            else
-            {
-                cLog::Debug("Unexpected dst mode: {}.", static_cast<uint32_t>(dst_mode));
-            }
-        }
-        else
-        {
-            cLog::Debug("Unexpected src mode: {}.", static_cast<uint32_t>(src_mode));
+
+            dst[i * 4 + 0] = r;
+            dst[i * 4 + 1] = g;
+            dst[i * 4 + 2] = b;
+            dst[i * 4 + 3] = a;
         }
     }
 
-    void draw(raw_layer_t const& layer, raw_layer_t& target, const Palette& palette, bool swap = false)
+    // Alpha compositing (Porter-Duff "over") ---
+    void CompositeLayer(const uint8_t* src, uint32_t srcW, uint32_t srcH,
+                        int32_t offX, int32_t offY, uint8_t opacity,
+                        uint8_t* dst, uint32_t dstW, uint32_t dstH)
     {
-        const auto layer_len = layer.w * layer.h;
-        const auto target_len = target.w * target.h;
-
-        cLog::Debug("-- Layer");
-        cLog::Debug("  Size     : {} x {}", layer.w, layer.h);
-        cLog::Debug("  Src mode : {}", static_cast<uint32_t>(layer.mode));
-        cLog::Debug("  Dst mode : {}", static_cast<uint32_t>(target.mode));
-        for (int32_t y = 0; y < layer.h; y++)
+        for (uint32_t sy = 0; sy < srcH; sy++)
         {
-            for (int32_t x = 0; x < layer.w; x++)
+            auto dy = static_cast<int32_t>(sy) + offY;
+            if (dy < 0 || dy >= static_cast<int32_t>(dstH))
             {
-                const auto src_pos = (y * layer.w + x);
-                const auto dst_pos = ((y + layer.y) * target.w + (x + layer.x));
+                continue;
+            }
 
-                if ((dst_pos < target_len && dst_pos >= 0) && (src_pos < layer_len && src_pos >= 0))
+            for (uint32_t sx = 0; sx < srcW; sx++)
+            {
+                auto dx = static_cast<int32_t>(sx) + offX;
+                if (dx < 0 || dx >= static_cast<int32_t>(dstW))
                 {
-                    draw_pixel(palette,
-                               src_pos, layer.bpp, layer.mode, layer.buffer,
-                               dst_pos, target.bpp, target.mode, target.buffer, swap);
+                    continue;
                 }
+
+                const auto sp = &src[(sy * srcW + sx) * 4];
+                auto dp       = &dst[(static_cast<uint32_t>(dy) * dstW
+                                      + static_cast<uint32_t>(dx))
+                                     * 4];
+
+                // Effective source alpha with layer opacity
+                auto sa = static_cast<uint32_t>(sp[3]) * opacity / 255;
+                if (sa == 0)
+                {
+                    continue;
+                }
+
+                auto da = static_cast<uint32_t>(dp[3]);
+
+                // outA = sa + da * (1 - sa/255)
+                auto outA = sa + da * (255 - sa) / 255;
+                if (outA == 0)
+                {
+                    continue;
+                }
+
+                // outC = (srcC * sa + dstC * da * (1 - sa/255)) / outA
+                auto daWeight = da * (255 - sa) / 255;
+                for (int c = 0; c < 3; c++)
+                {
+                    dp[c] = static_cast<uint8_t>((static_cast<uint32_t>(sp[c]) * sa
+                                                  + static_cast<uint32_t>(dp[c]) * daWeight)
+                                                 / outA);
+                }
+                dp[3] = static_cast<uint8_t>(outA);
             }
         }
     }
 
-    void combine_layers(raw_layer_t& result, const LayersList& layersList, const Palette& palette)
+    // --- Layer parsing ---
+
+    struct LayerInfo
     {
-        cLog::Debug("Layers count: {}.", layersList.size());
-        for (size_t i = 0, size = layersList.size(); i < size; i++)
+        uint32_t width  = 0;
+        uint32_t height = 0;
+        LayerType type  = LayerType::RGBA;
+        std::string name;
+        int32_t offsetX       = 0;
+        int32_t offsetY       = 0;
+        uint8_t opacity       = 255;
+        bool visible          = true;
+        uint64_t hierarchyPtr = 0;
+    };
+
+    LayerInfo ReadLayerHeader(cFile& file, bool wideOffsets)
+    {
+        LayerInfo layer;
+        layer.width  = ReadBE<uint32_t>(file);
+        layer.height = ReadBE<uint32_t>(file);
+        layer.type   = ReadBE<LayerType>(file);
+        layer.name   = ReadString(file);
+
+        // Read layer properties
+        while (true)
         {
-            auto& layer = layersList[size - i - 1];
-            draw(layer, result, palette);
+            auto prop = ReadProperty(file);
+            if (prop.type == PropType::End)
+            {
+                break;
+            }
+
+            auto propStart = file.getOffset();
+
+            switch (prop.type)
+            {
+            case PropType::Opacity:
+                layer.opacity = static_cast<uint8_t>(std::min(ReadBE<uint32_t>(file), 255u));
+                break;
+
+            case PropType::FloatOpacity: {
+                auto f        = ReadBE<float>(file);
+                layer.opacity = static_cast<uint8_t>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
+                break;
+            }
+
+            case PropType::Visible:
+                layer.visible = ReadBE<uint32_t>(file) != 0;
+                break;
+
+            case PropType::Offset:
+                layer.offsetX = ReadBE<int32_t>(file);
+                layer.offsetY = ReadBE<int32_t>(file);
+                break;
+
+            default:
+                break;
+            }
+
+            // Seek past remaining property data
+            file.seek(propStart + prop.length, SEEK_SET);
         }
+
+        layer.hierarchyPtr = ReadOffset(file, wideOffsets);
+        ReadOffset(file, wideOffsets); // mask pointer (unused)
+
+        return layer;
+    }
+
+    // Decode a single layer's tile data and convert to RGBA
+    std::vector<uint8_t> DecodeLayer(cFile& file, const LayerInfo& layer,
+                                     Compression compression, const Palette& palette,
+                                     bool wideOffsets)
+    {
+        file.seek(static_cast<size_t>(layer.hierarchyPtr), SEEK_SET);
+
+        auto hierW    = ReadBE<uint32_t>(file);
+        auto hierH    = ReadBE<uint32_t>(file);
+        auto hierBpp  = ReadBE<uint32_t>(file);
+        auto levelPtr = ReadOffset(file, wideOffsets);
+
+        // Read first (full-resolution) level only
+        file.seek(static_cast<size_t>(levelPtr), SEEK_SET);
+        auto levelW = ReadBE<uint32_t>(file);
+        auto levelH = ReadBE<uint32_t>(file);
+
+        // Read tile pointers
+        std::vector<uint64_t> tilePtrs;
+        while (true)
+        {
+            auto ptr = ReadOffset(file, wideOffsets);
+            if (ptr == 0)
+            {
+                break;
+            }
+            tilePtrs.push_back(ptr);
+        }
+
+        auto tileCountX = (levelW + TileSize - 1) / TileSize;
+
+        // Decode all tiles into a raw pixel buffer
+        std::vector<uint8_t> rawBuffer(hierW * hierH * hierBpp, 0);
+
+        for (size_t i = 0; i < tilePtrs.size(); i++)
+        {
+            auto tileCol = static_cast<uint32_t>(i) % tileCountX;
+            auto tileRow = static_cast<uint32_t>(i) / tileCountX;
+
+            auto tileX     = tileCol * TileSize;
+            auto tileY     = tileRow * TileSize;
+            auto tileW     = std::min(TileSize, levelW - tileX);
+            auto tileH     = std::min(TileSize, levelH - tileY);
+            auto tileBytes = tileW * tileH * hierBpp;
+
+            // Data length from consecutive tile pointers (or file end for last tile)
+            uint32_t dataLen;
+            if (i + 1 < tilePtrs.size())
+            {
+                dataLen = static_cast<uint32_t>(tilePtrs[i + 1] - tilePtrs[i]);
+            }
+            else
+            {
+                dataLen = static_cast<uint32_t>(file.getSize() - tilePtrs[i]);
+            }
+
+            file.seek(static_cast<size_t>(tilePtrs[i]), SEEK_SET);
+
+            std::vector<uint8_t> tileBuf(tileBytes);
+            bool ok = false;
+
+            switch (compression)
+            {
+            case Compression::None:
+                ok = ReadTileNone(file, tileBuf.data(), tileBytes);
+                break;
+            case Compression::RLE:
+                ok = ReadTileRLE(file, tileBuf.data(), tileW, tileH, hierBpp, dataLen);
+                break;
+            case Compression::Zlib:
+                ok = ReadTileZlib(file, tileBuf.data(), tileBytes, dataLen);
+                break;
+            }
+
+            if (ok == false)
+            {
+                cLog::Warning("XCF: failed to decode tile {}.", i);
+                continue;
+            }
+
+            // Copy tile into layer buffer
+            for (uint32_t row = 0; row < tileH; row++)
+            {
+                auto srcOff = row * tileW * hierBpp;
+                auto dstOff = ((tileY + row) * hierW + tileX) * hierBpp;
+                std::memcpy(&rawBuffer[dstOff], &tileBuf[srcOff], tileW * hierBpp);
+            }
+        }
+
+        // Convert to RGBA
+        auto pixelCount = hierW * hierH;
+        std::vector<uint8_t> rgba(pixelCount * 4);
+        ConvertToRGBA(rawBuffer.data(), pixelCount, layer.type, palette, rgba.data());
+
+        return rgba;
     }
 
 } // namespace
 
-bool import_xcf(cFile& file, sChunkData& chunk, sImageInfo& info)
+namespace xcf
 {
-    file.seek(0, SEEK_SET);
-
-    auto const sig = raw_read_string(file, 9);
-    auto const ver = raw_read_string(file, 5);
-
-    if (sig.find_first_of("gimp xcf ") != 0)
+    bool import(cFile& file, sChunkData& chunk, sImageInfo& info)
     {
-        cLog::Error("Invalid GIMP file.");
-        return false;
-    }
+        file.seek(0, SEEK_SET);
 
-    const uint32_t width = fread<uint32_t>(file, true);
-    const uint32_t height = fread<uint32_t>(file, true);
-    const xcf_col_mode col_mode = fread<xcf_col_mode>(file, true);
-    cLog::Debug("Color mode: {}.", static_cast<uint32_t>(col_mode));
-
-    xcf_comp_mode compression = xcf_comp_mode::none;
-
-    Palette palette;
-
-    auto properties = xcf_query_properties_list(file);
-    const auto post_props_pos = file.getOffset();
-
-    for (const auto& property : properties)
-    {
-        const auto prop = property.first;
-        const auto pos = property.second;
-
-        file.seek(pos + sizeof(xcf_property_t), SEEK_SET);
-
-        cLog::Debug("Property type: {}.", static_cast<uint32_t>(prop.type));
-
-        switch (prop.type)
+        // Header: "gimp xcf " (9 bytes) + version tag (4 bytes) + null (1 byte)
+        char sig[9];
+        file.read(sig, 9);
+        if (std::memcmp(sig, "gimp xcf ", 9) != 0)
         {
-        case xcf_property_type::col_map: {
-            xcf_property_col_map_t col_map(prop, file);
-#if defined(DEBUG)
-            cLog::Debug("Palette size: {}.", col_map.count);
-
-            for (uint32_t i = 0; i < col_map.count; i++)
-            {
-                palette[i] = col_map.palette.get()[i];
-                cLog::Debug("Color {}: ({}, {}, {}).", i, col_map.palette.get()[i].r, col_map.palette.get()[i].g, col_map.palette.get()[i].b);
-            }
-#endif
+            cLog::Error("XCF: invalid signature.");
+            return false;
         }
-        break;
 
-        case xcf_property_type::compression: {
-            xcf_property_comp_t p(prop, file);
-            compression = p.compression;
-            cLog::Debug("Compression: {}.", toCompMode(p.compression));
-        }
-        break;
+        char verTag[5];
+        file.read(verTag, 5);
 
-        case xcf_property_type::resolution: {
-            xcf_property_res_t p(prop, file);
-            cLog::Debug("Resolution: {:.3f} x {:.3f}.", p.hres, p.vres);
-        }
-        break;
-
-        case xcf_property_type::layer_mode: {
-            xcf_property_layer_mode_t p(prop, file);
-            cLog::Debug("Layer mode: {}.", static_cast<uint32_t>(p.mode));
-        }
-        break;
-
-        case xcf_property_type::layer_offset: {
-            xcf_property_layer_offset_t p(prop, file);
-            cLog::Debug("Offset: {}, {}.", p.x_offset, p.y_offset);
-        }
-        break;
-
-        case xcf_property_type::end:
-        case xcf_property_type::guides:
-        case xcf_property_type::tattoo:
-        case xcf_property_type::parasites:
-        case xcf_property_type::unit:
-        case xcf_property_type::paths:
-        case xcf_property_type::user_unit:
-        case xcf_property_type::vectors:
-        case xcf_property_type::sample_points:
-            break;
-        }
-    }
-
-    file.seek(post_props_pos, SEEK_SET);
-
-    auto layer_ptrs = xcf_read_layer_pointers(file);
-    auto layers = std::vector<xcf_layer_t>();
-    layers.reserve(layer_ptrs.size());
-
-    for (auto ptr : layer_ptrs)
-    {
-        file.seek(ptr, SEEK_SET);
-        layers.push_back(xcf_layer_t(file));
-    }
-
-    LayersList layersList(layers.size());
-    size_t layerIndex = 0;
-    for (const auto& layer : layers)
-    {
-#if defined(DEBUG)
-        cLog::Debug("Layer '{}' properties:", layer.name);
-        for (auto& p : layer.properties)
+        uint32_t version = 0;
+        if (verTag[0] == 'v')
         {
-            cLog::Debug("  type {:#4x} = {} ({:#x})",
-                        static_cast<uint32_t>(p.first.type),
-                        toBits(p.second),
-                        p.second);
-        }
-#endif
-
-        auto const offset = [&]() {
-            for (auto& property : layer.properties)
-            {
-                const auto prop = property.first;
-                const auto pos = property.second;
-                file.seek(pos + sizeof(xcf_property_t), SEEK_SET);
-
-                if (prop.type == xcf_property_type::layer_offset)
-                {
-                    xcf_property_layer_offset_t offset(prop, file);
-                    return std::make_pair(offset.x_offset, offset.y_offset);
-                }
-            }
-
-            return std::make_pair(0, 0);
-        }();
-
-        const auto layer_off_x = offset.first;
-        const auto layer_off_y = offset.second;
-
-        file.seek(layer.hierarchy_ptr, SEEK_SET);
-        xcf_hierarchy_t hierarchy(file);
-        const auto levels = xcf_read_level_ptrs(file);
-
-        file.seek(hierarchy.level_ptr, SEEK_SET);
-        xcf_level_t level(file);
-        const auto tiles = xcf_read_tile_ptrs(level, file);
-
-        const auto max_data_len = size_t(float(xcf_tile_width * xcf_tile_height * hierarchy.bpp) * xcf_tile_max_data_len_factor);
-#if 0
-        const auto tile_cols = level.tile_x;
-        const auto tile_rows = level.tile_y;
-        const auto tile_count = level.tile_c;
-#endif
-
-        size_t pixel_buffer_pos = 0;
-        auto const pixel_buffer_length = hierarchy.width * hierarchy.height * hierarchy.bpp;
-        auto pixel_buffer = new uint8_t[pixel_buffer_length];
-
-        auto offset0 = tiles.begin();
-
-        for (size_t i = 0; i < tiles.size(); i++)
-        {
-            if (offset0 == tiles.end())
-            {
-                break;
-            }
-
-            auto const rect = xcf_calc_tile_rect(level, i);
-            auto const saved_pos = file.getOffset();
-            auto const offset1 = [&]() -> uint32_t {
-                auto const it = offset0 + 1;
-                if (it == tiles.end())
-                {
-                    return (*offset0) + (max_data_len);
-                }
-
-                return *it;
-            }();
-
-            file.seek(*offset0, SEEK_SET);
-
-            if (offset1 < *offset0 || offset1 - *offset0 > max_data_len)
-            {
-                cLog::Error("Invalid tile data length.");
-                return false;
-            }
-
-            switch (compression)
-            {
-            case xcf_comp_mode::rle:
-                xcf_read_tile_rle(file, rect, offset1 - *offset0, hierarchy, level, tag_to_ver_num(ver), pixel_buffer, pixel_buffer_pos);
-                break;
-
-            case xcf_comp_mode::none:
-            case xcf_comp_mode::zlib:
-            case xcf_comp_mode::fractal:
-                cLog::Error("Unsupported compression: {}.", toCompMode(compression));
-                return false;
-            }
-
-            file.seek(saved_pos, SEEK_SET);
-            offset0++;
+            version = static_cast<uint32_t>(std::atoi(verTag + 1));
         }
 
-        auto& raw_layer = layersList[layerIndex++];
-        raw_layer.buffer = pixel_buffer;
-        raw_layer.w = hierarchy.width;
-        raw_layer.h = hierarchy.height;
-        raw_layer.bpp = hierarchy.bpp;
-        raw_layer.x = layer_off_x;
-        raw_layer.y = layer_off_y;
-        raw_layer.mode = col_mode;
-    }
+        const bool wideOffsets = (version >= 11);
 
-    info.fileSize = file.getSize();
-    info.images = 1;
-    info.bppImage = 32;
-    chunk.width = width;
-    chunk.height = height;
-    chunk.allocate(width, height, 32, ePixelFormat::RGBA);
-    auto pix = chunk.bitmap.data();
-    std::fill(chunk.bitmap.begin(), chunk.bitmap.end(), 0);
+        auto width  = ReadBE<uint32_t>(file);
+        auto height = ReadBE<uint32_t>(file);
+        ReadBE<ColorMode>(file); // color mode (used implicitly via layer types)
 
-    raw_layer_t canvas_layer = {};
-    canvas_layer.bpp = 4;
-    canvas_layer.mode = xcf_col_mode::rgb;
-    canvas_layer.w = width;
-    canvas_layer.h = height;
-    canvas_layer.x = 0;
-    canvas_layer.y = 0;
-    canvas_layer.buffer = pix;
-
-    combine_layers(canvas_layer, layersList, palette);
-
-#if 0
-    for (size_t i = 0; i < width * height; i++)
-    {
-        auto const opa = canvas_layer.buffer[i * 4 + 3];
-        if (opa > 0)
+        if (width == 0 || height == 0 || width > MaxCanvasDim || height > MaxCanvasDim)
         {
-            if (col_mode == xcf_col_mode::rgb)
+            cLog::Error("XCF: invalid dimensions {}x{}.", width, height);
+            return false;
+        }
+
+        // v4-v10 store a precision field; v345+ (GIMP 3.0) removed it from the header.
+        if (version >= 4 && version < 11)
+        {
+            auto precision = ReadBE<uint32_t>(file);
+
+            bool is8bit = false;
+            if (version < 7)
             {
-                pix[i * 4 + 0] = canvas_layer.buffer[i * 4 + 2];
-                pix[i * 4 + 1] = canvas_layer.buffer[i * 4 + 1];
-                pix[i * 4 + 2] = canvas_layer.buffer[i * 4 + 0];
+                // v4-v6: 0=u8-gamma, 100=u8-linear
+                is8bit = (precision == 0 || precision == 100);
             }
             else
             {
-                pix[i * 4 + 0] = canvas_layer.buffer[i * 4 + 0];
-                pix[i * 4 + 1] = canvas_layer.buffer[i * 4 + 1];
-                pix[i * 4 + 2] = canvas_layer.buffer[i * 4 + 2];
+                // v7-v10: 100=u8-linear, 150=u8-gamma
+                is8bit = (precision == 100 || precision == 150);
             }
-            pix[i * 4 + 3] = 255;
+
+            if (is8bit == false)
+            {
+                cLog::Error("XCF: only 8-bit channels supported (precision={}).", precision);
+                return false;
+            }
         }
-    }
-#endif
 
-    for (auto& layer : layersList)
-    {
-        delete[] layer.buffer;
+        // Read global properties
+        Compression compression = Compression::None;
+        Palette palette{};
+
+        while (static_cast<uint64_t>(file.getOffset()) + 8 <= static_cast<uint64_t>(file.getSize()))
+        {
+            auto prop = ReadProperty(file);
+            if (prop.type == PropType::End)
+            {
+                break;
+            }
+
+            auto propStart = file.getOffset();
+
+            if (static_cast<uint64_t>(propStart) + prop.length > static_cast<uint64_t>(file.getSize()))
+            {
+                cLog::Warning("XCF: file truncated, skipping remaining properties.");
+                break;
+            }
+
+            switch (prop.type)
+            {
+            case PropType::Compression:
+                compression = static_cast<Compression>(ReadBE<uint8_t>(file));
+                break;
+
+            case PropType::ColorMap: {
+                auto count = ReadBE<uint32_t>(file);
+                for (uint32_t i = 0; i < count && i < 256; i++)
+                {
+                    file.read(reinterpret_cast<char*>(&palette[i]), 3);
+                }
+                break;
+            }
+
+            default:
+                break;
+            }
+
+            file.seek(propStart + prop.length, SEEK_SET);
+        }
+
+        // Read layer pointers
+        const auto offsetSize = wideOffsets
+            ? 8u
+            : 4u;
+        const auto fileSize   = static_cast<uint64_t>(file.getSize());
+        std::vector<uint64_t> layerPtrs;
+        while (static_cast<uint64_t>(file.getOffset()) + offsetSize <= fileSize)
+        {
+            auto ptr = ReadOffset(file, wideOffsets);
+            if (ptr == 0 || ptr >= fileSize)
+            {
+                break;
+            }
+            layerPtrs.push_back(ptr);
+        }
+
+        if (layerPtrs.empty())
+        {
+            cLog::Error("XCF: no layers found (file may be truncated).");
+            return false;
+        }
+
+        // Read and decode visible layers
+        struct DecodedLayer
+        {
+            std::vector<uint8_t> rgba;
+            uint32_t width;
+            uint32_t height;
+            int32_t offsetX;
+            int32_t offsetY;
+            uint8_t opacity;
+        };
+
+        std::vector<DecodedLayer> layers;
+
+        for (auto ptr : layerPtrs)
+        {
+            file.seek(static_cast<size_t>(ptr), SEEK_SET);
+            auto layerInfo = ReadLayerHeader(file, wideOffsets);
+
+            if (layerInfo.visible == false)
+            {
+                continue;
+            }
+
+            auto rgba = DecodeLayer(file, layerInfo, compression, palette, wideOffsets);
+
+            layers.push_back({
+                std::move(rgba),
+                layerInfo.width,
+                layerInfo.height,
+                layerInfo.offsetX,
+                layerInfo.offsetY,
+                layerInfo.opacity,
+            });
+        }
+
+        // Allocate output canvas
+        info.images   = 1;
+        info.bppImage = 32;
+        chunk.width   = width;
+        chunk.height  = height;
+        chunk.allocate(width, height, 32, ePixelFormat::RGBA);
+        std::fill(chunk.bitmap.begin(), chunk.bitmap.end(), 0);
+
+        // Composite layers bottom-to-top (first in list = top, last = bottom)
+        for (auto it = layers.rbegin(); it != layers.rend(); ++it)
+        {
+            CompositeLayer(
+                it->rgba.data(), it->width, it->height,
+                it->offsetX, it->offsetY, it->opacity,
+                chunk.bitmap.data(), width, height);
+        }
+
+        return true;
     }
 
-    return true;
-}
+} // namespace xcf
