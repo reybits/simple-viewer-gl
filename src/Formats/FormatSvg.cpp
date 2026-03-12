@@ -19,6 +19,13 @@
 
 namespace
 {
+    struct FontEntry
+    {
+        const char* path;
+        bool bold;
+        bool italic;
+    };
+
     void registerFallbackFonts()
     {
         static auto isRegistered = false;
@@ -28,29 +35,48 @@ namespace
         }
         isRegistered = true;
 
-        // lunasvg's built-in fallback assumes DejaVu (Linux) or Arial (macOS),
-        // which may not be installed. Register a fallback with empty family name
-        // so any unresolved font-family still renders.
-        constexpr const char* candidates[] = {
+        // lunasvg doesn't do per-glyph font fallback: once a font face is
+        // selected for a text run, missing glyphs render as .notdef squares.
+        // Register multiple fallback fonts (empty family) to improve coverage
+        // when the SVG doesn't specify a family or the family isn't found.
+        constexpr FontEntry candidates[] = {
 #if defined(__APPLE__)
-            "/System/Library/Fonts/Helvetica.ttc",
-            "/System/Library/Fonts/SFNSText.ttf",
-            "/Library/Fonts/Arial.ttf",
+            // Latin
+            { "/System/Library/Fonts/Helvetica.ttc", false, false },
+            { "/Library/Fonts/Arial.ttf", false, false },
+            { "/Library/Fonts/Arial Bold.ttf", true, false },
+            { "/Library/Fonts/Arial Italic.ttf", false, true },
+            { "/Library/Fonts/Arial Bold Italic.ttf", true, true },
+            // CJK
+            { "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc", false, false },
+            { "/Library/Fonts/Arial Unicode.ttf", false, false },
+            // Symbols / Emoji
+            { "/System/Library/Fonts/Apple Symbols.ttf", false, false },
+            { "/System/Library/Fonts/Apple Color Emoji.ttc", false, false },
 #else
-            "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
-            "/usr/share/fonts/TTF/LiberationSans-Regular.ttf",
-            "/usr/share/fonts/noto/NotoSans-Regular.ttf",
-            "/usr/share/fonts/TTF/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            // Latin
+            { "/usr/share/fonts/liberation/LiberationSans-Regular.ttf", false, false },
+            { "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", false, false },
+            { "/usr/share/fonts/liberation/LiberationSans-Bold.ttf", true, false },
+            { "/usr/share/fonts/TTF/LiberationSans-Bold.ttf", true, false },
+            { "/usr/share/fonts/liberation/LiberationSans-Italic.ttf", false, true },
+            { "/usr/share/fonts/TTF/LiberationSans-Italic.ttf", false, true },
+            { "/usr/share/fonts/noto/NotoSans-Regular.ttf", false, false },
+            { "/usr/share/fonts/TTF/DejaVuSans.ttf", false, false },
+            { "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", false, false },
+            // CJK
+            { "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc", false, false },
+            { "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", false, false },
+            // Symbols / Emoji
+            { "/usr/share/fonts/noto/NotoSansSymbols2-Regular.ttf", false, false },
+            { "/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf", false, false },
+            { "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf", false, false },
 #endif
         };
 
-        for (auto path : candidates)
+        for (const auto& entry : candidates)
         {
-            if (lunasvg_add_font_face_from_file("", false, false, path))
-            {
-                return;
-            }
+            lunasvg_add_font_face_from_file("", entry.bold, entry.italic, entry.path);
         }
     }
 
