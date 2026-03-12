@@ -350,7 +350,7 @@ void cViewer::onUpdate()
     {
         if (timing::seconds() >= m_anim.nextFrameTime)
         {
-            m_anim.timerStarted = false;  // re-armed on next upload completion
+            m_anim.timerStarted = false; // re-armed on next upload completion
             loadSubImage(1);
         }
     }
@@ -1020,8 +1020,11 @@ void cViewer::calculateScale()
         }
 
         const auto centralFb = getCentralAreaFbSize();
-        const float vpW = centralFb.x;
-        const float vpH = centralFb.y;
+        const auto borderPx = m_config.showImageBorder
+            ? m_border->getThickness() * 2.0f
+            : 0.0f;
+        const float vpW = centralFb.x - borderPx;
+        const float vpH = centralFb.y - borderPx;
         if (w >= vpW || h >= vpH)
         {
             auto aspect = w / h;
