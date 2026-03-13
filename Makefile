@@ -40,7 +40,7 @@ release:
 		-DAPP_VERSION_MAJOR:STRING=$(VER_MAJOR) \
 		-DAPP_VERSION_MINOR:STRING=$(VER_MINOR) \
 		-DAPP_VERSION_RELEASE:STRING=$(VER_RELEASE) && \
-		make -j
+		$(MAKE) -j$(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 	rm -fr $(OUT_NAME) && cp -r $(BUILD_DIR_RELEASE)/$(BUNDLE_NAME) $(OUT_NAME)
 
 .debug:
@@ -51,7 +51,7 @@ release:
 		-DAPP_VERSION_MAJOR:STRING=$(VER_MAJOR) \
 		-DAPP_VERSION_MINOR:STRING=$(VER_MINOR) \
 		-DAPP_VERSION_RELEASE:STRING=$(VER_RELEASE) && \
-		make -j
+		$(MAKE) -j$(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 	rm -fr $(OUT_NAME) && cp -r $(BUILD_DIR_DEBUG)/$(BUNDLE_NAME) $(OUT_NAME)
 
 build_compile_commands:
