@@ -82,24 +82,29 @@ jobs:
       - name: Import GPG key
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --kill gpg-agent
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
 
       - name: Build APT repository
+        env:
+          GPG_TTY: /dev/null
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends dpkg-dev gpg
 
-          mkdir -p repo/pool repo/dists
+          mkdir -p repo/dists
 
-          # Copy all .deb files to pool
-          find debs -name '*.deb' -exec cp {} repo/pool/ \;
-
-          # Create repo structure for each distro
+          # Create per-distro pool and repo structure
           for distro in noble plucky; do
-            mkdir -p repo/dists/${distro}/main/binary-amd64
+            mkdir -p repo/pool/${distro} repo/dists/${distro}/main/binary-amd64
+
+            # Copy only this distro's .deb
+            find debs/deb-${distro} -name '*.deb' -exec cp {} repo/pool/${distro}/ \;
+
             cd repo
-            dpkg-scanpackages --arch amd64 pool > dists/${distro}/main/binary-amd64/Packages
+            dpkg-scanpackages --arch amd64 pool/${distro} > dists/${distro}/main/binary-amd64/Packages
             gzip -k dists/${distro}/main/binary-amd64/Packages
 
             # Create Release file
@@ -117,8 +122,8 @@ jobs:
             apt-ftparchive release . >> Release
 
             # Sign Release file
-            gpg --batch --yes --armor --detach-sign --output Release.gpg Release
-            gpg --batch --yes --clearsign --output InRelease Release
+            gpg --batch --yes --pinentry-mode loopback --armor --detach-sign --output Release.gpg Release
+            gpg --batch --yes --pinentry-mode loopback --clearsign --output InRelease Release
 
             cd ../..
           done
