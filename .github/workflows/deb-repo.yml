@@ -87,8 +87,8 @@ jobs:
 
       - name: Build APT repository
         run: |
-          apt-get update
-          apt-get install -y --no-install-recommends dpkg-dev gpg
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends dpkg-dev gpg
 
           mkdir -p repo/pool repo/dists
 
