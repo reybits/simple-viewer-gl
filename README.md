@@ -133,6 +133,22 @@ This installs the binary, desktop entry, and icons.
 
 ---
 
+## Install from APT repository (Debian / Ubuntu)
+
+```sh
+# Import the signing key
+curl -fsSL https://reybits.github.io/simple-viewer-gl/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/sviewgl.gpg
+
+# Add the repository (replace DISTRO with: noble, plucky)
+echo "deb [signed-by=/usr/share/keyrings/sviewgl.gpg] https://reybits.github.io/simple-viewer-gl DISTRO main" | sudo tee /etc/apt/sources.list.d/sviewgl.list
+
+# Install
+sudo apt update
+sudo apt install sviewgl
+```
+
+---
+
 ## Packaging
 
 ### Debian / Ubuntu
