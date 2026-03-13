@@ -46,7 +46,10 @@ void cWindow::setHints(const sConfig& config)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
     auto className = config.className.c_str();
+    // glfwWindowHintString and GLFW_X11_CLASS_NAME require GLFW 3.3+
+#if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 3
     glfwWindowHintString(GLFW_X11_CLASS_NAME, className);
+#endif
 
     if (helpers::getPlatform() == helpers::Platform::Wayland)
     {
