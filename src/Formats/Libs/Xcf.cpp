@@ -248,7 +248,7 @@ namespace
     {
         for (uint32_t i = 0; i < pixelCount; i++)
         {
-            uint8_t r, g, b, a;
+            uint8_t r = 0, g = 0, b = 0, a = 255;
 
             switch (type)
             {
