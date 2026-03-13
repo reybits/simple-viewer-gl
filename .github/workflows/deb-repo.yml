@@ -37,7 +37,7 @@ jobs:
             debhelper devscripts fakeroot lintian \
             libgl-dev libglfw3-dev zlib1g-dev libpng-dev libjpeg-dev \
             libexif-dev liblcms2-dev libopenjp2-7-dev libgif-dev \
-            libtiff-dev libwebp-dev libopenexr-dev libcurl4-openssl-dev
+            libtiff-dev libwebp-dev libopenexr-dev libheif-dev libcurl4-openssl-dev
 
       - name: Checkout
         uses: actions/checkout@v4

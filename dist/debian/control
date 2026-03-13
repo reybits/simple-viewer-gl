@@ -17,6 +17,7 @@ Build-Depends: debhelper-compat (= 13),
                libtiff-dev,
                libwebp-dev,
                libopenexr-dev,
+               libheif-dev,
                libcurl4-openssl-dev
 Standards-Version: 4.6.2
 Homepage: https://github.com/reybits/simple-viewer-gl
