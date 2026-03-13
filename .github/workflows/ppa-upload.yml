@@ -10,7 +10,7 @@ jobs:
   upload:
     strategy:
       matrix:
-        distro: [noble, oracular]
+        distro: [noble, plucky]
     runs-on: ubuntu-latest
 
     steps:

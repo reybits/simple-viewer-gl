@@ -22,8 +22,8 @@ jobs:
         include:
           - distro: noble
             image: ubuntu:24.04
-          - distro: oracular
-            image: ubuntu:24.10
+          - distro: plucky
+            image: ubuntu:25.04
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.image }}
@@ -94,7 +94,7 @@ jobs:
           find debs -name '*.deb' -exec cp {} repo/pool/ \;
 
           # Create repo structure for each distro
-          for distro in noble oracular; do
+          for distro in noble plucky; do
             mkdir -p repo/dists/${distro}/main/binary-amd64
             cd repo
             dpkg-scanpackages --arch amd64 pool > dists/${distro}/main/binary-amd64/Packages
@@ -136,7 +136,7 @@ jobs:
           # Import the signing key
           curl -fsSL https://reybits.github.io/simple-viewer-gl/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/sviewgl.gpg
 
-          # Add the repository (replace DISTRO with noble or oracular)
+          # Add the repository (replace DISTRO with noble or plucky)
           echo "deb [signed-by=/usr/share/keyrings/sviewgl.gpg] https://reybits.github.io/simple-viewer-gl DISTRO main" | sudo tee /etc/apt/sources.list.d/sviewgl.list
 
           # Install
