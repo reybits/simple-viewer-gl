@@ -1,0 +1,55 @@
+name: Upload to PPA
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  upload:
+    strategy:
+      matrix:
+        distro: [noble, oracular]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            debhelper devscripts dput gpg
+
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+
+      - name: Build and upload source package
+        env:
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: |
+          VERSION=$(awk -F= '/^VER_MAJOR/{maj=$2} /^VER_MINOR/{min=$2} /^VER_RELEASE/{rel=$2} END{print maj"."min"."rel}' Makefile)
+
+          # Create orig tarball
+          TARBALL="sviewgl_${VERSION}.orig.tar.gz"
+          git archive --format=tar.gz --prefix="sviewgl-${VERSION}/" HEAD -o "../${TARBALL}"
+
+          # Update changelog for this distro
+          cp -r dist/debian .
+          cat > debian/changelog << EOF
+          sviewgl (${VERSION}-1~${{ matrix.distro }}1) ${{ matrix.distro }}; urgency=medium
+
+            * Release ${VERSION}
+
+           -- Andrey Ugolnik <and@reybits.dev>  $(date -R)
+          EOF
+          sed -i 's/^          //' debian/changelog
+
+          # Build signed source package
+          debuild -S -sa -k"${GPG_KEY_ID}"
+
+          # Upload to PPA
+          dput ppa:reybits/sviewgl ../sviewgl_${VERSION}-1~${{ matrix.distro }}1_source.changes

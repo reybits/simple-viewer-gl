@@ -1,0 +1,165 @@
+name: Build DEBs and publish APT repo
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - distro: noble
+            image: ubuntu:24.04
+          - distro: oracular
+            image: ubuntu:24.10
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.image }}
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config git ca-certificates \
+            debhelper devscripts fakeroot lintian \
+            libgl-dev libglfw3-dev zlib1g-dev libpng-dev libjpeg-dev \
+            libexif-dev liblcms2-dev libopenjp2-7-dev libgif-dev \
+            libtiff-dev libwebp-dev libopenexr-dev libcurl4-openssl-dev
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare source package
+        run: |
+          VERSION=$(awk -F= '/^VER_MAJOR/{maj=$2} /^VER_MINOR/{min=$2} /^VER_RELEASE/{rel=$2} END{print maj"."min"."rel}' Makefile)
+          # Update changelog for this release and distro
+          cat > dist/debian/changelog << CHLOG
+          sviewgl (${VERSION}-1~${{ matrix.distro }}) ${{ matrix.distro }}; urgency=medium
+
+            * Release ${VERSION}
+
+           -- Andrey Ugolnik <and@reybits.dev>  $(date -R)
+          CHLOG
+          # Remove leading spaces from heredoc
+          sed -i 's/^          //' dist/debian/changelog
+
+      - name: Build .deb
+        run: |
+          cp -r dist/debian .
+          dpkg-buildpackage -us -uc -b
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.distro }}
+          path: ../*.deb
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all .deb artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: debs
+
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Build APT repository
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends dpkg-dev gpg
+
+          mkdir -p repo/pool repo/dists
+
+          # Copy all .deb files to pool
+          find debs -name '*.deb' -exec cp {} repo/pool/ \;
+
+          # Create repo structure for each distro
+          for distro in noble oracular; do
+            mkdir -p repo/dists/${distro}/main/binary-amd64
+            cd repo
+            dpkg-scanpackages --arch amd64 pool > dists/${distro}/main/binary-amd64/Packages
+            gzip -k dists/${distro}/main/binary-amd64/Packages
+
+            # Create Release file
+            cd dists/${distro}
+            cat > Release << EOF
+          Origin: sviewgl
+          Label: Simple Viewer GL
+          Suite: ${distro}
+          Codename: ${distro}
+          Architectures: amd64
+          Components: main
+          Description: Simple Viewer GL APT repository
+          EOF
+            sed -i 's/^          //' Release
+            apt-ftparchive release . >> Release
+
+            # Sign Release file
+            gpg --batch --yes --armor --detach-sign --output Release.gpg Release
+            gpg --batch --yes --clearsign --output InRelease Release
+
+            cd ../..
+          done
+
+          # Export public key for users
+          gpg --batch --export --armor "${{ secrets.GPG_KEY_ID }}" > repo/pubkey.gpg
+
+      - name: Create index page
+        run: |
+          cat > repo/index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html><head><title>Simple Viewer GL APT Repository</title></head>
+          <body>
+          <h1>Simple Viewer GL APT Repository</h1>
+          <h2>Setup</h2>
+          <pre>
+          # Import the signing key
+          curl -fsSL https://reybits.github.io/simple-viewer-gl/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/sviewgl.gpg
+
+          # Add the repository (replace DISTRO with noble or oracular)
+          echo "deb [signed-by=/usr/share/keyrings/sviewgl.gpg] https://reybits.github.io/simple-viewer-gl DISTRO main" | sudo tee /etc/apt/sources.list.d/sviewgl.list
+
+          # Install
+          sudo apt update
+          sudo apt install sviewgl
+          </pre>
+          </body></html>
+          HTMLEOF
+          sed -i 's/^          //' repo/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: repo
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
