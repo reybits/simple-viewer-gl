@@ -429,7 +429,11 @@ endif()
 add_dependencies(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec PvrDec GLAD lunasvg)
 target_link_libraries(${APPLICATION_NAME} ImGui LZ4 FmtLib AstcDec PvrDec GLAD lunasvg)
 
-if(OPENGL_FOUND)
+# On macOS, GLAD loads OpenGL via dlopen at runtime — no link-time dependency
+# needed. Explicitly linking ${OPENGL_LIBRARY} here can conflict with a
+# different GL (e.g. Mesa from MacPorts) pulled in transitively by GLFW,
+# resulting in two GL implementations in the same binary.
+if(OPENGL_FOUND AND NOT APPLE)
     target_link_libraries(${APPLICATION_NAME} ${OPENGL_LIBRARY})
 endif()
 
