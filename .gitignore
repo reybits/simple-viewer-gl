@@ -1,5 +1,6 @@
 *.app/
 *.icns
+*.md
 .DS_Store
 .build_debug
 .build_release
@@ -7,6 +8,7 @@
 /.cache/
 /.compile_commands/
 /_fix_it/
+/tests/
 TODO.org
 compile_commands.json
 cppcheck-output
@@ -17,4 +19,3 @@ tags
 test/
 tmp/
 xcuserdata/
-/tests/
