@@ -60,12 +60,14 @@ jobs:
         run: |
           cp -r dist/debian .
           dpkg-buildpackage -us -uc -b
+          mkdir -p built-debs
+          cp ../*.deb built-debs/
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: deb-${{ matrix.distro }}
-          path: ../*.deb
+          path: built-debs/*.deb
 
   publish:
     needs: build
