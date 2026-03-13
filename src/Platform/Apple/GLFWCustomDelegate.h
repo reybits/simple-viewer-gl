@@ -11,6 +11,12 @@
 
 #pragma once
 
+// Delegate swizzling requires modern Objective-C features (blocks, lightweight
+// generics) that are only available with clang. When building with GCC (e.g.
+// MacPorts on PowerPC), this file compiles as an empty translation unit —
+// the only feature lost is drag-and-drop file opening onto the app icon.
+#ifdef __clang__
+
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 
@@ -21,3 +27,5 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 NS_ASSUME_NONNULL_END
+
+#endif

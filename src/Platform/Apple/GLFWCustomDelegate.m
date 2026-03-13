@@ -9,6 +9,9 @@
 
 // https://github.com/glfw/glfw/issues/1024#issuecomment-522667555
 
+// See GLFWCustomDelegate.h for why this guard exists.
+#ifdef __clang__
+
 #import "GLFWCustomDelegate.h"
 #import <objc/runtime.h>
 
@@ -68,3 +71,5 @@ extern void AddFile(const char* filename);
 }
 
 @end
+
+#endif
