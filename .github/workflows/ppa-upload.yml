@@ -1,10 +1,10 @@
 name: Upload to PPA
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
+  # push:
+  #   tags:
+  #     - 'v*'
 
 jobs:
   upload:
@@ -49,7 +49,8 @@ jobs:
           sed -i 's/^          //' debian/changelog
 
           # Build signed source package
-          debuild -S -sa -k"${GPG_KEY_ID}"
+          # -d skips build-dep check (source-only build, deps not needed)
+          debuild -S -sa -d -k"${GPG_KEY_ID}"
 
           # Upload to PPA
           dput ppa:reybits/sviewgl ../sviewgl_${VERSION}-1~${{ matrix.distro }}1_source.changes
