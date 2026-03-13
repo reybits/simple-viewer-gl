@@ -375,9 +375,9 @@ void cViewer::onUpdate()
             constexpr uint32_t MaxRasterDim = 16384;
             if (targetW > MaxRasterDim || targetH > MaxRasterDim)
             {
-                const float clampScale = static_cast<float>(MaxRasterDim) / std::max(targetW, targetH);
-                targetW = static_cast<uint32_t>(targetW * clampScale + 0.5f);
-                targetH = static_cast<uint32_t>(targetH * clampScale + 0.5f);
+                auto clampScale = static_cast<float>(MaxRasterDim) / std::max(targetW, targetH);
+                targetW         = static_cast<uint32_t>(targetW * clampScale + 0.5f);
+                targetH         = static_cast<uint32_t>(targetH * clampScale + 0.5f);
             }
 
             if (targetW != m_image->getWidth() || targetH != m_image->getHeight())
@@ -502,7 +502,6 @@ void cViewer::handleImageReady()
             m_selection->setImageDimension(chunk.width, chunk.height);
             centerWindow();
             enablePixelInfo(m_config.showPixelInfo);
-
         }
     }
     else if (m_loader->getMode() == cImageLoader::Mode::Rerasterize && chunk.width > 0)
@@ -1187,9 +1186,9 @@ void cViewer::updateScale(ScaleDirection direction, const Vectorf* cursorFb)
     // Zoom to cursor: keep the point under the cursor stationary
     if (cursorFb)
     {
-        const float newRenderScale = getRenderScale();
-        const float invDelta       = 1.0f / oldRenderScale - 1.0f / newRenderScale;
-        const Vectorf diff   = *cursorFb - getCentralAreaFbCenter();
+        auto newRenderScale = getRenderScale();
+        auto invDelta       = 1.0f / oldRenderScale - 1.0f / newRenderScale;
+        auto diff           = *cursorFb - getCentralAreaFbCenter();
         m_camera -= diff * invDelta;
         clampCamera();
     }
@@ -1284,10 +1283,14 @@ void cViewer::centerWindow()
     m_config.windowSize = { width, height };
     m_window.setSize({ width, height });
 
+    // Account for monitor workarea origin (non-zero on multi-monitor setups).
+    auto origin = m_window.getScreenOrigin();
+
     if (m_config.centerWindow)
     {
-        auto x             = (screen.x - width) / 2;
-        auto y             = (screen.y - height) / 2;
+        auto x = origin.x + (screen.x - width) / 2;
+        auto y = origin.y + (screen.y - height) / 2;
+
         m_config.windowPos = { x, y };
         m_window.setPosition({ x, y });
     }
@@ -1296,8 +1299,8 @@ void cViewer::centerWindow()
         // Keep current position but clamp so the window stays on screen.
         auto x = m_config.windowPos.x;
         auto y = m_config.windowPos.y;
-        x      = std::max(0, std::min(x, screen.x - width));
-        y      = std::max(0, std::min(y, screen.y - height));
+        x      = std::max(origin.x, std::min(x, origin.x + screen.x - width));
+        y      = std::max(origin.y, std::min(y, origin.y + screen.y - height));
         if (x != m_config.windowPos.x || y != m_config.windowPos.y)
         {
             m_config.windowPos = { x, y };

@@ -48,6 +48,7 @@ public:
     Vectori getWindowSize() const;
     Vectori getFramebufferSize() const;
     Vectori getScreenSize() const;
+    Vectori getScreenOrigin() const;
     Vectorf getPixelRatio() const;
     Vectorf getCursorPos() const;
 
@@ -87,9 +88,9 @@ private:
     GLFWmonitor* getCurrentMonitor() const;
 
 private:
-    GLFWwindow* m_window = nullptr;
+    GLFWwindow* m_window     = nullptr;
     sWindowEvents* m_handler = nullptr;
-    bool m_windowed = true;
+    bool m_windowed          = true;
 
     // Saved windowed geometry for restoring after fullscreen exit.
     Vectori m_savedPos{ 0, 0 };

@@ -66,7 +66,7 @@ GLFWwindow* cWindow::createWindowedWindow(GLFWwindow* parent, const sConfig& con
     setHints(config);
     // Create the window hidden, we'll show it after restoring position and size.
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-    auto width = std::max(config.windowSize.w, DefaultWindowSize.w);
+    auto width  = std::max(config.windowSize.w, DefaultWindowSize.w);
     auto height = std::max(config.windowSize.h, DefaultWindowSize.h);
     return glfwCreateWindow(width, height, version::getTitle(), nullptr, parent);
 }
@@ -89,7 +89,7 @@ GLFWmonitor* cWindow::getCurrentMonitor() const
         const auto centerY = wy + wh / 2;
 
         int monitorCount = 0;
-        auto monitors = glfwGetMonitors(&monitorCount);
+        auto monitors    = glfwGetMonitors(&monitorCount);
         if (monitors != nullptr)
         {
             for (int i = 0; i < monitorCount; i++)
@@ -308,13 +308,32 @@ Vectori cWindow::getScreenSize() const
     return { 1920, 1080 };
 }
 
+Vectori cWindow::getScreenOrigin() const
+{
+    auto monitor = getCurrentMonitor();
+    if (monitor != nullptr)
+    {
+        int wx = 0, wy = 0, ww = 0, wh = 0;
+        glfwGetMonitorWorkarea(monitor, &wx, &wy, &ww, &wh);
+        if (ww > 0 && wh > 0)
+        {
+            return { wx, wy };
+        }
+    }
+    return { 0, 0 };
+}
+
 Vectorf cWindow::getPixelRatio() const
 {
     auto win = getWindowSize();
-    auto fb = getFramebufferSize();
+    auto fb  = getFramebufferSize();
     return {
-        win.x > 0 ? static_cast<float>(fb.x) / win.x : 1.0f,
-        win.y > 0 ? static_cast<float>(fb.y) / win.y : 1.0f
+        win.x > 0
+            ? static_cast<float>(fb.x) / win.x
+            : 1.0f,
+        win.y > 0
+            ? static_cast<float>(fb.y) / win.y
+            : 1.0f
     };
 }
 
@@ -448,7 +467,7 @@ void cWindow::toggleFullscreen(const sConfig& config)
     }
     else
     {
-        auto width = std::max(m_savedSize.x, DefaultWindowSize.w);
+        auto width  = std::max(m_savedSize.x, DefaultWindowSize.w);
         auto height = std::max(m_savedSize.y, DefaultWindowSize.h);
 
         if (helpers::getPlatform() == helpers::Platform::Cocoa)
