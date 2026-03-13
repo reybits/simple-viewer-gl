@@ -22,6 +22,18 @@ Files: third-party/astcenc/*
 Copyright: 2011-2024 Arm Limited
 License: Apache-2.0
 
+Files: third-party/glad/*
+Copyright: 2013-2022 David Herberth
+License: MIT
+
+Files: third-party/lunasvg/*
+Copyright: 2020-2026 Samuel Ugochukwu
+License: MIT
+
+Files: third-party/pvrtc/*
+Copyright: Imagination Technologies Ltd.
+License: MIT
+
 Files: src/Assets/InterRegular.h
 Copyright: 2016-2024 The Inter Project Authors
 License: OFL-1.1
