@@ -393,6 +393,8 @@ configure_file(
     )
 
 file(GLOB_RECURSE SVIEW_SOURCES "src/*.cpp")
+# Exclude stale source-tree Version.cpp (not tracked in git, may persist from prior builds)
+list(FILTER SVIEW_SOURCES EXCLUDE REGEX "src/Version\\.cpp$")
 # Add generated Version.cpp from build tree
 list(APPEND SVIEW_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/src/Version.cpp")
 
@@ -422,7 +424,7 @@ else()
     add_executable(${APPLICATION_NAME} ${SVIEW_SOURCES})
 endif()
 
-target_include_directories(${APPLICATION_NAME} PRIVATE
+target_include_directories(${APPLICATION_NAME} BEFORE PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/third-party/fmtlib/include
     ${CMAKE_CURRENT_SOURCE_DIR}/third-party/glad/include
