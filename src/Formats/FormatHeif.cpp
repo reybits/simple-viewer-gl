@@ -175,13 +175,13 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
                     // HEIF EXIF metadata has a 4-byte big-endian offset prefix;
                     // the rest (including "Exif\0\0" header) is passed to libexif as-is.
                     // libheif already applies orientation transforms during decode,
-                    // so extract tags for display but ignore the orientation value.
+                    // so the pixels are upright: extract tags for the info popup but
+                    // leave exifOrientation at Normal (re-applying would double-rotate).
                     if (exifRaw.size() > 4)
                     {
-                        uint16_t unusedOrientation = 0;
                         exif::extractAll(exifRaw.data() + 4,
                                          static_cast<unsigned>(exifRaw.size() - 4),
-                                         info.exifList, unusedOrientation);
+                                         info.exifList);
                     }
                 }
             }

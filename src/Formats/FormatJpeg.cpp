@@ -85,10 +85,12 @@ bool cFormatJpeg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
 
     // ICC LUT generated inside decodeJpeg() — applied on GPU during rendering.
 
+    // Orientation is already resolved inside decodeJpeg() (before allocation);
+    // here we only populate the full EXIF list for the info popup.
     if (result.exifData.empty() == false)
     {
         exif::extractAll(result.exifData.data(), static_cast<unsigned>(result.exifData.size()),
-                         info.exifList, info.exifOrientation);
+                         info.exifList);
     }
 
     return true;

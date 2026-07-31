@@ -516,8 +516,8 @@ bool cFormatPsd::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     if (exifData.empty() == false)
     {
-        exif::extractAll(exifData.data(), static_cast<unsigned>(exifData.size()),
-                         info.exifList, info.exifOrientation);
+        info.exifOrientation = exif::readOrientation(exifData.data(), static_cast<unsigned>(exifData.size()));
+        exif::extractAll(exifData.data(), static_cast<unsigned>(exifData.size()), info.exifList);
     }
 
     // skip Layer and Mask Information Block (PSB uses 8-byte size)

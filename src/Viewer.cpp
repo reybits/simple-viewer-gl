@@ -443,9 +443,10 @@ void cViewer::handleBitmapAllocated()
         if (m_config.keepScale == false)
         {
             m_scale.setScalePercent(100);
-            resetOrientation();
             m_camera = Vectorf();
         }
+
+        applyImageOrientation();
 
         m_selection->setImageDimension(chunk.width, chunk.height);
         centerWindow();
@@ -491,9 +492,10 @@ void cViewer::handleImageReady()
             if (m_config.keepScale == false)
             {
                 m_scale.setScalePercent(100);
-                resetOrientation();
                 m_camera = Vectorf();
             }
+
+            applyImageOrientation();
 
             m_vectorBaseSize = info.isVector
                 ? Vectori{ static_cast<int>(chunk.width), static_cast<int>(chunk.height) }
@@ -542,12 +544,10 @@ void cViewer::handleImageReady()
 
     if (m_loader->getMode() == cImageLoader::Mode::Image)
     {
+        // Orientation was already applied before window sizing (in
+        // handleBitmapAllocated() or the buffer-setup block above). Here we only
+        // need the parsed EXIF list, which is ready once decoding completes.
         m_exifPopup->setExifList(info.exifList);
-
-        // Reset orientation before applying EXIF — orientation is intrinsic
-        // to the image, not a user preference that should persist across images.
-        resetOrientation();
-        applyExifOrientation(info.exifOrientation);
     }
 
     updateInfobar();
@@ -560,37 +560,45 @@ void cViewer::resetOrientation()
     m_flipV = false;
 }
 
-// TODO: Consider to apply on renderer side.
-// Atleast replace uint16_t with enum for better readability.
-void cViewer::applyExifOrientation(uint16_t orientation)
+void cViewer::applyImageOrientation()
 {
-    // EXIF orientation values:
-    // 1=normal, 2=flipH, 3=rotate180, 4=flipV,
-    // 5=rotate90CW+flipH, 6=rotate90CW, 7=rotate90CCW+flipH, 8=rotate90CCW
+    // Orientation is intrinsic to the image, not a user preference that should
+    // persist across images: always reset, then apply the value from EXIF.
+    // Called before centerWindow() so window sizing sees the final angle.
+    resetOrientation();
+    applyExifOrientation(m_loader->getImageInfo().exifOrientation);
+}
+
+// TODO: Consider to apply on renderer side.
+void cViewer::applyExifOrientation(sImageInfo::Orientation orientation)
+{
+    using Orientation = sImageInfo::Orientation;
     switch (orientation)
     {
-    case 2:
+    case Orientation::FlipH:
         m_flipH = true;
         break;
-    case 3:
+    case Orientation::Rotate180:
         m_angle = 180;
         break;
-    case 4:
+    case Orientation::FlipV:
         m_flipV = true;
         break;
-    case 5:
-        m_angle = 270;
-        m_flipH = true;
-        break;
-    case 6:
-        m_angle = 270;
-        break;
-    case 7:
+    case Orientation::Transpose:
         m_angle = 90;
         m_flipH = true;
         break;
-    case 8:
+    case Orientation::Rotate90:
+        m_angle = 270;
+        break;
+    case Orientation::Transverse:
+        m_angle = 270;
+        m_flipH = true;
+        break;
+    case Orientation::Rotate270:
         m_angle = 90;
+        break;
+    case Orientation::Normal:
         break;
     }
 }

@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Common/Callbacks.h"
+#include "Common/ImageInfo.h"
 #include "Common/Scale.h"
 #include "Types/Types.h"
 #include "Types/Vector.h"
@@ -80,7 +81,8 @@ private:
     void handlePreviewReady();
     void handleBitmapAllocated();
     void handleImageReady();
-    void applyExifOrientation(uint16_t orientation);
+    void applyImageOrientation();
+    void applyExifOrientation(sImageInfo::Orientation orientation);
     void resetOrientation();
 
     void onContextRecreated();
