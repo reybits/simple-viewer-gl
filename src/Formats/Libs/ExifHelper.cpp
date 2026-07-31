@@ -9,6 +9,97 @@
 
 #include "ExifHelper.h"
 
+#include <cstring>
+
+// Dependency-free orientation reader, always compiled (independent of libexif),
+// so every format resolves orientation the same way and at the same point.
+sImageInfo::Orientation exif::readOrientation(const uint8_t* data, unsigned size)
+{
+    using Orientation = sImageInfo::Orientation;
+
+    if (data == nullptr)
+    {
+        return Orientation::Normal;
+    }
+
+    // A JPEG APP1 payload is prefixed with "Exif\0\0"; a PSD/TIFF block is the
+    // raw TIFF stream. Skip the prefix when present so both are handled.
+    unsigned offset = 0;
+    if (size >= 6 && std::memcmp(data, "Exif\0\0", 6) == 0)
+    {
+        offset = 6;
+    }
+
+    const auto* tiff     = data + offset;
+    const size_t tiffLen = size - offset;
+
+    constexpr size_t TiffHeaderSize = 8;
+    if (tiffLen < TiffHeaderSize)
+    {
+        return Orientation::Normal;
+    }
+
+    bool bigEndian;
+    if (tiff[0] == 'M' && tiff[1] == 'M')
+    {
+        bigEndian = true;
+    }
+    else if (tiff[0] == 'I' && tiff[1] == 'I')
+    {
+        bigEndian = false;
+    }
+    else
+    {
+        return Orientation::Normal;
+    }
+
+    auto read16 = [bigEndian](const uint8_t* p) -> uint16_t {
+        return bigEndian
+            ? static_cast<uint16_t>((p[0] << 8) | p[1])
+            : static_cast<uint16_t>((p[1] << 8) | p[0]);
+    };
+
+    auto read32 = [bigEndian](const uint8_t* p) -> uint32_t {
+        return bigEndian
+            ? (static_cast<uint32_t>(p[0]) << 24) | (static_cast<uint32_t>(p[1]) << 16) | (static_cast<uint32_t>(p[2]) << 8) | p[3]
+            : (static_cast<uint32_t>(p[3]) << 24) | (static_cast<uint32_t>(p[2]) << 16) | (static_cast<uint32_t>(p[1]) << 8) | p[0];
+    };
+
+    // TIFF magic (42) follows the byte-order mark.
+    if (read16(tiff + 2) != 42)
+    {
+        return Orientation::Normal;
+    }
+
+    const uint32_t ifdOffset = read32(tiff + 4);
+    if (ifdOffset > tiffLen - 2)
+    {
+        return Orientation::Normal;
+    }
+
+    const uint16_t entryCount    = read16(tiff + ifdOffset);
+    constexpr size_t EntrySize   = 12;
+    constexpr uint16_t OrientTag = 0x0112;
+    for (uint16_t i = 0; i < entryCount; i++)
+    {
+        const size_t entryPos = static_cast<size_t>(ifdOffset) + 2 + static_cast<size_t>(i) * EntrySize;
+        if (entryPos + EntrySize > tiffLen)
+        {
+            break;
+        }
+
+        if (read16(tiff + entryPos) == OrientTag)
+        {
+            const uint16_t value = read16(tiff + entryPos + 8);
+            return (value >= 1 && value <= 8)
+                ? static_cast<Orientation>(value)
+                : Orientation::Normal;
+        }
+    }
+
+    return Orientation::Normal;
+}
+
 #if defined(EXIF_SUPPORT)
 
 #include "Common/Helpers.h"
@@ -186,7 +277,7 @@ namespace
 
 } // namespace
 
-void exif::extractAll(const uint8_t* data, unsigned size, sImageInfo::ExifList& exifList, uint16_t& orientation)
+void exif::extractAll(const uint8_t* data, unsigned size, sImageInfo::ExifList& exifList)
 {
     auto* ed = exif_data_new_from_data(data, size);
     if (ed == nullptr)
@@ -209,20 +300,12 @@ void exif::extractAll(const uint8_t* data, unsigned size, sImageInfo::ExifList& 
         exif_content_foreach_entry(ed->ifd[ifd], ForeachEntry, &ctx);
     }
 
-    // Extract orientation separately (needed for render transform).
-    auto* orientEntry = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_ORIENTATION);
-    if (orientEntry != nullptr)
-    {
-        auto byteOrder = exif_data_get_byte_order(ed);
-        orientation    = exif_get_short(orientEntry->data, byteOrder);
-    }
-
     exif_data_unref(ed);
 }
 
 #else
 
-void exif::extractAll(const uint8_t*, unsigned, sImageInfo::ExifList&, uint16_t&)
+void exif::extractAll(const uint8_t*, unsigned, sImageInfo::ExifList&)
 {
 }
 

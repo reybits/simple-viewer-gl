@@ -49,5 +49,17 @@ struct sImageInfo
     using ExifList = std::vector<ExifEntry>;
     ExifList exifList;
 
-    uint16_t exifOrientation = 1; // EXIF orientation tag (1-8), 1 = normal
+    // EXIF orientation (values match the standard EXIF tag 0x0112).
+    enum class Orientation : uint16_t
+    {
+        Normal     = 1,
+        FlipH      = 2,
+        Rotate180  = 3,
+        FlipV      = 4,
+        Transpose  = 5, // mirror across the main diagonal
+        Rotate90   = 6, // clockwise
+        Transverse = 7, // mirror across the anti-diagonal
+        Rotate270  = 8, // clockwise
+    };
+    Orientation exifOrientation = Orientation::Normal;
 };

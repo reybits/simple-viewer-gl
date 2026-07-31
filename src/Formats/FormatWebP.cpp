@@ -13,6 +13,7 @@
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"
+#include "Libs/ExifHelper.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -73,6 +74,26 @@ bool cFormatWebP::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
     info.current = 0;
     chunk.width = features.width;
     chunk.height = features.height;
+
+#if defined(WEBPDEMUX_SUPPORT)
+    // Read EXIF orientation before allocation so window sizing sees the final
+    // (rotation-applied) aspect. WebP decoding does not apply it itself.
+    {
+        WebPData exifData = { buffer.data(), buffer.size() };
+        auto* exifDemux = WebPDemux(&exifData);
+        if (exifDemux != nullptr)
+        {
+            WebPChunkIterator exifIter;
+            if (WebPDemuxGetChunk(exifDemux, "EXIF", 1, &exifIter))
+            {
+                info.exifOrientation = exif::readOrientation(
+                    exifIter.chunk.bytes, static_cast<unsigned>(exifIter.chunk.size));
+                WebPDemuxReleaseChunkIterator(&exifIter);
+            }
+            WebPDemuxDelete(exifDemux);
+        }
+    }
+#endif
 
     if (features.has_alpha)
     {

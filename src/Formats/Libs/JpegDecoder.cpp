@@ -11,6 +11,7 @@
 #include "Common/ChunkData.h"
 #include "Common/Cms.h"
 #include "Common/ImageInfo.h"
+#include "ExifHelper.h"
 
 #include <cstring>
 #include <jpeglib.h>
@@ -182,6 +183,11 @@ cJpegDecoder::Result cJpegDecoder::decodeJpeg(const uint8_t* in, uint32_t size, 
     // Extract markers (available after jpeg_read_header)
     locateICCProfile(cinfo, result.iccProfile);
     locateExifData(cinfo, result.exifData);
+
+    // Resolve orientation before signaling info/allocation so the viewer can
+    // size the window from the correct (rotation-applied) aspect from the start.
+    info.exifOrientation = exif::readOrientation(
+        result.exifData.data(), static_cast<unsigned>(result.exifData.size()));
 
     // Set formatName based on ICC presence so the viewer shows
     // the correct type from the start.

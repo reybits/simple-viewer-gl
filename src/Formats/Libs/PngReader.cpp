@@ -13,6 +13,7 @@
 #include "Common/File.h"
 #include "Common/Helpers.h"
 #include "Common/ImageInfo.h"
+#include "ExifHelper.h"
 #include "Log/Log.h"
 
 #include <cstring>
@@ -308,6 +309,17 @@ bool cPngReader::doLoadPNG(const cPngWrapper& wrapper, sChunkData& chunk, sImage
     {
         ::memcpy(m_iccProfile.data(), iccProfileData, iccProfileSize);
     }
+
+#ifdef PNG_eXIf_SUPPORTED
+    // Read EXIF orientation (eXIf chunk) before allocation so window sizing sees
+    // the final aspect. Only chunks preceding IDAT are available at this point.
+    png_uint_32 exifSize = 0;
+    png_bytep exifData   = nullptr;
+    if (png_get_eXIf_1(png, info, &exifSize, &exifData) == PNG_INFO_eXIf && exifData != nullptr)
+    {
+        imgInfo.exifOrientation = exif::readOrientation(exifData, exifSize);
+    }
+#endif
 
     // Allocate band buffer
     constexpr uint32_t BandRows = 8192;
