@@ -120,9 +120,12 @@ void cViewer::addPaths(const StringsList& paths)
 
         m_filesList->sortList();
         m_filesList->locateFile(paths[0].c_str());
-
-        navigateImage(0);
     }
+
+    // Always navigate: with no images (empty list or no arguments) getName()
+    // yields null and loadImage() then loads the "not available" placeholder,
+    // so the normal load -> centerWindow -> reveal flow always runs (issue #28).
+    navigateImage(0);
 }
 
 void cViewer::onRender()
@@ -1355,11 +1358,9 @@ void cViewer::navigateImage(int step)
 
 void cViewer::loadImage(const char* path)
 {
-    if (path == nullptr)
-    {
-        return;
-    }
-
+    // A null path means "nothing to display" (empty file list). Don't bail out:
+    // pass it on so the loader yields the "not available" placeholder, keeping
+    // the normal load -> centerWindow -> reveal flow intact (issue #28).
     m_config.fitImage = m_config.keepScale == false && m_config.fitImage;
 
     m_anim.reset();
@@ -1370,7 +1371,9 @@ void cViewer::loadImage(const char* path)
     m_preview.reset();
     m_previewData = {};
 
-    m_loader->loadImage(path);
+    m_loader->loadImage(path != nullptr
+            ? path
+            : "");
     updateInfobar();
 }
 
