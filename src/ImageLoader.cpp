@@ -81,7 +81,9 @@ bool cImageLoader::loadFromFile(const char* path)
 
 void cImageLoader::load(const char* path)
 {
-    if (path != nullptr)
+    // An empty path (e.g. an empty file list) has nothing to open; skip straight
+    // to the "not available" placeholder instead of trying and logging a failure.
+    if (path != nullptr && path[0] != '\0')
     {
         cCurl curl;
         if (curl.isUrl(path))
