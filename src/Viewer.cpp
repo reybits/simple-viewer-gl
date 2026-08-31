@@ -1359,8 +1359,9 @@ void cViewer::navigateImage(int step)
 void cViewer::loadImage(const char* path)
 {
     // A null path means "nothing to display" (empty file list). Convert it to an
-    // empty path so the loader can't open it and falls back to the "not available"
-    // placeholder, keeping the normal load -> centerWindow -> reveal flow (issue #28).
+    // empty path; the loader skips an empty path and falls back to the "not
+    // available" placeholder, keeping the normal load -> centerWindow -> reveal
+    // flow (issue #28).
     m_config.fitImage = m_config.keepScale == false && m_config.fitImage;
 
     m_anim.reset();
