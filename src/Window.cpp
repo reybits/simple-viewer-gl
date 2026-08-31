@@ -113,13 +113,13 @@ GLFWwindow* cWindow::createFullscreenWindow(GLFWwindow* parent, const sConfig& c
     auto monitor = getCurrentMonitor();
     if (monitor == nullptr)
     {
-        cLog::Error("No monitor found, falling back to windowed mode.");
+        cLog::Warning("No monitor found, falling back to windowed mode.");
         return createWindowedWindow(parent, config);
     }
     auto mode = glfwGetVideoMode(monitor);
     if (mode == nullptr)
     {
-        cLog::Error("Can't get video mode, falling back to windowed mode.");
+        cLog::Warning("Can't get video mode, falling back to windowed mode.");
         return createWindowedWindow(parent, config);
     }
     return glfwCreateWindow(mode->width, mode->height, version::getTitle(), monitor, parent);
