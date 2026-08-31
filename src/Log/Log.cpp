@@ -42,5 +42,9 @@ void cLog::Write(Severity severity, const std::string& msg)
     };
 
     auto idx = static_cast<size_t>(severity);
-    ::printf("%s%s\n", SeverityNames[idx], msg.c_str());
+    // Diagnostics (warnings/errors) go to stderr; informational output to stdout.
+    FILE* out = (severity == Severity::Warning || severity == Severity::Error)
+        ? stderr
+        : stdout;
+    ::fprintf(out, "%s%s\n", SeverityNames[idx], msg.c_str());
 }
