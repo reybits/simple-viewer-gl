@@ -47,4 +47,6 @@ void cLog::Write(Severity severity, const std::string& msg)
         ? stderr
         : stdout;
     ::fprintf(out, "%s%s\n", SeverityNames[idx], msg.c_str());
+    // Flush each line: keep stdout/stderr ordered when merged and avoid loss on abort.
+    ::fflush(out);
 }
