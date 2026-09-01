@@ -86,7 +86,7 @@ clean:
 		cppcheck-output strace_out cov-int
 
 install:
-	cd $(BUILD_DIR_RELEASE) && cmake --install . --prefix $(DESTDIR)$(PREFIX)
+	cd $(BUILD_DIR_RELEASE) && DESTDIR="$(DESTDIR)" cmake --install . --prefix $(PREFIX)
 
 dist:   clean
 	install -d $(BUNDLE_NAME)-$(VERSION)
@@ -98,7 +98,7 @@ dist:   clean
 
 deb:    dist
 	mv $(BUNDLE_NAME)-$(VERSION).tar.gz $(BUNDLE_NAME)_$(VERSION).orig.tar.gz
-	cd $(BUNDLE_NAME)-$(VERSION) ; PREFIX=/usr dpkg-buildpackage -F -tc
+	cd $(BUNDLE_NAME)-$(VERSION) ; PREFIX=/usr debuild -uc -us
 
 rpm:    dist
 	rpmbuild -ta $(BUNDLE_NAME)-$(VERSION).tar.gz
