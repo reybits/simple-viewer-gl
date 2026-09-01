@@ -15,7 +15,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <dirent.h>
 #include <unistd.h>
 
 cFilesList::cFilesList(bool allValid, bool recursive)
@@ -23,17 +22,6 @@ cFilesList::cFilesList(bool allValid, bool recursive)
     , m_recursive(recursive)
 {
 }
-
-namespace
-{
-    int Filter(const dirent* dir)
-    {
-        // skip . and ..
-        auto p = dir->d_name;
-        return (p[0] == '.' && (p[1] == '\0' || (p[1] == '.' && p[2] == '\0'))) ? 0 : 1;
-    }
-
-} // namespace
 
 void cFilesList::parseDirectory(const std::string& current)
 {
@@ -151,35 +139,41 @@ void cFilesList::scanDirectory(const std::string& root)
 {
     cLog::Debug("Scan: '{}'.", root);
 
-    dirent** namelist;
-    int n = ::scandir(root.c_str(), &namelist, Filter, alphasort);
-    if (n >= 0)
+    // Iterate without exceptions: the error_code overloads keep a missing or
+    // unreadable root - and any mid-scan failure - from throwing (a range-based
+    // for advances with the throwing operator++). "." and ".." are skipped by
+    // the iterator. Final ordering is handled by sortList() in parseDirectory(),
+    // so the scan order here does not matter.
+    std::error_code ec;
+    std::filesystem::directory_iterator it(root, ec);
+    if (ec)
     {
-        while (n--)
+        // Root missing or unreadable: nothing to scan.
+        return;
+    }
+
+    const std::filesystem::directory_iterator end;
+    while (it != end)
+    {
+        const auto& entry = *it;
+        const std::string path = entry.path().string();
+        if (entry.is_directory(ec) == true)
         {
-            std::string path(root);
-            path += "/";
-            path += namelist[n]->d_name;
-
-            // skip non non readable files/dirs
-            DIR* dir = ::opendir(path.c_str());
-            if (dir != nullptr)
+            if (m_recursive == true)
             {
-                ::closedir(dir);
-                if (m_recursive == true)
-                {
-                    scanDirectory(path);
-                }
+                scanDirectory(path);
             }
-            else if (isValidExt(path.c_str()) == true)
-            {
-                m_files.push_back({ false, path });
-            }
-
-            ::free(namelist[n]);
+        }
+        else if (isValidExt(path.c_str()) == true)
+        {
+            m_files.push_back({ false, path });
         }
 
-        ::free(namelist);
+        it.increment(ec);
+        if (ec)
+        {
+            break;
+        }
     }
 }
 
