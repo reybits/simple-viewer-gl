@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <dirent.h>
 #include <unistd.h>
 
@@ -25,22 +26,6 @@ cFilesList::cFilesList(bool allValid, bool recursive)
 
 namespace
 {
-    std::string GetBaseDir(const char* path)
-    {
-        std::string dir = path;
-        size_t pos = dir.find_last_of('/');
-        if (std::string::npos != pos)
-        {
-            dir = dir.substr(0, pos);
-        }
-        else
-        {
-            dir = ".";
-        }
-
-        return dir;
-    }
-
     int Filter(const dirent* dir)
     {
         // skip . and ..
@@ -52,13 +37,29 @@ namespace
 
 void cFilesList::parseDirectory(const std::string& current)
 {
-    const auto localCopy = current;
-    auto path = localCopy.c_str();
+    // Copy first: `current` may reference an element of m_files, and
+    // scanDirectory() can reallocate that vector.
+    const std::string target = current;
 
-    scanDirectory(GetBaseDir(path));
+    // A directory argument is scanned as-is; a file argument scans the folder
+    // that contains it. Ask the filesystem which one it is instead of guessing
+    // from the string.
+    std::error_code ec;
+    const std::filesystem::path path(target);
+    std::filesystem::path root = std::filesystem::is_directory(path, ec)
+        ? path
+        : path.parent_path();
 
+    // A bare filename with no directory component has an empty parent; scan the
+    // current directory, as the previous string-based helper did.
+    if (root.empty())
+    {
+        root = ".";
+    }
+
+    scanDirectory(root.string());
     sortList();
-    locateFile(path);
+    locateFile(target.c_str());
 }
 
 void cFilesList::parseDir()
