@@ -54,7 +54,6 @@ cViewer::cViewer(sConfig& config, cWindow& window)
     m_windowEvents.onWindowResize      = [this](const Vectori& s) { onWindowResize(s); };
     m_windowEvents.onFramebufferResize = [this](const Vectori& s) { onFramebufferResize(s); };
     m_windowEvents.onWindowPosition    = [this](const Vectori& p) { onWindowPosition(p); };
-    m_windowEvents.onWindowRefresh     = [this]() { onWindowRefresh(); };
     m_windowEvents.onKeyEvent          = [this](int k, int s, int a, int m) { onKeyEvent(k, s, a, m); };
     m_windowEvents.onCharEvent         = [this](uint32_t c) { onCharEvent(c); };
     m_windowEvents.onMouseButton       = [this](int b, int a, int m) { onMouseButton(b, a, m); };
@@ -646,11 +645,6 @@ void cViewer::onFramebufferResize(const Vectori& fbSize)
 void cViewer::onWindowPosition(const Vectori& pos)
 {
     m_config.windowPos = pos;
-}
-
-void cViewer::onWindowRefresh()
-{
-    onRender();
 }
 
 Vectorf cViewer::calculateMousePosition(const Vectorf& pos) const
