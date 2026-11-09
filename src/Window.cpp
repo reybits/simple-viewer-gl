@@ -145,11 +145,6 @@ void cWindow::setupCallbacks()
             dispatch(Instance->m_handler, Instance->m_handler->onWindowPosition, Vectori{ x, y });
         });
     }
-    glfwSetWindowRefreshCallback(m_window, [](GLFWwindow*) {
-        if (Instance == nullptr)
-            return;
-        dispatch(Instance->m_handler, Instance->m_handler->onWindowRefresh);
-    });
     glfwSetKeyCallback(m_window, [](GLFWwindow*, int key, int scancode, int action, int mods) {
         if (Instance == nullptr)
             return;

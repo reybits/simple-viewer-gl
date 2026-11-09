@@ -24,7 +24,6 @@ struct sWindowEvents
     std::function<void(const Vectori& winSize)> onWindowResize;
     std::function<void(const Vectori& fbSize)> onFramebufferResize;
     std::function<void(const Vectori& pos)> onWindowPosition;
-    std::function<void()> onWindowRefresh;
     std::function<void(int key, int scancode, int action, int mods)> onKeyEvent;
     std::function<void(uint32_t codepoint)> onCharEvent;
     std::function<void(int button, int action, int mods)> onMouseButton;

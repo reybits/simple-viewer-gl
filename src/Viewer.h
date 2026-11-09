@@ -61,7 +61,6 @@ private:
     void onWindowResize(const Vectori& winSize);
     void onFramebufferResize(const Vectori& fbSize);
     void onWindowPosition(const Vectori& pos);
-    void onWindowRefresh();
     void onKeyEvent(int key, int scancode, int action, int mods);
     void onCharEvent(uint32_t codepoint);
     void onMouseButton(int button, int action, int mods);
