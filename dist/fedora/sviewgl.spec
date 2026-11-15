@@ -12,7 +12,7 @@ BuildRequires: make
 BuildRequires: cmake >= 3.22
 BuildRequires: pkgconfig
 BuildRequires: mesa-libGL-devel
-BuildRequires: glfw-devel
+BuildRequires: glfw-devel >= 3.3
 BuildRequires: libpng-devel
 BuildRequires: libjpeg-turbo-devel
 BuildRequires: zlib-devel
