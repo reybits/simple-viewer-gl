@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatScr.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"
@@ -306,7 +307,7 @@ namespace
     {
         for (uint32_t i = 0; i < 8; i++)
         {
-            const auto bit = 0x80 >> i;
+            const auto bit   = 0x80 >> i;
             const bool isSet = pixels & bit;
             out->set(isSet, attribute);
             out++;
@@ -339,10 +340,10 @@ namespace
         for (uint32_t y = 0; y < 64; y++)
         {
             const auto line = (y * 8) % 64 + (y * 8) / 64;
-            auto startLine = &out[line * chunk.width];
+            auto startLine  = &out[line * chunk.width];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
-                const auto pixels = *zxPixels++;
+                const auto pixels    = *zxPixels++;
                 const auto attribute = zxColors[(line / blockHeight) * 32 + x];
                 PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
@@ -362,12 +363,12 @@ namespace
         for (uint32_t y = 0; y < 64; y++)
         {
             const auto line = (y * 8) % 64 + (y * 8) / 64;
-            auto startLine = &out[line * chunk.width];
+            auto startLine  = &out[line * chunk.width];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
                 const uint8_t pixels[2] = { *zxPixels0++, *zxPixels1++ };
 
-                const auto idx = (line / blockHeight) * 32 + x;
+                const auto idx              = (line / blockHeight) * 32 + x;
                 const uint8_t attributes[2] = { zxColors0[idx], zxColors1[idx] };
                 PutEightPixels(&startLine[x * 8], pixels, attributes);
             }
@@ -381,7 +382,7 @@ namespace
             auto startLine = &out[y * outWidth];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
-                const auto pixels = *zxPixels++;
+                const auto pixels    = *zxPixels++;
                 const auto attribute = zxColors[(y / blockHeight) * 32 + x];
                 PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
@@ -425,14 +426,14 @@ namespace
         const uint8_t px[2] = { 0x55, 0xaa };
 
         const auto zxColors = buffer;
-        auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + prop.dy * chunk.pitch) + prop.dx;
+        auto out            = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + prop.dy * chunk.pitch) + prop.dx;
 
         for (uint32_t y = 0; y < 192; y++)
         {
             auto startLine = &out[y * 256];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
-                const auto pixels = px[y % 2];
+                const auto pixels    = px[y % 2];
                 const auto attribute = zxColors[(y / 8) * 32 + x];
                 PutEightPixels(&startLine[x * 8], pixels, attribute);
             }
@@ -467,7 +468,7 @@ namespace
     {
         for (uint32_t i = 0; i < 3; i++)
         {
-            auto out = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + (prop.dy + 64 * i) * chunk.pitch) + prop.dx;
+            auto out      = reinterpret_cast<PixelRGB*>(chunk.bitmap.data() + (prop.dy + 64 * i) * chunk.pitch) + prop.dx;
             auto zxPixels = buffer + 2048 * i;
 
             auto zxColors0 = buffer + 6144 + (768 / 3) * i;
@@ -476,11 +477,11 @@ namespace
             for (uint32_t y = 0; y < 64; y++)
             {
                 const auto line = (y * 8) % 64 + (y * 8) / 64;
-                auto startLine = &out[line * chunk.width];
-                auto zxColors = ((line % 8) < 4 ? zxColors0 : zxColors1) + (line / 8) * 32;
+                auto startLine  = &out[line * chunk.width];
+                auto zxColors   = ((line % 8) < 4 ? zxColors0 : zxColors1) + (line / 8) * 32;
                 for (uint32_t x = 0; x < 256 / 8; x++)
                 {
-                    const auto pixels = *zxPixels++;
+                    const auto pixels    = *zxPixels++;
                     const auto attribute = *zxColors++;
                     PutEightPixels(&startLine[x * 8], pixels, attribute);
                 }
@@ -494,8 +495,8 @@ namespace
     void LoadImg(const uint8_t* buffer, sChunkData& chunk, const ZXProperty& prop)
     {
         constexpr uint32_t BlockHeight = 8;
-        const auto zxPixels = buffer;
-        const auto zxColors = buffer + 6144;
+        const auto zxPixels            = buffer;
+        const auto zxColors            = buffer + 6144;
 
         for (uint32_t i = 0; i < 3; i++)
         {
@@ -540,12 +541,12 @@ namespace
         for (uint32_t y = 0; y < 192; y++)
         {
             auto startLine = &out[y * chunk.width];
-            auto colors = &zxColors[(y / blockHeight) * 64];
+            auto colors    = &zxColors[(y / blockHeight) * 64];
             for (uint32_t x = 0; x < 256 / 8; x++)
             {
-                const auto pixels = *zxPixels++;
-                const auto ink = colors[x * 2 + 0];
-                const auto paper = colors[x * 2 + 1];
+                const auto pixels    = *zxPixels++;
+                const auto ink       = colors[x * 2 + 0];
+                const auto paper     = colors[x * 2 + 1];
                 const auto attribute = static_cast<uint8_t>(ink | (paper << 3));
                 PutEightPixels(&startLine[x * 8], pixels, attribute);
             }

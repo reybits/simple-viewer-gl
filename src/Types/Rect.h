@@ -13,7 +13,7 @@
 
 #include <cmath>
 
-template <typename T>
+template<typename T>
 class cRect final
 {
 public:
@@ -48,13 +48,13 @@ public:
     void setLeftTop(const cVector<T>& topLeft)
     {
         m_isSet = true;
-        tl = topLeft;
+        tl      = topLeft;
     }
 
     void setRightBottom(const cVector<T>& bottomRight)
     {
         m_isSet = true;
-        br = bottomRight;
+        br      = bottomRight;
     }
 
     void shiftRect(const cVector<T>& delta)
@@ -75,8 +75,8 @@ public:
         else
         {
             m_isSet = true;
-            tl = v;
-            br = v;
+            tl      = v;
+            br      = v;
         }
     }
 
@@ -109,14 +109,14 @@ public:
         if (tl.x > br.x)
         {
             auto x = br.x;
-            br.x = tl.x;
-            tl.x = x;
+            br.x   = tl.x;
+            tl.x   = x;
         }
         if (tl.y > br.y)
         {
             auto y = br.y;
-            br.y = tl.y;
-            tl.y = y;
+            br.y   = tl.y;
+            tl.y   = y;
         }
     }
 
@@ -125,10 +125,10 @@ public:
         if (&rc != this)
         {
             m_isSet = rc.m_isSet;
-            tl.x = rc.tl.x;
-            br.x = rc.br.x;
-            tl.y = rc.tl.y;
-            br.y = rc.br.y;
+            tl.x    = rc.tl.x;
+            br.x    = rc.br.x;
+            tl.y    = rc.tl.y;
+            br.y    = rc.br.y;
         }
         return *this;
     }

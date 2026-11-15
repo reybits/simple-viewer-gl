@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatIco.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"
@@ -64,18 +65,18 @@ namespace
 
     uint32_t GetBit(const uint8_t* data, uint32_t bit, uint32_t width)
     {
-        const auto w = DwordAlignedPitch(width, 1);
-        const auto line = bit / width;
+        const auto w      = DwordAlignedPitch(width, 1);
+        const auto line   = bit / width;
         const auto offset = bit % width;
         return (data[line * w + offset / 8] >> (7 - (offset % 8))) & 1;
     }
 
     uint32_t GetNibble(const uint8_t* data, uint32_t nibble, uint32_t width)
     {
-        const auto w = DwordAlignedPitch(width, 4);
-        const auto line = nibble / width;
+        const auto w      = DwordAlignedPitch(width, 4);
+        const auto line   = nibble / width;
         const auto offset = nibble % width;
-        const auto byte = data[line * w + offset / 2];
+        const auto byte   = data[line * w + offset / 2];
         return (offset % 2 == 0)
             ? (byte >> 4)
             : (byte & 0x0F);
@@ -83,8 +84,8 @@ namespace
 
     uint32_t GetByte(const uint8_t* data, uint32_t byte, uint32_t width)
     {
-        const auto w = DwordAlignedPitch(width, 8);
-        const auto line = byte / width;
+        const auto w      = DwordAlignedPitch(width, 8);
+        const auto line   = byte / width;
         const auto offset = byte % width;
         return data[line * w + offset];
     }
@@ -100,7 +101,7 @@ namespace
             auto idx = (chunk.height - y - 1) * chunk.pitch;
             for (uint32_t x = 0; x < chunk.width; x++)
             {
-                const auto pos = y * chunk.width + x;
+                const auto pos   = y * chunk.width + x;
                 const auto color = palette[getIndex(xorMask, pos, chunk.width)];
                 ::memcpy(&out[idx], &color, 3);
                 out[idx + 3] = GetBit(andMask, pos, chunk.width)
@@ -176,15 +177,15 @@ bool cFormatIco::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     if (image->colors == 0 && image->width == 0 && image->height == 0)
     {
         info.formatName = "ico/png";
-        result = loadPngFrame(chunk, info, file, image);
+        result          = loadPngFrame(chunk, info, file, image);
     }
     else
     {
         info.formatName = "ico";
-        result = loadOrdinaryFrame(chunk, info, file, image);
+        result          = loadOrdinaryFrame(chunk, info, file, image);
     }
 
-    info.images = header.count;
+    info.images  = header.count;
     info.current = current;
 
     return result;
@@ -229,9 +230,9 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
     }
 
     auto imgHeader = reinterpret_cast<const IcoBmpInfoHeader*>(p.data());
-    chunk.width = imgHeader->width;
-    chunk.height = imgHeader->height / 2; // xor mask + and mask
-    info.bppImage = imgHeader->bits;
+    chunk.width    = imgHeader->width;
+    chunk.height   = imgHeader->height / 2; // xor mask + and mask
+    info.bppImage  = imgHeader->bits;
 
     if (info.bppImage != 1 && info.bppImage != 4 && info.bppImage != 8
         && info.bppImage != 24 && info.bppImage != 32)
@@ -243,7 +244,7 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
     chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::BGRA);
 
     const auto pitch = DwordAlignedPitch(chunk.width, info.bppImage);
-    auto out = chunk.bitmap.data();
+    auto out         = chunk.bitmap.data();
 
     cLog::Debug("-- IcoBmpInfoHeader");
     cLog::Debug("  Size       : {}", imgHeader->size);
@@ -275,7 +276,7 @@ bool cFormatIco::loadOrdinaryFrame(sChunkData& chunk, sImageInfo& info, cFile& f
         for (uint32_t y = 0; y < chunk.height; y++)
         {
             const auto* row = xorMask + pitch * y;
-            auto idx = (chunk.height - y - 1) * chunk.pitch;
+            auto idx        = (chunk.height - y - 1) * chunk.pitch;
             for (uint32_t x = 0; x < chunk.width; x++)
             {
                 ::memcpy(&out[idx], row, 3);

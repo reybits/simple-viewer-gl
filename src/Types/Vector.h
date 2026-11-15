@@ -9,7 +9,7 @@
 
 #pragma once
 
-template <typename T>
+template<typename T>
 class cVector final
 {
 public:

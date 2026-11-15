@@ -10,6 +10,7 @@
 #if defined(GIF_SUPPORT)
 
 #include "FormatGif.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"
@@ -22,7 +23,7 @@ void cFormatGif::GifDeleter::operator()(GifFileType* gifFile)
 {
 #if GIFLIB_MAJOR >= 5
     int errorCode = 0;
-    auto result = DGifCloseFile(gifFile, &errorCode);
+    auto result   = DGifCloseFile(gifFile, &errorCode);
     (void)errorCode;
 #else
     auto result = DGifCloseFile(gifFile);
@@ -37,7 +38,7 @@ namespace
     {
 #if GIFLIB_MAJOR >= 5
         int errorCode = 0;
-        auto gifFile = DGifOpenFileName(path, &errorCode);
+        auto gifFile  = DGifOpenFileName(path, &errorCode);
         (void)errorCode;
 #else
         auto gifFile = DGifOpenFileName(path);
@@ -124,10 +125,10 @@ bool cFormatGif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
 
-    info.images = m_gif->ImageCount;
+    info.images      = m_gif->ImageCount;
     info.isAnimation = info.images > 1;
 
-    chunk.width = m_gif->SWidth;
+    chunk.width  = m_gif->SWidth;
     chunk.height = m_gif->SHeight;
 
     chunk.allocate(chunk.width, chunk.height, 32, ePixelFormat::RGBA);
@@ -163,7 +164,7 @@ bool cFormatGif::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     if (info.images == 1)
     {
         // use frame size instead 'canvas' size
-        chunk.width = image.ImageDesc.Width;
+        chunk.width  = image.ImageDesc.Width;
         chunk.height = image.ImageDesc.Height;
     }
 
@@ -173,7 +174,7 @@ bool cFormatGif::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
 
     // Parse GCE for current frame
     uint32_t transparentIdx = static_cast<uint32_t>(-1);
-    uint32_t disposalMode = 0;
+    uint32_t disposalMode   = 0;
     for (int i = 0; i < image.ExtensionBlockCount; i++)
     {
         const auto& eb = image.ExtensionBlocks[i];
@@ -214,7 +215,7 @@ bool cFormatGif::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     // Mode 0/1: leave canvas as-is (overlay)
     // Mode 3: not implemented (needs backup buffer — rare, skip for now)
 
-    const uint32_t width = image.ImageDesc.Width;
+    const uint32_t width  = image.ImageDesc.Width;
     const uint32_t height = image.ImageDesc.Height;
 
     if (image.ImageDesc.Interlace)
@@ -261,10 +262,10 @@ bool cFormatGif::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
 
     // Save current frame's disposal info for next frame
     m_prevFrame.disposalMode = disposalMode;
-    m_prevFrame.left = image.ImageDesc.Left;
-    m_prevFrame.top = image.ImageDesc.Top;
-    m_prevFrame.width = width;
-    m_prevFrame.height = height;
+    m_prevFrame.left         = image.ImageDesc.Left;
+    m_prevFrame.top          = image.ImageDesc.Top;
+    m_prevFrame.width        = width;
+    m_prevFrame.height       = height;
 
     return true;
 }

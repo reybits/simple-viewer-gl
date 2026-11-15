@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "HelpPopup.h"
+
 #include "imgui/imgui.h"
 
 namespace

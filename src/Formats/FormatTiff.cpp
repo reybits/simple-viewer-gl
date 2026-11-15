@@ -10,6 +10,7 @@
 #if defined(TIFF_SUPPORT)
 
 #include "FormatTiff.h"
+
 #include "Common/Callbacks.h"
 #include "Common/ChunkData.h"
 #include "Common/File.h"
@@ -41,7 +42,7 @@ bool cFormatTiff::isSupported(cFile& file, Buffer& buffer) const
         return false;
     }
 
-    const auto h = buffer.data();
+    const auto h        = buffer.data();
     const uint8_t le[4] = { 0x49, 0x49, 0x2A, 0x00 };
     const uint8_t be[4] = { 0x4D, 0x4D, 0x00, 0x2A };
     return !::memcmp(h, le, sizeof(le)) || !::memcmp(h, be, sizeof(be));
@@ -60,7 +61,7 @@ bool cFormatTiff::LoadSubImageImpl(uint32_t current, sChunkData& chunk, sImageIn
 
 void cFormatTiff::decodePreview(void* handle, uint32_t fullWidth, uint32_t fullHeight, unsigned current)
 {
-    auto tif = static_cast<TIFF*>(handle);
+    auto tif           = static_cast<TIFF*>(handle);
     const auto numDirs = TIFFNumberOfDirectories(tif);
 
     // Scan directories for a reduced-resolution image
@@ -90,7 +91,7 @@ void cFormatTiff::decodePreview(void* handle, uint32_t fullWidth, uint32_t fullH
             continue;
         }
 
-        const uint32_t width = img.width;
+        const uint32_t width  = img.width;
         const uint32_t height = img.height;
 
         // Only use as preview if it's actually smaller
@@ -101,15 +102,15 @@ void cFormatTiff::decodePreview(void* handle, uint32_t fullWidth, uint32_t fullH
         }
 
         constexpr uint32_t bpp = 32;
-        const uint32_t pitch = width * (bpp / 8);
+        const uint32_t pitch   = width * (bpp / 8);
 
         sPreviewData data;
-        data.width = width;
-        data.height = height;
-        data.pitch = pitch;
-        data.bpp = bpp;
-        data.format = ePixelFormat::RGBA;
-        data.fullImageWidth = fullWidth;
+        data.width           = width;
+        data.height          = height;
+        data.pitch           = pitch;
+        data.bpp             = bpp;
+        data.format          = ePixelFormat::RGBA;
+        data.fullImageWidth  = fullWidth;
         data.fullImageHeight = fullHeight;
         data.bitmap.resize(pitch * height);
 
@@ -148,7 +149,7 @@ bool cFormatTiff::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     if (tif != nullptr)
     {
         // read count of pages in image
-        info.images = TIFFNumberOfDirectories(tif);
+        info.images  = TIFFNumberOfDirectories(tif);
         info.current = std::min(current, info.images - 1);
 
         // set desired page
@@ -158,8 +159,8 @@ bool cFormatTiff::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
             char emsg[1024];
             if (TIFFRGBAImageBegin(&img, tif, 0, emsg) != 0)
             {
-                chunk.width = img.width;
-                chunk.height = img.height;
+                chunk.width   = img.width;
+                chunk.height  = img.height;
                 info.bppImage = img.bitspersample * img.samplesperpixel;
 
                 TIFFRGBAImageEnd(&img);
@@ -177,15 +178,15 @@ bool cFormatTiff::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
                 // returns pointers into TIFF's internal memory that are only
                 // valid for the current directory.
                 uint32_t iccProfileSize = 0;
-                void* iccProfile = nullptr;
-                bool hasIccProfile = TIFFGetField(tif, TIFFTAG_ICCPROFILE, &iccProfileSize, &iccProfile) != 0
+                void* iccProfile        = nullptr;
+                bool hasIccProfile      = TIFFGetField(tif, TIFFTAG_ICCPROFILE, &iccProfileSize, &iccProfile) != 0
                     && iccProfileSize > 0 && iccProfile != nullptr;
 
-                float* chr = nullptr;
-                float* wp = nullptr;
-                uint16_t* gmr = nullptr;
-                uint16_t* gmg = nullptr;
-                uint16_t* gmb = nullptr;
+                float* chr        = nullptr;
+                float* wp         = nullptr;
+                uint16_t* gmr     = nullptr;
+                uint16_t* gmg     = nullptr;
+                uint16_t* gmb     = nullptr;
                 bool hasIccTables = false;
                 if (hasIccProfile == false)
                 {
@@ -202,7 +203,7 @@ bool cFormatTiff::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
                 img.req_orientation = ORIENTATION_TOPLEFT;
 
                 auto bitmap = chunk.bitmap.data();
-                result = TIFFRGBAImageGet(&img, reinterpret_cast<uint32_t*>(bitmap), chunk.width, chunk.height) != 0;
+                result      = TIFFRGBAImageGet(&img, reinterpret_cast<uint32_t*>(bitmap), chunk.width, chunk.height) != 0;
 
                 if (result)
                 {

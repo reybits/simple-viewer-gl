@@ -8,10 +8,10 @@
 \**********************************************/
 
 #include "PixelPopup.h"
-#include "Renderer.h"
 
 #include "Assets/img-icons.c"
 #include "Assets/img-pointer-cross.c"
+#include "Renderer.h"
 
 #include <cstring>
 #include <fmt/core.h>
@@ -91,17 +91,17 @@ void cPixelPopup::setCursor(int cursor)
 void cPixelPopup::renderCursor()
 {
     auto& pointerSize = m_pointer->getSize();
-    const float x = std::round(m_pixelInfo.mouse.x - pointerSize.x * 0.5f);
-    const float y = std::round(m_pixelInfo.mouse.y - pointerSize.y * 0.5f);
+    const float x     = std::round(m_pixelInfo.mouse.x - pointerSize.x * 0.5f);
+    const float y     = std::round(m_pixelInfo.mouse.y - pointerSize.y * 0.5f);
     m_pointer->render({ x, y });
 }
 
 void cPixelPopup::renderInfo()
 {
-    auto& io = ImGui::GetIO();
-    float x = io.MousePos.x;
-    float y = io.MousePos.y;
-    float width = io.DisplaySize.x;
+    auto& io     = ImGui::GetIO();
+    float x      = io.MousePos.x;
+    float y      = io.MousePos.y;
+    float width  = io.DisplaySize.x;
     float height = io.DisplaySize.y;
 
     const float offset = 10.0f;

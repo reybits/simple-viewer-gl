@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatBmp.h"
+
 #include "Common/CachedReader.h"
 #include "Common/ChunkData.h"
 #include "Common/File.h"
@@ -154,17 +155,17 @@ namespace
 
     enum class Compression
     {
-        BI_RGB = 0,       // none                           Most common
-        BI_RLE8 = 1,      // RLE 8-bit/pixel                Can be used only with 8-bit/pixel bitmaps
-        BI_RLE4 = 2,      // RLE 4-bit/pixel                Can be used only with 4-bit/pixel bitmaps
+        BI_RGB       = 0, // none                           Most common
+        BI_RLE8      = 1, // RLE 8-bit/pixel                Can be used only with 8-bit/pixel bitmaps
+        BI_RLE4      = 2, // RLE 4-bit/pixel                Can be used only with 4-bit/pixel bitmaps
         BI_BITFIELDS = 3, // OS22XBITMAPHEADER: Huffman 1D  BITMAPV2INFOHEADER: RGB bit field masks,
         //                                BITMAPV3INFOHEADER+: RGBA
-        BI_JPEG = 4,           // OS22XBITMAPHEADER: RLE-24      BITMAPV4INFOHEADER+: JPEG image for printing[12]
-        BI_PNG = 5,            //                                BITMAPV4INFOHEADER+: PNG image for printing[12]
-        BI_ALPHABITFIELDS = 6, // RGBA bit field masks           only Windows CE 5.0 with .NET 4.0 or later
-        BI_CMYK = 11,          // none                           only Windows Metafile CMYK[3]
-        BI_CMYKRLE8 = 12,      // RLE-8                          only Windows Metafile CMYK
-        BI_CMYKRLE4 = 13,      // RLE-4                          only Windows Metafile CMYK
+        BI_JPEG           = 4,  // OS22XBITMAPHEADER: RLE-24      BITMAPV4INFOHEADER+: JPEG image for printing[12]
+        BI_PNG            = 5,  //                                BITMAPV4INFOHEADER+: PNG image for printing[12]
+        BI_ALPHABITFIELDS = 6,  // RGBA bit field masks           only Windows CE 5.0 with .NET 4.0 or later
+        BI_CMYK           = 11, // none                           only Windows Metafile CMYK[3]
+        BI_CMYKRLE8       = 12, // RLE-8                          only Windows Metafile CMYK
+        BI_CMYKRLE4       = 13, // RLE-4                          only Windows Metafile CMYK
     };
 
     const char* compressionToName(Compression compression)
@@ -282,27 +283,27 @@ namespace
         {
         case 1:
             chunk.format = ePixelFormat::BGRA; // GL_LUMINANCE;
-            chunk.bpp = 32;                    // 8;
+            chunk.bpp    = 32;                 // 8;
             break;
 
         case 8:
             chunk.format = ePixelFormat::BGRA; // GL_BGR;
-            chunk.bpp = 32;                    // 24;
+            chunk.bpp    = 32;                 // 24;
             break;
 
         case 16:
             chunk.format = ePixelFormat::RGB565;
-            chunk.bpp = 16;
+            chunk.bpp    = 16;
             break;
 
         case 32:
             chunk.format = ePixelFormat::BGRA;
-            chunk.bpp = 32;
+            chunk.bpp    = 32;
             break;
 
         default:
             chunk.format = ePixelFormat::BGR;
-            chunk.bpp = 24;
+            chunk.bpp    = 24;
         }
     }
 
@@ -336,7 +337,7 @@ namespace
         const uint32_t inPitch = header.sizeImage / chunk.height;
         Buffer buffer(inPitch);
 
-        auto in = buffer.data();
+        auto in      = buffer.data();
         auto palette = (RGBA*)pal.data();
 
         for (uint32_t row = 0; row < chunk.height; row++)
@@ -346,7 +347,7 @@ namespace
                 return false;
             }
 
-            auto out = (uint32_t*)(chunk.bitmap.data() + (chunk.height - row - 1) * chunk.pitch);
+            auto out   = (uint32_t*)(chunk.bitmap.data() + (chunk.height - row - 1) * chunk.pitch);
             size_t idx = 0;
             for (uint32_t i = 0; i < inPitch; i++)
             {
@@ -354,8 +355,8 @@ namespace
                 for (uint32_t b = 0; b < 8 && idx < chunk.width; b++, idx++)
                 {
                     const uint32_t val = byte & 0x80;
-                    auto color = palette[val ? 1 : 0];
-                    out[idx] = color.toBGR();
+                    auto color         = palette[val ? 1 : 0];
+                    out[idx]           = color.toBGR();
 
                     byte <<= 1;
                 }
@@ -373,24 +374,24 @@ namespace
 
         auto palette = (const RGBA*)pal.data();
 
-        size_t ofs = 0;
+        size_t ofs       = 0;
         const auto pitch = chunk.width;
         const auto start = (uint32_t*)chunk.bitmap.data();
-        const auto end = start + (chunk.height * pitch);
-        auto bits = end - pitch;
+        const auto end   = start + (chunk.height * pitch);
+        auto bits        = end - pitch;
 
-#define COPY_PIXEL(x)                     \
-    do                                    \
-    {                                     \
-        auto spot = &bits[ofs++];         \
-        if (spot >= start && spot < end)  \
-        {                                 \
-            *spot = (palette[x].toBGR()); \
-        }                                 \
-        else                              \
-        {                                 \
-            cLog::Warning("Out of bitmap bounds.");  \
-        }                                 \
+#define COPY_PIXEL(x)                               \
+    do                                              \
+    {                                               \
+        auto spot = &bits[ofs++];                   \
+        if (spot >= start && spot < end)            \
+        {                                           \
+            *spot = (palette[x].toBGR());           \
+        }                                           \
+        else                                        \
+        {                                           \
+            cLog::Warning("Out of bitmap bounds."); \
+        }                                           \
     } while (0)
 
         while (true)
@@ -534,7 +535,7 @@ namespace
         const uint32_t inPitch = header.sizeImage / chunk.height;
         Buffer buffer(inPitch);
 
-        auto in = buffer.data();
+        auto in      = buffer.data();
         auto palette = (RGBA*)pal.data();
 
         for (uint32_t row = 0; row < chunk.height; row++)
@@ -544,13 +545,13 @@ namespace
                 return false;
             }
 
-            auto out = (uint32_t*)(chunk.bitmap.data() + (chunk.height - row - 1) * chunk.pitch);
+            auto out   = (uint32_t*)(chunk.bitmap.data() + (chunk.height - row - 1) * chunk.pitch);
             size_t idx = 0;
             for (uint32_t i = 0; i < inPitch; i++)
             {
                 const auto byte = in[i];
-                auto color = palette[byte];
-                out[idx++] = color.toBGR();
+                auto color      = palette[byte];
+                out[idx++]      = color.toBGR();
             }
         }
 
@@ -661,7 +662,7 @@ bool cFormatBmp::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
         debugHeader(header);
 
-        chunk.width = header.width;
+        chunk.width  = header.width;
         chunk.height = header.height;
 
         setGLformat(header.bitCount, chunk, info);

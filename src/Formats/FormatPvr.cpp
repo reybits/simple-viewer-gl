@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatPvr.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
@@ -44,14 +45,14 @@ namespace
 
     enum class PVR2TextureFlag : uint32_t
     {
-        Mipmap = 1 << 8,        // has mip map levels
-        Twiddle = 1 << 9,       // is twiddled
-        Bumpmap = 1 << 10,      // has normals encoded for a bump map
-        Tiling = 1 << 11,       // is bordered for tiled pvr
-        Cubemap = 1 << 12,      // is a cubemap/skybox
-        FalseMipCol = 1 << 13,  // are there false colored MIP levels
-        Volume = 1 << 14,       // is this a volume texture
-        Alpha = 1 << 15,        // v2.1 is there transparency info in the texture
+        Mipmap       = 1 << 8,  // has mip map levels
+        Twiddle      = 1 << 9,  // is twiddled
+        Bumpmap      = 1 << 10, // has normals encoded for a bump map
+        Tiling       = 1 << 11, // is bordered for tiled pvr
+        Cubemap      = 1 << 12, // is a cubemap/skybox
+        FalseMipCol  = 1 << 13, // are there false colored MIP levels
+        Volume       = 1 << 14, // is this a volume texture
+        Alpha        = 1 << 15, // v2.1 is there transparency info in the texture
         VerticalFlip = 1 << 16, // v2.1 is the texture vertically flipped
     };
 
@@ -103,48 +104,48 @@ namespace
 
     enum class PVR3TexturePixelFormat : uint64_t
     {
-        PVRTC2BPP_RGB = 0ULL,
-        PVRTC2BPP_RGBA = 1ULL,
-        PVRTC4BPP_RGB = 2ULL,
-        PVRTC4BPP_RGBA = 3ULL,
-        PVRTC2_2BPP_RGBA = 4ULL,
-        PVRTC2_4BPP_RGBA = 5ULL,
-        ETC1 = 6ULL,
-        DXT1 = 7ULL,
-        DXT2 = 8ULL,
-        DXT3 = 9ULL,
-        DXT4 = 10ULL,
-        DXT5 = 11ULL,
-        BC1 = 7ULL,
-        BC2 = 9ULL,
-        BC3 = 11ULL,
-        BC4 = 12ULL,
-        BC5 = 13ULL,
-        BC6 = 14ULL,
-        BC7 = 15ULL,
-        UYVY = 16ULL,
-        YUY2 = 17ULL,
-        BW1bpp = 18ULL,
-        R9G9B9E5 = 19ULL,
-        RGBG8888 = 20ULL,
-        GRGB8888 = 21ULL,
-        ETC2_RGB = 22ULL,
-        ETC2_RGBA = 23ULL,
-        ETC2_RGBA1 = 24ULL,
-        EAC_R11_Unsigned = 25ULL,
-        EAC_R11_Signed = 26ULL,
+        PVRTC2BPP_RGB     = 0ULL,
+        PVRTC2BPP_RGBA    = 1ULL,
+        PVRTC4BPP_RGB     = 2ULL,
+        PVRTC4BPP_RGBA    = 3ULL,
+        PVRTC2_2BPP_RGBA  = 4ULL,
+        PVRTC2_4BPP_RGBA  = 5ULL,
+        ETC1              = 6ULL,
+        DXT1              = 7ULL,
+        DXT2              = 8ULL,
+        DXT3              = 9ULL,
+        DXT4              = 10ULL,
+        DXT5              = 11ULL,
+        BC1               = 7ULL,
+        BC2               = 9ULL,
+        BC3               = 11ULL,
+        BC4               = 12ULL,
+        BC5               = 13ULL,
+        BC6               = 14ULL,
+        BC7               = 15ULL,
+        UYVY              = 16ULL,
+        YUY2              = 17ULL,
+        BW1bpp            = 18ULL,
+        R9G9B9E5          = 19ULL,
+        RGBG8888          = 20ULL,
+        GRGB8888          = 21ULL,
+        ETC2_RGB          = 22ULL,
+        ETC2_RGBA         = 23ULL,
+        ETC2_RGBA1        = 24ULL,
+        EAC_R11_Unsigned  = 25ULL,
+        EAC_R11_Signed    = 26ULL,
         EAC_RG11_Unsigned = 27ULL,
-        EAC_RG11_Signed = 28ULL,
+        EAC_RG11_Signed   = 28ULL,
 
         BGRA8888 = 0x0808080861726762ULL,
         RGBA8888 = 0x0808080861626772ULL,
         RGBA4444 = 0x0404040461626772ULL,
         RGBA5551 = 0x0105050561626772ULL,
-        RGB565 = 0x0005060500626772ULL,
-        RGB888 = 0x0008080800626772ULL,
-        A8 = 0x0000000800000061ULL,
-        L8 = 0x000000080000006cULL,
-        LA88 = 0x000008080000616cULL,
+        RGB565   = 0x0005060500626772ULL,
+        RGB888   = 0x0008080800626772ULL,
+        A8       = 0x0000000800000061ULL,
+        L8       = 0x000000080000006cULL,
+        LA88     = 0x000008080000616cULL,
     };
 
     struct PVRv3TexHeader
@@ -180,12 +181,12 @@ namespace
         for (uint32_t i = 0; i < pixelCount; i++)
         {
             const auto pixel = in[i];
-            const auto r5 = static_cast<uint8_t>((pixel >> 10) & 0x1F);
-            const auto g5 = static_cast<uint8_t>((pixel >> 5) & 0x1F);
-            const auto b5 = static_cast<uint8_t>(pixel & 0x1F);
-            dst[i * 3 + 0] = static_cast<uint8_t>((r5 << 3) | (r5 >> 2));
-            dst[i * 3 + 1] = static_cast<uint8_t>((g5 << 3) | (g5 >> 2));
-            dst[i * 3 + 2] = static_cast<uint8_t>((b5 << 3) | (b5 >> 2));
+            const auto r5    = static_cast<uint8_t>((pixel >> 10) & 0x1F);
+            const auto g5    = static_cast<uint8_t>((pixel >> 5) & 0x1F);
+            const auto b5    = static_cast<uint8_t>(pixel & 0x1F);
+            dst[i * 3 + 0]   = static_cast<uint8_t>((r5 << 3) | (r5 >> 2));
+            dst[i * 3 + 1]   = static_cast<uint8_t>((g5 << 3) | (g5 >> 2));
+            dst[i * 3 + 2]   = static_cast<uint8_t>((b5 << 3) | (b5 >> 2));
         }
     }
 
@@ -238,9 +239,9 @@ namespace
         bitmap.resize(size);
 
         unsigned long destlen = size;
-        auto source = buffer + sizeof(CCZHeader);
-        auto sourceLen = bufferLen - sizeof(CCZHeader);
-        auto ret = uncompress(bitmap.data(), &destlen, source, sourceLen);
+        auto source           = buffer + sizeof(CCZHeader);
+        auto sourceLen        = bufferLen - sizeof(CCZHeader);
+        auto ret              = uncompress(bitmap.data(), &destlen, source, sourceLen);
 
         return ret == Z_OK;
     }
@@ -252,12 +253,12 @@ namespace
 
         z_stream d_stream;
         d_stream.zalloc = nullptr;
-        d_stream.zfree = nullptr;
+        d_stream.zfree  = nullptr;
         d_stream.opaque = nullptr;
 
-        d_stream.next_in = const_cast<uint8_t*>(in);
-        d_stream.avail_in = inLength;
-        d_stream.next_out = bitmap.data();
+        d_stream.next_in   = const_cast<uint8_t*>(in);
+        d_stream.avail_in  = inLength;
+        d_stream.next_out  = bitmap.data();
         d_stream.avail_out = static_cast<uInt>(bufferSize);
 
         if (inflateInit2(&d_stream, 15 + 32) != Z_OK)
@@ -289,7 +290,7 @@ namespace
 
                 bitmap.resize(bufferSize * Factor);
 
-                d_stream.next_out = bitmap.data() + bufferSize;
+                d_stream.next_out  = bitmap.data() + bufferSize;
                 d_stream.avail_out = static_cast<uInt>(bufferSize);
                 bufferSize *= Factor;
             }
@@ -381,7 +382,7 @@ bool cFormatPvr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     Buffer unpacked;
     const uint8_t* unpackedData = nullptr;
-    uint32_t unpackedSize = 0;
+    uint32_t unpackedSize       = 0;
 
     if (isCCZBuffer(buffer.data(), buffer.size()))
     {
@@ -431,15 +432,15 @@ bool cFormatPvr::loadPvr2(const uint8_t* data, sChunkData& chunk, sImageInfo& in
 
     auto& header = *reinterpret_cast<const PVRv2TexHeader*>(data);
 
-    auto flags = header.flags;
+    auto flags       = header.flags;
     auto pixelFormat = static_cast<PVR2TexturePixelFormat>(flags & PVR_TEXTURE_FLAG_TYPE_MASK);
-    auto flipped = (flags & static_cast<uint32_t>(PVR2TextureFlag::VerticalFlip)) != 0;
+    auto flipped     = (flags & static_cast<uint32_t>(PVR2TextureFlag::VerticalFlip)) != 0;
     if (flipped)
     {
         cLog::Warning("Image is flipped. Regenerate it using PVRTexTool.");
     }
 
-    auto width = header.width;
+    auto width  = header.width;
     auto height = header.height;
 
     cLog::Debug("-- PVR2 header");
@@ -464,58 +465,58 @@ bool cFormatPvr::loadPvr2(const uint8_t* data, sChunkData& chunk, sImageInfo& in
         RGB555,
     };
     auto decompress = Decomp::Copy;
-    auto bytes = 0u;
+    auto bytes      = 0u;
     switch (pixelFormat)
     {
     case PVR2TexturePixelFormat::RGBA4444:
-        bytes = 2;
+        bytes        = 2;
         chunk.format = ePixelFormat::RGBA4444;
         break;
     case PVR2TexturePixelFormat::RGBA5551:
-        bytes = 2;
+        bytes        = 2;
         chunk.format = ePixelFormat::RGBA5551;
         break;
     case PVR2TexturePixelFormat::RGBA8888:
-        bytes = 4;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR2TexturePixelFormat::RGB565:
-        bytes = 2;
+        bytes        = 2;
         chunk.format = ePixelFormat::RGB565;
         break;
     case PVR2TexturePixelFormat::RGB555:
-        decompress = Decomp::RGB555;
-        bytes = 3;
+        decompress   = Decomp::RGB555;
+        bytes        = 3;
         chunk.format = ePixelFormat::RGB;
         break;
     case PVR2TexturePixelFormat::RGB888:
-        bytes = 3;
+        bytes        = 3;
         chunk.format = ePixelFormat::RGB;
         break;
     case PVR2TexturePixelFormat::BGRA8888:
-        bytes = 4;
+        bytes        = 4;
         chunk.format = ePixelFormat::BGRA;
         break;
     case PVR2TexturePixelFormat::A8:
-        bytes = 1;
+        bytes        = 1;
         chunk.format = ePixelFormat::Alpha;
         break;
     case PVR2TexturePixelFormat::I8:
-        bytes = 1;
+        bytes        = 1;
         chunk.format = ePixelFormat::Luminance;
         break;
     case PVR2TexturePixelFormat::AI88:
-        bytes = 2;
+        bytes        = 2;
         chunk.format = ePixelFormat::LuminanceAlpha;
         break;
     case PVR2TexturePixelFormat::PVRTC2BPP_RGBA:
-        decompress = Decomp::PVRTC2;
-        bytes = 4;
+        decompress   = Decomp::PVRTC2;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR2TexturePixelFormat::PVRTC4BPP_RGBA:
-        decompress = Decomp::PVRTC4;
-        bytes = 4;
+        decompress   = Decomp::PVRTC4;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
 
@@ -524,11 +525,11 @@ bool cFormatPvr::loadPvr2(const uint8_t* data, sChunkData& chunk, sImageInfo& in
         return false;
     }
 
-    chunk.bpp = bytes * 8;
+    chunk.bpp     = bytes * 8;
     info.bppImage = bytes * 8;
-    chunk.width = width;
-    chunk.height = height;
-    chunk.pitch = width * bytes;
+    chunk.width   = width;
+    chunk.height  = height;
+    chunk.pitch   = width * bytes;
     chunk.resizeBitmap(chunk.pitch, chunk.height);
     auto src = data + sizeof(PVRv2TexHeader);
 
@@ -573,9 +574,9 @@ bool cFormatPvr::loadPvr3(const uint8_t* data, sChunkData& chunk, sImageInfo& in
     }
 
     auto pixelFormat = static_cast<PVR3TexturePixelFormat>(header.pixelFormat);
-    auto flags = header.flags;
-    auto width = header.width;
-    auto height = header.height;
+    auto flags       = header.flags;
+    auto width       = header.width;
+    auto height      = header.height;
 
     cLog::Debug("-- PVR3 header");
     cLog::Debug("  Version       : {:#x}", version);
@@ -604,128 +605,128 @@ bool cFormatPvr::loadPvr3(const uint8_t* data, sChunkData& chunk, sImageInfo& in
         PVRTC4,
         GPU,
     };
-    auto decompress = Decomp::Copy;
+    auto decompress          = Decomp::Copy;
     GpuDecodeFunc gpuDecoder = nullptr;
-    auto bytes = 0u;
+    auto bytes               = 0u;
     switch (pixelFormat)
     {
     case PVR3TexturePixelFormat::RGBA8888:
-        bytes = 4;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::BGRA8888:
-        bytes = 4;
+        bytes        = 4;
         chunk.format = ePixelFormat::BGRA;
         break;
     case PVR3TexturePixelFormat::RGB888:
-        bytes = 3;
+        bytes        = 3;
         chunk.format = ePixelFormat::RGB;
         break;
     case PVR3TexturePixelFormat::RGB565:
-        bytes = 2;
+        bytes        = 2;
         chunk.format = ePixelFormat::RGB565;
         break;
     case PVR3TexturePixelFormat::RGBA4444:
-        bytes = 2;
+        bytes        = 2;
         chunk.format = ePixelFormat::RGBA4444;
         break;
     case PVR3TexturePixelFormat::RGBA5551:
-        bytes = 2;
+        bytes        = 2;
         chunk.format = ePixelFormat::RGBA5551;
         break;
     case PVR3TexturePixelFormat::A8:
-        bytes = 1;
+        bytes        = 1;
         chunk.format = ePixelFormat::Alpha;
         break;
     case PVR3TexturePixelFormat::L8:
-        bytes = 1;
+        bytes        = 1;
         chunk.format = ePixelFormat::Luminance;
         break;
     case PVR3TexturePixelFormat::LA88:
-        bytes = 2;
+        bytes        = 2;
         chunk.format = ePixelFormat::LuminanceAlpha;
         break;
     case PVR3TexturePixelFormat::PVRTC2BPP_RGB:
     case PVR3TexturePixelFormat::PVRTC2BPP_RGBA:
-        decompress = Decomp::PVRTC2;
-        bytes = 4;
+        decompress   = Decomp::PVRTC2;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::PVRTC4BPP_RGB:
     case PVR3TexturePixelFormat::PVRTC4BPP_RGBA:
-        decompress = Decomp::PVRTC4;
-        bytes = 4;
+        decompress   = Decomp::PVRTC4;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
 
     // GPU compressed formats — all decode to RGBA
     case PVR3TexturePixelFormat::ETC1:
     case PVR3TexturePixelFormat::ETC2_RGB:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeETC2_RGB;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeETC2_RGB;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::ETC2_RGBA:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeETC2_RGBA;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeETC2_RGBA;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::ETC2_RGBA1:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeETC2_RGBA1;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeETC2_RGBA1;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::EAC_R11_Unsigned:
     case PVR3TexturePixelFormat::EAC_R11_Signed:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeEAC_R11;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeEAC_R11;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::EAC_RG11_Unsigned:
     case PVR3TexturePixelFormat::EAC_RG11_Signed:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeEAC_RG11;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeEAC_RG11;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::BC1:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeBC1;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeBC1;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::BC2:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeBC2;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeBC2;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::BC3:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeBC3;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeBC3;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::BC4:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeBC4;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeBC4;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::BC5:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeBC5;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeBC5;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case PVR3TexturePixelFormat::BC7:
-        decompress = Decomp::GPU;
-        gpuDecoder = gpu_decode::decodeBC7;
-        bytes = 4;
+        decompress   = Decomp::GPU;
+        gpuDecoder   = gpu_decode::decodeBC7;
+        bytes        = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
 
@@ -734,11 +735,11 @@ bool cFormatPvr::loadPvr3(const uint8_t* data, sChunkData& chunk, sImageInfo& in
         return false;
     }
 
-    chunk.bpp = bytes * 8;
+    chunk.bpp     = bytes * 8;
     info.bppImage = bytes * 8;
-    chunk.width = width;
-    chunk.height = height;
-    chunk.pitch = width * bytes;
+    chunk.width   = width;
+    chunk.height  = height;
+    chunk.pitch   = width * bytes;
     chunk.resizeBitmap(chunk.pitch, chunk.height);
     auto src = data + sizeof(PVRv3TexHeader) + header.metadataLength;
 

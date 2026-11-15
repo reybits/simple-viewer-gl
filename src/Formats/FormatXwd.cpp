@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatXwd.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
@@ -206,12 +207,12 @@ bool cFormatXwd::loadX11(const X11WindowDump& header, cFile& file, sChunkData& c
         return false;
     }
 
-    chunk.width = header.PixmapWidth;
-    chunk.height = header.PixmapHeight;
-    chunk.bpp = header.BitsPerPixel;
+    chunk.width   = header.PixmapWidth;
+    chunk.height  = header.PixmapHeight;
+    chunk.bpp     = header.BitsPerPixel;
     info.bppImage = header.BitsPerPixel;
-    chunk.pitch = header.BytesPerLine;
-    chunk.format = ePixelFormat::RGB;
+    chunk.pitch   = header.BytesPerLine;
+    chunk.format  = ePixelFormat::RGB;
     chunk.resizeBitmap(chunk.pitch, chunk.height);
 
     if (chunk.bitmap.size() != file.read(chunk.bitmap.data(), chunk.bitmap.size()))

@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "JpegDecoder.h"
+
 #include "Common/ChunkData.h"
 #include "Common/Cms.h"
 #include "Common/ImageInfo.h"

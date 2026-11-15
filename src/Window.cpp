@@ -8,21 +8,21 @@
 \**********************************************/
 
 #include "Window.h"
+
 #include "Common/Config.h"
 #include "Common/Helpers.h"
 #include "Log/Log.h"
 #include "Version.h"
 
+#include <GLFW/glfw3.h>
 #include <algorithm>
 #include <glad/glad.h>
-
-#include <GLFW/glfw3.h>
 
 namespace
 {
     cWindow* Instance = nullptr;
 
-    template <typename Fn, typename... Args>
+    template<typename Fn, typename... Args>
     void dispatch(sWindowEvents* handler, Fn& fn, Args&&... args)
     {
         if (handler && fn)
@@ -129,57 +129,77 @@ void cWindow::setupCallbacks()
 {
     glfwSetWindowSizeCallback(m_window, [](GLFWwindow*, int w, int h) {
         if (Instance == nullptr)
+        {
             return;
+        }
         dispatch(Instance->m_handler, Instance->m_handler->onWindowResize, Vectori{ w, h });
     });
     glfwSetFramebufferSizeCallback(m_window, [](GLFWwindow*, int w, int h) {
         if (Instance == nullptr)
+        {
             return;
+        }
         dispatch(Instance->m_handler, Instance->m_handler->onFramebufferResize, Vectori{ w, h });
     });
     if (helpers::getPlatform() != helpers::Platform::Wayland)
     {
         glfwSetWindowPosCallback(m_window, [](GLFWwindow*, int x, int y) {
             if (Instance == nullptr)
+            {
                 return;
+            }
             dispatch(Instance->m_handler, Instance->m_handler->onWindowPosition, Vectori{ x, y });
         });
     }
     glfwSetWindowRefreshCallback(m_window, [](GLFWwindow*) {
         if (Instance == nullptr)
+        {
             return;
+        }
         dispatch(Instance->m_handler, Instance->m_handler->onWindowRefresh);
     });
     glfwSetKeyCallback(m_window, [](GLFWwindow*, int key, int scancode, int action, int mods) {
         if (Instance == nullptr)
+        {
             return;
+        }
         dispatch(Instance->m_handler, Instance->m_handler->onKeyEvent, key, scancode, action, mods);
     });
     glfwSetCharCallback(m_window, [](GLFWwindow*, unsigned int c) {
         if (Instance == nullptr)
+        {
             return;
+        }
         dispatch(Instance->m_handler, Instance->m_handler->onCharEvent, c);
     });
     glfwSetInputMode(m_window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
     glfwSetMouseButtonCallback(m_window, [](GLFWwindow*, int button, int action, int mods) {
         if (Instance == nullptr)
+        {
             return;
+        }
         dispatch(Instance->m_handler, Instance->m_handler->onMouseButton, button, action, mods);
     });
     glfwSetCursorPosCallback(m_window, [](GLFWwindow*, double x, double y) {
         if (Instance == nullptr)
+        {
             return;
+        }
         dispatch(Instance->m_handler, Instance->m_handler->onMouseMove, Vectorf{ static_cast<float>(x), static_cast<float>(y) });
     });
     glfwSetScrollCallback(m_window, [](GLFWwindow*, double x, double y) {
         if (Instance == nullptr)
+        {
             return;
+        }
         dispatch(Instance->m_handler, Instance->m_handler->onMouseScroll, Vectorf{ static_cast<float>(x), static_cast<float>(y) });
     });
 #if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 1
     glfwSetDropCallback(m_window, [](GLFWwindow*, int count, const char** paths) {
         if (Instance == nullptr)
+        {
             return;
+        }
         auto handler = Instance->m_handler;
         if (handler && handler->onFileDrop)
         {

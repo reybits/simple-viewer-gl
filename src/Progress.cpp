@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Progress.h"
+
 #include "Common/Timing.h"
 
 #include <algorithm>
@@ -18,8 +19,8 @@
 namespace
 {
     constexpr auto DotSize = 6.0f;
-    constexpr auto DotGap = 4.0f;
-    constexpr auto Margin = 10.0f;
+    constexpr auto DotGap  = 4.0f;
+    constexpr auto Margin  = 10.0f;
 
 } // namespace
 
@@ -28,9 +29,9 @@ void cProgress::show()
     m_visible = true;
 
     constexpr auto WaitTime = 2.0;
-    auto now = timing::seconds();
-    m_showTime = now + WaitTime;
-    m_lastTime = now + WaitTime;
+    auto now                = timing::seconds();
+    m_showTime              = now + WaitTime;
+    m_lastTime              = now + WaitTime;
 }
 
 void cProgress::hide()
@@ -67,7 +68,7 @@ void cProgress::render(float bottomRightX, float bottomRightY)
         return;
     }
 
-    auto dt = static_cast<float>(currentTime - m_lastTime);
+    auto dt    = static_cast<float>(currentTime - m_lastTime);
     m_lastTime = currentTime;
 
     // Advance spinner animation
@@ -75,9 +76,9 @@ void cProgress::render(float bottomRightX, float bottomRightY)
     if (m_time <= 0.0f)
     {
         constexpr auto NextSpeed = 0.2f;
-        m_time = NextSpeed;
-        m_index = (m_index + 1) % std::size(m_alpha);
-        m_alpha[m_index] = 1.0f;
+        m_time                   = NextSpeed;
+        m_index                  = (m_index + 1) % std::size(m_alpha);
+        m_alpha[m_index]         = 1.0f;
     }
 
     // Fade out dots
@@ -86,7 +87,7 @@ void cProgress::render(float bottomRightX, float bottomRightY)
         if (alpha > 0.0f)
         {
             constexpr float AlphaSpeed = 2.0f;
-            alpha = std::max(0.0f, alpha - dt * AlphaSpeed);
+            alpha                      = std::max(0.0f, alpha - dt * AlphaSpeed);
         }
     }
 
@@ -96,7 +97,7 @@ void cProgress::render(float bottomRightX, float bottomRightY)
 
     // Measure status text
     const bool hasText = m_statusText.empty() == false;
-    ImVec2 textSize = { 0.0f, 0.0f };
+    ImVec2 textSize    = { 0.0f, 0.0f };
     if (hasText)
     {
         textSize = ImGui::CalcTextSize(m_statusText.c_str());
@@ -116,7 +117,7 @@ void cProgress::render(float bottomRightX, float bottomRightY)
         | ImGuiWindowFlags_NoNav
         | ImGuiWindowFlags_AlwaysAutoResize;
 
-    auto& style = ImGui::GetStyle();
+    auto& style      = ImGui::GetStyle();
     const float winW = contentW + style.WindowPadding.x * 2.0f;
     const float winH = contentH + style.WindowPadding.y * 2.0f;
 
@@ -130,7 +131,7 @@ void cProgress::render(float bottomRightX, float bottomRightY)
         ImGui::Dummy({ contentW, contentH });
 
         auto* drawList = ImGui::GetWindowDrawList();
-        ImVec2 winPos = ImGui::GetWindowPos();
+        ImVec2 winPos  = ImGui::GetWindowPos();
         winPos.x += style.WindowPadding.x;
         winPos.y += style.WindowPadding.y;
 
@@ -153,9 +154,9 @@ void cProgress::render(float bottomRightX, float bottomRightY)
             float cx = spinnerX + (Idx[i] % 2u) * (DotSize + DotGap) + DotSize * 0.5f;
             float cy = spinnerY + (Idx[i] / 2u) * (DotSize + DotGap) + DotSize * 0.5f;
 
-            auto alpha = m_alpha[i];
+            auto alpha               = m_alpha[i];
             constexpr float MinAlpha = 0.15f;
-            alpha = MinAlpha + alpha * (1.0f - MinAlpha);
+            alpha                    = MinAlpha + alpha * (1.0f - MinAlpha);
 
             auto color = IM_COL32(255, 255, 255, static_cast<uint8_t>(alpha * 255));
             drawList->AddRectFilled(

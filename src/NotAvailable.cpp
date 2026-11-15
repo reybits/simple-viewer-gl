@@ -8,9 +8,10 @@
 \**********************************************/
 
 #include "NotAvailable.h"
+
+#include "Assets/img-na.c"
 #include "Common/ChunkData.h"
 #include "Common/ImageInfo.h"
-#include "Assets/img-na.c"
 
 #include <cstring>
 
@@ -21,14 +22,14 @@ cNotAvailable::cNotAvailable()
 
 bool cNotAvailable::LoadImpl(const char* /*filename*/, sChunkData& chunk, sImageInfo& info)
 {
-    chunk.format = imgNa.bytes_per_pixel == 3
+    chunk.format  = imgNa.bytes_per_pixel == 3
         ? ePixelFormat::RGB
         : ePixelFormat::RGBA;
-    chunk.width = imgNa.width;
-    chunk.height = imgNa.height;
-    chunk.bpp = imgNa.bytes_per_pixel * 8;
+    chunk.width   = imgNa.width;
+    chunk.height  = imgNa.height;
+    chunk.bpp     = imgNa.bytes_per_pixel * 8;
     info.bppImage = 0;
-    chunk.pitch = chunk.width * imgNa.bytes_per_pixel;
+    chunk.pitch   = chunk.width * imgNa.bytes_per_pixel;
 
     const auto size = chunk.pitch * chunk.height;
     chunk.bitmap.resize(size);

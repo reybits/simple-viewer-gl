@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Selection.h"
+
 #include "Common/Timing.h"
 #include "Log/Log.h"
 #include "Quad.h"
@@ -20,11 +21,11 @@
 namespace
 {
 
-    const float delta = 20.0f;
+    const float delta  = 20.0f;
     const float delta2 = delta * 0.5f;
 
     const uint32_t m_cellSize = 8;
-    const uint32_t m_texSize = m_cellSize * 2;
+    const uint32_t m_texSize  = m_cellSize * 2;
 
 } // namespace
 
@@ -34,7 +35,7 @@ void cSelection::init()
     const uint8_t colors[2] = { 0x30, 0xe0 };
 
     {
-        auto p = buffer.data();
+        auto p       = buffer.data();
         uint32_t idx = 0;
 
         for (uint32_t y = 0; y < m_texSize; y++)
@@ -47,7 +48,7 @@ void cSelection::init()
             for (uint32_t x = 0; x < m_cellSize; x++)
             {
                 const auto color = colors[idx];
-                *p++ = color;
+                *p++             = color;
             }
         }
 
@@ -57,7 +58,7 @@ void cSelection::init()
     }
 
     {
-        auto p = buffer.data();
+        auto p       = buffer.data();
         uint32_t idx = 1;
 
         for (uint32_t y = 0; y < m_cellSize; y++)
@@ -70,7 +71,7 @@ void cSelection::init()
                 }
 
                 const auto color = colors[idx];
-                *p++ = color;
+                *p++             = color;
             }
         }
 
@@ -82,7 +83,7 @@ void cSelection::init()
 
 void cSelection::setImageDimension(int w, int h)
 {
-    m_imageWidth = w;
+    m_imageWidth  = w;
     m_imageHeight = h;
     m_rc.clear();
     m_rcTest.clear();
@@ -155,7 +156,7 @@ void cSelection::mouseMove(const Vectorf& p, float scale)
     else
     {
         Vectorf delta = pos - m_mousePos;
-        m_mousePos = pos;
+        m_mousePos    = pos;
 
         switch (m_mode)
         {
@@ -193,10 +194,10 @@ void cSelection::mouseMove(const Vectorf& p, float scale)
 
         const auto w = static_cast<float>(m_imageWidth);
         const auto h = static_cast<float>(m_imageHeight);
-        m_rc.tl.x = std::round(std::clamp(m_rc.tl.x, 0.0f, w));
-        m_rc.tl.y = std::round(std::clamp(m_rc.tl.y, 0.0f, h));
-        m_rc.br.x = std::round(std::clamp(m_rc.br.x, 0.0f, w));
-        m_rc.br.y = std::round(std::clamp(m_rc.br.y, 0.0f, h));
+        m_rc.tl.x    = std::round(std::clamp(m_rc.tl.x, 0.0f, w));
+        m_rc.tl.y    = std::round(std::clamp(m_rc.tl.y, 0.0f, h));
+        m_rc.br.x    = std::round(std::clamp(m_rc.br.x, 0.0f, w));
+        m_rc.br.y    = std::round(std::clamp(m_rc.br.y, 0.0f, h));
     }
 }
 
@@ -204,8 +205,8 @@ void cSelection::clampShiftDelta(Vectorf& delta)
 {
     const auto w = static_cast<float>(m_imageWidth);
     const auto h = static_cast<float>(m_imageHeight);
-    delta.x = std::round(std::clamp(delta.x, -m_rc.tl.x, w - m_rc.br.x));
-    delta.y = std::round(std::clamp(delta.y, -m_rc.tl.y, h - m_rc.br.y));
+    delta.x      = std::round(std::clamp(delta.x, -m_rc.tl.x, w - m_rc.br.x));
+    delta.y      = std::round(std::clamp(delta.y, -m_rc.tl.y, h - m_rc.br.y));
 }
 
 void cSelection::render(const Vectorf& offset)
@@ -221,7 +222,7 @@ void cSelection::render(const Vectorf& offset)
         const float h = rc.height();
 
         const float thickness = 4.0f;
-        const float d = thickness / render::getZoom();
+        const float d         = thickness / render::getZoom();
 
 #if 0
         const Vectori delta{ delta2, delta2 };

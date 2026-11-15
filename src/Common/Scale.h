@@ -15,7 +15,7 @@ public:
     void setScalePercent(int scale)
     {
         m_percent = scale;
-        m_scale = scale / 100.0f;
+        m_scale   = scale / 100.0f;
     }
 
     int getScalePercent() const
@@ -26,7 +26,7 @@ public:
     void setScale(float scale)
     {
         m_percent = (int)(scale * 100.0f);
-        m_scale = scale;
+        m_scale   = scale;
     }
 
     float getScale() const

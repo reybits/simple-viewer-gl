@@ -41,8 +41,8 @@ private:
     void clampShiftDelta(Vectorf& delta);
 
 private:
-    int m_imageWidth = 0;
-    int m_imageHeight = 0;
+    int m_imageWidth   = 0;
+    int m_imageHeight  = 0;
     Vectorf m_mousePos = { 0.0f, 0.0f };
 
     enum class eMouseMode
@@ -56,11 +56,11 @@ private:
 
     enum Edge : uint32_t
     {
-        EdgeNone = 0,
-        EdgeTop = 1 << 0,
-        EdgeRight = 1 << 1,
+        EdgeNone   = 0,
+        EdgeTop    = 1 << 0,
+        EdgeRight  = 1 << 1,
         EdgeBottom = 1 << 2,
-        EdgeLeft = 1 << 3,
+        EdgeLeft   = 1 << 3,
         EdgeCenter = 1 << 4,
     };
     uint32_t m_corner = EdgeNone;

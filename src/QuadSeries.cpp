@@ -22,7 +22,7 @@ cQuadSeries::~cQuadSeries()
 
 void cQuadSeries::setup(uint32_t width, uint32_t height, uint32_t count)
 {
-    m_size = { (float)width, (float)height };
+    m_size  = { (float)width, (float)height };
     m_count = count;
 }
 

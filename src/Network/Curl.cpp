@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Curl.h"
+
 #include "Log/Log.h"
 
 #include <cstring>
@@ -67,7 +68,7 @@ bool cCurl::loadFile(const char* path)
         return false;
     }
 
-    auto curl = ::curl_easy_init();
+    auto curl   = ::curl_easy_init();
     auto result = curl != nullptr;
     if (result)
     {

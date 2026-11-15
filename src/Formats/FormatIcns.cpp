@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatIcns.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
@@ -78,10 +79,10 @@ namespace
             const auto r = src[1];
             const auto b = src[2];
             const auto a = src[3];
-            buffer[0] = r;
-            buffer[1] = g;
-            buffer[2] = b;
-            buffer[3] = a;
+            buffer[0]    = r;
+            buffer[1]    = g;
+            buffer[2]    = b;
+            buffer[3]    = a;
             src += 4;
             buffer += 4;
         }
@@ -95,9 +96,9 @@ namespace
             const auto g = src[0];
             const auto r = src[1];
             const auto b = src[2];
-            buffer[0] = r;
-            buffer[1] = g;
-            buffer[2] = b;
+            buffer[0]    = r;
+            buffer[1]    = g;
+            buffer[2]    = b;
             src += 3;
             buffer += 3;
         }
@@ -154,7 +155,7 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
 {
     while (offset < size)
     {
-        auto& chunk = reinterpret_cast<const Chunk&>(icon[offset]);
+        auto& chunk          = reinterpret_cast<const Chunk&>(icon[offset]);
         const auto chunkSize = helpers::read_uint32(chunk.dataLen);
 
         auto& desc = getDescription(chunk);
@@ -171,7 +172,7 @@ void cFormatIcns::iterateContent(const uint8_t* icon, uint32_t offset, uint32_t 
                 auto entry = desc;
 
                 entry.offset = offset + sizeof(Chunk);
-                entry.size = chunkSize - sizeof(Chunk);
+                entry.size   = chunkSize - sizeof(Chunk);
 
                 cLog::Debug("-- ICNS entry");
                 cLog::Debug("  Chunk size : {}", chunkSize);
@@ -205,14 +206,14 @@ bool cFormatIcns::load(uint32_t current, sChunkData& chunk, sImageInfo& info)
     info.current = current;
 
     const auto& entry = m_entries[current];
-    auto data = m_icon.data() + entry.offset;
+    auto data         = m_icon.data() + entry.offset;
 
     chunk.format = entry.dstBpp == 32
         ? ePixelFormat::RGBA
         : (entry.dstBpp == 24 ? ePixelFormat::RGB : ePixelFormat::Luminance);
-    chunk.bpp = entry.dstBpp;
-    chunk.pitch = entry.dstBpp * entry.iconSize / 8;
-    chunk.width = entry.iconSize;
+    chunk.bpp    = entry.dstBpp;
+    chunk.pitch  = entry.dstBpp * entry.iconSize / 8;
+    chunk.width  = entry.iconSize;
     chunk.height = entry.iconSize;
 
     info.bppImage = entry.srcBpp;

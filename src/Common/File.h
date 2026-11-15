@@ -18,10 +18,10 @@ public:
     {
     }
 
-    virtual long getOffset() const = 0;
-    virtual int seek(long offset, int whence) = 0;
+    virtual long getOffset() const                  = 0;
+    virtual int seek(long offset, int whence)       = 0;
     virtual uint32_t read(void* ptr, uint32_t size) = 0;
-    virtual long getSize() const = 0;
+    virtual long getSize() const                    = 0;
 };
 
 class cFile : public cFileInterface
@@ -47,6 +47,6 @@ public:
 
 protected:
     const char* m_path = nullptr;
-    void* m_file = nullptr;
-    long m_size = 0;
+    void* m_file       = nullptr;
+    long m_size        = 0;
 };

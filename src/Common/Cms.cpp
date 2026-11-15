@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Cms.h"
+
 #include "Log/Log.h"
 
 #if defined(LCMS2_SUPPORT)

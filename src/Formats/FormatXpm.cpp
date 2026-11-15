@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatXpm.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"
@@ -1040,7 +1041,7 @@ bool cFormatXpm::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         colorMap[pixel] = parseColor(color);
     }
 
-    chunk.width = width;
+    chunk.width  = width;
     chunk.height = height;
     chunk.allocate(width, height, 32, ePixelFormat::RGBA);
 

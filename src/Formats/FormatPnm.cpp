@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatPnm.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
@@ -16,10 +17,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <iterator>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 
 namespace
 {
@@ -51,7 +52,7 @@ namespace
         }
 
         const uint32_t bufferSize = 20;
-        uint32_t bufferOffset = 0;
+        uint32_t bufferOffset     = 0;
 
         while (remain != 0)
         {
@@ -113,7 +114,7 @@ namespace
                     x = 0;
                 }
                 const size_t idx = y * chunk.pitch + x++;
-                out[idx] = val;
+                out[idx]         = val;
             }
         }
 
@@ -134,7 +135,7 @@ namespace
                 return false;
             }
 
-            auto out = chunk.bitmap.data() + row * chunk.pitch;
+            auto out   = chunk.bitmap.data() + row * chunk.pitch;
             size_t idx = 0;
             for (uint32_t i = 0; i < buffer.size(); i++)
             {
@@ -142,8 +143,8 @@ namespace
                 for (uint32_t b = 0; b < 8; b++)
                 {
                     const uint32_t bit = 0x80 >> b;
-                    const uint8_t val = (byte & bit) != 0 ? 0 : 255;
-                    out[idx++] = val;
+                    const uint8_t val  = (byte & bit) != 0 ? 0 : 255;
+                    out[idx++]         = val;
                 }
             }
         }
@@ -161,8 +162,8 @@ namespace
         const float norm = 255.0f / maxValue;
 
         uint32_t count = 0;
-        uint32_t x = 0;
-        uint32_t y = 0;
+        uint32_t x     = 0;
+        uint32_t y     = 0;
 
         auto out = chunk.bitmap.data();
         while (getline(line, file))
@@ -177,7 +178,7 @@ namespace
                     x = 0;
                 }
                 const size_t idx = y * chunk.pitch + x++;
-                out[idx] = val;
+                out[idx]         = val;
             }
         }
 
@@ -200,7 +201,7 @@ namespace
             for (uint32_t i = 0; i < chunk.width; i++)
             {
                 const auto val = (uint8_t)(buffer[i] * norm);
-                out[i] = val;
+                out[i]         = val;
             }
         }
 
@@ -210,7 +211,7 @@ namespace
     bool readAscii24(cFile& file, sChunkData& chunk, sImageInfo& info, uint32_t maxValue)
     {
         chunk.bpp = info.bppImage = 24;
-        chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+        chunk.pitch               = helpers::calculatePitch(chunk.width, chunk.bpp);
         chunk.resizeBitmap(chunk.pitch, chunk.height);
 
         Line line;
@@ -218,8 +219,8 @@ namespace
         const float norm = 255.0f / maxValue;
 
         uint32_t count = 0;
-        uint32_t x = 0;
-        uint32_t y = 0;
+        uint32_t x     = 0;
+        uint32_t y     = 0;
 
         auto out = chunk.bitmap.data();
         while (getline(line, file))
@@ -234,7 +235,7 @@ namespace
                     x = 0;
                 }
                 const size_t idx = y * chunk.pitch + x++;
-                out[idx] = val;
+                out[idx]         = val;
             }
         }
 
@@ -244,10 +245,10 @@ namespace
     bool readRaw24(cFile& file, sChunkData& chunk, sImageInfo& info, uint32_t maxValue)
     {
         chunk.bpp = info.bppImage = 24;
-        chunk.pitch = helpers::calculatePitch(chunk.width, chunk.bpp);
+        chunk.pitch               = helpers::calculatePitch(chunk.width, chunk.bpp);
         chunk.resizeBitmap(chunk.pitch, chunk.height);
 
-        auto out = chunk.bitmap.data();
+        auto out         = chunk.bitmap.data();
         const float norm = 255.0f / maxValue;
 
         std::vector<uint8_t> buffer(chunk.width * 3);
@@ -295,7 +296,7 @@ bool cFormatPnm::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     bool result = false;
     Line line;
 
-    uint32_t format = 0;
+    uint32_t format   = 0;
     uint32_t maxValue = 0;
 
     enum class Token
@@ -317,7 +318,7 @@ bool cFormatPnm::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 continue;
             }
 
-            auto begin = line.data();
+            auto begin       = line.data();
             const char* word = nullptr;
             while ((word = ::strsep(&begin, TokenSep)) != nullptr && token != Token::Data)
             {
@@ -334,23 +335,23 @@ bool cFormatPnm::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 case Token::Format:
                     if (wordLen >= 2 && word[0] == 'P')
                     {
-                        token = Token::Width;
+                        token  = Token::Width;
                         format = word[1] - '0';
                     }
                     break;
 
                 case Token::Width:
-                    token = Token::Height;
+                    token       = Token::Height;
                     chunk.width = (uint32_t)::atoi(word);
                     break;
 
                 case Token::Height:
-                    token = (format != 4 && format != 1) ? Token::MaxValue : Token::Data;
+                    token        = (format != 4 && format != 1) ? Token::MaxValue : Token::Data;
                     chunk.height = (uint32_t)::atoi(word);
                     break;
 
                 case Token::MaxValue:
-                    token = Token::Data;
+                    token    = Token::Data;
                     maxValue = (uint32_t)::atoi(word);
                     break;
 
@@ -367,32 +368,32 @@ bool cFormatPnm::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     {
     case 1: // 1-ascii
         info.formatName = "pnm/1-acii";
-        result = readAscii1(file, chunk, info);
+        result          = readAscii1(file, chunk, info);
         break;
 
     case 4: // 1-raw
         info.formatName = "pnm/1-raw";
-        result = readRaw1(file, chunk, info);
+        result          = readRaw1(file, chunk, info);
         break;
 
     case 2: // 8-ascii
         info.formatName = "pnm/8-acii";
-        result = readAscii8(file, chunk, info, maxValue);
+        result          = readAscii8(file, chunk, info, maxValue);
         break;
 
     case 5: // 8-raw
         info.formatName = "pnm/8-raw";
-        result = readRaw8(file, chunk, info, maxValue);
+        result          = readRaw8(file, chunk, info, maxValue);
         break;
 
     case 3: // 24-ascii
         info.formatName = "pnm/24-acii";
-        result = readAscii24(file, chunk, info, maxValue);
+        result          = readAscii24(file, chunk, info, maxValue);
         break;
 
     case 6: // 24-raw
         info.formatName = "pnm/24-raw";
-        result = readRaw24(file, chunk, info, maxValue);
+        result          = readRaw24(file, chunk, info, maxValue);
         break;
     }
 

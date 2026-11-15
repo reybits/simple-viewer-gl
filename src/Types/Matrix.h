@@ -28,8 +28,8 @@ struct Matrix4
     {
         Matrix4 o;
         std::memset(o.m, 0, sizeof(o.m));
-        o.m[0] = 2.0f / (r - l);
-        o.m[5] = 2.0f / (t - b);
+        o.m[0]  = 2.0f / (r - l);
+        o.m[5]  = 2.0f / (t - b);
         o.m[10] = -2.0f / (f - n);
         o.m[12] = -(r + l) / (r - l);
         o.m[13] = -(t + b) / (t - b);
@@ -41,21 +41,21 @@ struct Matrix4
     static Matrix4 Scale(float sx, float sy)
     {
         Matrix4 r = Identity();
-        r.m[0] = sx;
-        r.m[5] = sy;
+        r.m[0]    = sx;
+        r.m[5]    = sy;
         return r;
     }
 
     static Matrix4 RotateZ(float degrees)
     {
         const float rad = degrees * (3.14159265358979323846f / 180.0f);
-        const float c = std::cos(rad);
-        const float s = std::sin(rad);
-        Matrix4 r = Identity();
-        r.m[0] = c;
-        r.m[1] = s;
-        r.m[4] = -s;
-        r.m[5] = c;
+        const float c   = std::cos(rad);
+        const float s   = std::sin(rad);
+        Matrix4 r       = Identity();
+        r.m[0]          = c;
+        r.m[1]          = s;
+        r.m[4]          = -s;
+        r.m[5]          = c;
         return r;
     }
 

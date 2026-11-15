@@ -57,8 +57,8 @@ private:
     const sConfig& m_config;
 
 private:
-    double m_time = 0.0f;
-    float m_fps = 0.0f;
+    double m_time         = 0.0f;
+    float m_fps           = 0.0f;
     bool m_infobarVisible = true;
     Vectorf m_centralPos;
     Vectorf m_centralSize;

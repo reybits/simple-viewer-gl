@@ -24,8 +24,8 @@ namespace cms
 
     // Generate a 3D LUT from TIFF chromaticity/whitepoint/transfer-function tables.
     std::vector<uint8_t> generateLut3D(const float* chr, const float* wp,
-                                        const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
-                                        ePixelFormat format);
+                                       const uint16_t* gmr, const uint16_t* gmg, const uint16_t* gmb,
+                                       ePixelFormat format);
 
     // Generate a 3D LUT for LAB→sRGB conversion (default D50 whitepoint).
     // Used when LAB image has no embedded ICC profile.

@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Checkerboard.h"
+
 #include "Common/Config.h"
 #include "Common/Helpers.h"
 #include "Quad.h"
@@ -23,7 +24,7 @@ cCheckerboard::cCheckerboard(const sConfig& config)
 void cCheckerboard::init()
 {
     const uint32_t cellSize = helpers::nextPot(m_config.bgCellSize);
-    const uint32_t texSize = cellSize * 2;
+    const uint32_t texSize  = cellSize * 2;
 
     std::vector<uint8_t> buffer(texSize * texSize);
     auto p = buffer.data();
@@ -37,7 +38,7 @@ void cCheckerboard::init()
             const auto color = (y / cellSize + x / cellSize) % 2 == 0
                 ? Colors[0]
                 : Colors[1];
-            *p++ = color;
+            *p++             = color;
         }
     }
 

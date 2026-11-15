@@ -289,7 +289,7 @@ int main(int argc, char* argv[])
     }
 
     uint32_t frames = 0;
-    auto fpsTimer = timing::seconds();
+    auto fpsTimer   = timing::seconds();
 
     while (window.shouldClose() == false)
     {
@@ -305,12 +305,12 @@ int main(int argc, char* argv[])
         if (now - fpsTimer >= 1.0)
         {
             viewer.setFps(static_cast<float>(frames / (now - fpsTimer)));
-            frames = 0;
+            frames   = 0;
             fpsTimer = now;
         }
 
         constexpr auto desiredFps = 1.0 / 60.0;
-        const auto timeRest = desiredFps - (now - timeStart);
+        const auto timeRest       = desiredFps - (now - timeStart);
         if (timeRest > 0.0)
         {
             usleep(static_cast<useconds_t>(timeRest * 1000000.0));

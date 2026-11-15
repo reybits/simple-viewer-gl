@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Rle.h"
+
 #include "Log/Log.h"
 
 #include <algorithm>
@@ -29,7 +30,7 @@ unsigned cRLE::encode(const unsigned char* in, unsigned in_size, unsigned char* 
     for (unsigned i = 0; i < in_size; i++)
     {
         unsigned char symbol = in[i];
-        unsigned count = 1;
+        unsigned count       = 1;
 
         const unsigned length = std::min<unsigned>(i + 0x7f, in_size);
         for (unsigned a = i + 1; a < length; a++)
@@ -44,7 +45,7 @@ unsigned cRLE::encode(const unsigned char* in, unsigned in_size, unsigned char* 
 
         if (count == 1)
         {
-            symbol = in[i + 1];
+            symbol                = in[i + 1];
             const unsigned length = std::min<unsigned>(i + 0x7f + 1, in_size);
             for (unsigned a = i + 2; a < length; a++, count++)
             {
@@ -102,7 +103,7 @@ unsigned cRLE::encodeBy4(const unsigned* in, unsigned in_size, unsigned* const r
     for (unsigned i = 0; i < in_size; i++)
     {
         unsigned symbol = in[i];
-        unsigned count = 1;
+        unsigned count  = 1;
 
         const unsigned length = std::min<unsigned>(i + half - 1, in_size);
         for (unsigned a = i + 1; a < length; a++)
@@ -117,7 +118,7 @@ unsigned cRLE::encodeBy4(const unsigned* in, unsigned in_size, unsigned* const r
 
         if (count == 1)
         {
-            symbol = in[i + 1];
+            symbol                = in[i + 1];
             const unsigned length = std::min<unsigned>(i + half, in_size);
             for (unsigned a = i + 2; a < length; a++, count++)
             {
@@ -175,7 +176,7 @@ unsigned cRLE::decode(const unsigned char* rle, unsigned rle_size, unsigned char
         if (symbol <= 0x7f)
         {
             const auto count = static_cast<unsigned>(symbol);
-            m_desired_size = out_pos + count;
+            m_desired_size   = out_pos + count;
             if (m_desired_size > out_size)
             {
                 cLog::Debug("No room: required {}, allowed: {}.", m_desired_size, out_size);
@@ -193,7 +194,7 @@ unsigned cRLE::decode(const unsigned char* rle, unsigned rle_size, unsigned char
         else
         {
             const auto count = static_cast<unsigned>(symbol) - 0x80;
-            m_desired_size = out_pos + count;
+            m_desired_size   = out_pos + count;
             if (m_desired_size > out_size)
             {
                 cLog::Debug("No room: required {}, allowed: {}.", m_desired_size, out_size);
@@ -226,7 +227,7 @@ unsigned cRLE::decodeBy4(const unsigned* rle, unsigned rle_size, unsigned* const
         if (symbol <= half - 1)
         {
             const unsigned count = symbol;
-            m_desired_size = out_pos + count;
+            m_desired_size       = out_pos + count;
             if (m_desired_size > out_size)
             {
                 cLog::Debug("No room: required {}, allowed: {}.", m_desired_size, out_size);
@@ -244,7 +245,7 @@ unsigned cRLE::decodeBy4(const unsigned* rle, unsigned rle_size, unsigned* const
         else
         {
             const unsigned count = symbol - half;
-            m_desired_size = out_pos + count;
+            m_desired_size       = out_pos + count;
             if (m_desired_size > out_size)
             {
                 cLog::Debug("No room: required {}, allowed: {}.", m_desired_size, out_size);

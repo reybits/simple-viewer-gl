@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Gui.h"
+
 #include "Assets/FontAwesomeSolid.h"
 #include "Assets/InterRegular.h"
 #include "Common/Config.h"
@@ -24,11 +25,11 @@
 namespace
 {
     GLuint ImGuiShaderProgram = 0;
-    GLint ImGuiProjLoc = -1;
-    GLint ImGuiTexLoc = -1;
-    GLuint ImGuiVao = 0;
-    GLuint ImGuiVbo = 0;
-    GLuint ImGuiIbo = 0;
+    GLint ImGuiProjLoc        = -1;
+    GLint ImGuiTexLoc         = -1;
+    GLuint ImGuiVao           = 0;
+    GLuint ImGuiVbo           = 0;
+    GLuint ImGuiIbo           = 0;
 
     constexpr const char* ImGuiVertexShader = R"glsl(
 #version 330 core
@@ -87,7 +88,7 @@ void main()
         glDeleteShader(frag);
 
         ImGuiProjLoc = glGetUniformLocation(ImGuiShaderProgram, "uProjection");
-        ImGuiTexLoc = glGetUniformLocation(ImGuiShaderProgram, "uTexture");
+        ImGuiTexLoc  = glGetUniformLocation(ImGuiShaderProgram, "uTexture");
 
         GL(glGenVertexArrays(1, &ImGuiVao));
         GL(glGenBuffers(1, &ImGuiVbo));
@@ -436,18 +437,18 @@ cGui::cGui(cWindow& window, const sConfig& config)
 
     // Merge Font Awesome icons into the same font atlas
     ImFontConfig iconConfig;
-    iconConfig.MergeMode = true;
-    iconConfig.PixelSnapH = true;
+    iconConfig.MergeMode      = true;
+    iconConfig.PixelSnapH     = true;
     const ImWchar iconRange[] = { 0xE000, 0xF8FF, 0 }; // Private Use Area (Font Awesome icons)
     io.Fonts->AddFontFromMemoryCompressedTTF(FontAwesomeSolid_compressed_data, FontAwesomeSolid_compressed_size, 16, &iconConfig, iconRange);
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    auto& s = ImGui::GetStyle();
+    auto& s            = ImGui::GetStyle();
     s.WindowTitleAlign = { 0.5f, 0.5f };
-    s.WindowRounding = 5.0f;
-    s.WindowPadding = { 3.0f, 3.0f };
+    s.WindowRounding   = 5.0f;
+    s.WindowPadding    = { 3.0f, 3.0f };
 
     initImGuiGL();
 }
@@ -461,7 +462,7 @@ cGui::~cGui()
 
 void cGui::onMousePosition(const Vectorf& pos)
 {
-    auto& io = ImGui::GetIO();
+    auto& io    = ImGui::GetIO();
     io.MousePos = ImVec2(pos.x, pos.y);
 }
 
@@ -469,7 +470,7 @@ void cGui::onMouseButton(int button, int action)
 {
     if (button >= 0 && button < 3)
     {
-        auto& io = ImGui::GetIO();
+        auto& io             = ImGui::GetIO();
         io.MouseDown[button] = action != GLFW_RELEASE;
     }
 }
@@ -526,9 +527,9 @@ void cGui::beginFrame()
 {
     auto& io = ImGui::GetIO();
 
-    auto winSize = m_window.getWindowSize();
-    auto fbSize = m_window.getFramebufferSize();
-    io.DisplaySize = ImVec2(static_cast<float>(winSize.x), static_cast<float>(winSize.y));
+    auto winSize               = m_window.getWindowSize();
+    auto fbSize                = m_window.getFramebufferSize();
+    io.DisplaySize             = ImVec2(static_cast<float>(winSize.x), static_cast<float>(winSize.y));
     io.DisplayFramebufferScale = ImVec2(
         winSize.x > 0
             ? (static_cast<float>(fbSize.x) / winSize.x)
@@ -538,21 +539,21 @@ void cGui::beginFrame()
             : 0);
 
     double currentTime = timing::seconds();
-    io.DeltaTime = m_time > 0.0
+    io.DeltaTime       = m_time > 0.0
         ? static_cast<float>(currentTime - m_time)
         : (1.0f / 60.0f);
-    m_time = currentTime;
+    m_time             = currentTime;
 
     ImGui::NewFrame();
 
     // The infobar is a fixed status bar at the bottom, rendered independently.
     // The central area is the viewport above it.
-    const float barH = m_infobarVisible
+    const float barH     = m_infobarVisible
         ? getInfoBarHeight()
         : 0.0f;
     const float centralH = io.DisplaySize.y - barH;
 
-    m_centralPos = { 0.0f, 0.0f };
+    m_centralPos  = { 0.0f, 0.0f };
     m_centralSize = { io.DisplaySize.x, centralH };
 
     // DockSpace occupies the central area (above the infobar).
@@ -587,7 +588,7 @@ void cGui::beginFrame()
             ImGui::DockBuilderSetNodeSize(dockId, { io.DisplaySize.x, centralH });
 
             ImGuiID centerId = 0;
-            ImGuiID rightId = ImGui::DockBuilderSplitNode(dockId, ImGuiDir_Right, 0.25f, nullptr, &centerId);
+            ImGuiID rightId  = ImGui::DockBuilderSplitNode(dockId, ImGuiDir_Right, 0.25f, nullptr, &centerId);
 
             ImGui::DockBuilderDockWindow("Metadata", rightId);
             ImGui::DockBuilderFinish(dockId);
@@ -602,7 +603,7 @@ void cGui::beginFrame()
     {
         if (node->Size.x > 0.0f && node->Size.y > 0.0f)
         {
-            m_centralPos = { node->Pos.x, node->Pos.y };
+            m_centralPos  = { node->Pos.x, node->Pos.y };
             m_centralSize = { node->Size.x, node->Size.y };
         }
     }
@@ -666,8 +667,8 @@ void cGui::endFrame()
 
     auto drawData = ImGui::GetDrawData();
 
-    auto& io = ImGui::GetIO();
-    auto width = static_cast<int>(io.DisplaySize.x * io.DisplayFramebufferScale.x);
+    auto& io    = ImGui::GetIO();
+    auto width  = static_cast<int>(io.DisplaySize.x * io.DisplayFramebufferScale.x);
     auto height = static_cast<int>(io.DisplaySize.y * io.DisplayFramebufferScale.y);
     if (width == 0 || height == 0)
     {
@@ -722,7 +723,7 @@ void cGui::endFrame()
     GL(glEnableVertexAttribArray(2));
     GL(glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), reinterpret_cast<void*>(offsetof(ImDrawVert, col))));
 
-    const auto& clipOff = drawData->DisplayPos;
+    const auto& clipOff   = drawData->DisplayPos;
     const auto& clipScale = drawData->FramebufferScale;
 
     for (const auto drawList : drawData->CmdLists)

@@ -10,6 +10,7 @@
 #if defined(HEIF_SUPPORT)
 
 #include "FormatHeif.h"
+
 #include "Common/Callbacks.h"
 #include "Common/ChunkData.h"
 #include "Common/File.h"
@@ -64,12 +65,12 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
     }
 
     // Only the primary image is currently loaded
-    info.images = 1;
+    info.images  = 1;
     info.current = 0;
 
     // Get primary image handle
     heif_image_handle* handle = nullptr;
-    err = heif_context_get_primary_image_handle(ctx, &handle);
+    err                       = heif_context_get_primary_image_handle(ctx, &handle);
     if (err.code != heif_error_Ok)
     {
         cLog::Error("Can't get HEIF image handle: {}.", err.message);
@@ -78,13 +79,13 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
     }
 
     const bool hasAlpha = heif_image_handle_has_alpha_channel(handle) != 0;
-    const auto chroma = hasAlpha
+    const auto chroma   = hasAlpha
         ? heif_chroma_interleaved_RGBA
         : heif_chroma_interleaved_RGB;
 
     // Decode to interleaved RGB/RGBA
     heif_image* img = nullptr;
-    err = heif_decode_image(handle, &img, heif_colorspace_RGB, chroma, nullptr);
+    err             = heif_decode_image(handle, &img, heif_colorspace_RGB, chroma, nullptr);
     if (err.code != heif_error_Ok)
     {
         cLog::Error("Can't decode HEIF image: {}.", err.message);
@@ -93,7 +94,7 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
         return false;
     }
 
-    const int width = heif_image_get_width(img, heif_channel_interleaved);
+    const int width  = heif_image_get_width(img, heif_channel_interleaved);
     const int height = heif_image_get_height(img, heif_channel_interleaved);
 
     if (width <= 0 || height <= 0)
@@ -105,19 +106,19 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
         return false;
     }
 
-    chunk.width = static_cast<uint32_t>(width);
+    chunk.width  = static_cast<uint32_t>(width);
     chunk.height = static_cast<uint32_t>(height);
 
     const uint32_t bpp = hasAlpha ? 32 : 24;
-    const auto format = hasAlpha
+    const auto format  = hasAlpha
         ? ePixelFormat::RGBA
         : ePixelFormat::RGB;
-    info.bppImage = bpp;
+    info.bppImage      = bpp;
 
     setupBitmap(chunk, info, bpp, format, "heif");
 
     // Copy decoded pixels into chunk bitmap
-    int stride = 0;
+    int stride             = 0;
     const uint8_t* srcData = heif_image_get_plane_readonly(img, heif_channel_interleaved, &stride);
     if (srcData == nullptr)
     {
@@ -129,7 +130,7 @@ bool cFormatHeif::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
     }
 
     const uint32_t bytesPerPixel = bpp / 8;
-    const uint32_t copyBytes = chunk.width * bytesPerPixel;
+    const uint32_t copyBytes     = chunk.width * bytesPerPixel;
     for (uint32_t row = 0; row < chunk.height; row++)
     {
         std::memcpy(

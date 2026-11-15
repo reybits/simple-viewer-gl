@@ -52,8 +52,8 @@ namespace ini
             ? (fclose((FILE*)m_file) == 0)
             : false;
 
-        m_file = nullptr;
-        m_size = 0;
+        m_file   = nullptr;
+        m_size   = 0;
         m_offset = 0;
 
         return result;
@@ -110,7 +110,7 @@ namespace ini
     {
         // Trim Both leading and trailing spaces
         auto startpos = str.find_first_not_of(" \t\r\n");
-        auto endpos = str.find_last_not_of(" \t\r\n");
+        auto endpos   = str.find_last_not_of(" \t\r\n");
 
         // if all spaces or empty return an empty string
         if (std::string::npos == startpos || std::string::npos == endpos)
@@ -286,7 +286,7 @@ namespace ini
         auto len = s.length();
         if (len > 2 && s[0] == '[' && s[len - 1] == ']')
         {
-            auto name = s.substr(1, s.length() - 2);
+            auto name      = s.substr(1, s.length() - 2);
             currentSection = Find(name.c_str(), sections);
             if (currentSection == nullptr)
             {
@@ -331,10 +331,10 @@ namespace ini
     void cIni::save(cFile* file)
     {
         const char* delim = " = ";
-        auto delimLen = strlen(delim);
+        auto delimLen     = strlen(delim);
 
         const char* end = "\n";
-        auto endLen = strlen(end);
+        auto endLen     = strlen(end);
 
         for (const auto section : m_sections)
         {

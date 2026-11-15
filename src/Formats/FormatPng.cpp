@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatPng.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
@@ -39,7 +40,7 @@ namespace
     // Paeth predictor (PNG filter type 4)
     uint8_t PaethPredictor(uint8_t a, uint8_t b, uint8_t c)
     {
-        auto p = static_cast<int>(a) + b - c;
+        auto p  = static_cast<int>(a) + b - c;
         auto pa = std::abs(p - a);
         auto pb = std::abs(p - b);
         auto pc = std::abs(p - c);
@@ -116,12 +117,12 @@ bool cFormatPng::loadCgBI(cFile& file, sChunkData& chunk, sImageInfo& info)
     }
 
     // Skip 8-byte PNG signature
-    uint32_t offset = 8;
+    uint32_t offset  = 8;
     const auto* data = fileData.data();
 
-    uint32_t width = 0;
-    uint32_t height = 0;
-    uint8_t bitDepth = 0;
+    uint32_t width    = 0;
+    uint32_t height   = 0;
+    uint8_t bitDepth  = 0;
     uint8_t colorType = 0;
 
     // Collect compressed IDAT data
@@ -129,8 +130,8 @@ bool cFormatPng::loadCgBI(cFile& file, sChunkData& chunk, sImageInfo& info)
 
     while (offset + 12 <= static_cast<uint32_t>(fileSize))
     {
-        uint32_t chunkLen = ReadU32BE(data + offset);
-        uint32_t chunkType = ReadU32BE(data + offset + 4);
+        uint32_t chunkLen        = ReadU32BE(data + offset);
+        uint32_t chunkType       = ReadU32BE(data + offset + 4);
         const uint8_t* chunkData = data + offset + 8;
 
         if (offset + 12 + chunkLen > static_cast<uint32_t>(fileSize))
@@ -145,9 +146,9 @@ bool cFormatPng::loadCgBI(cFile& file, sChunkData& chunk, sImageInfo& info)
                 cLog::Error("CgBI: invalid IHDR chunk.");
                 return false;
             }
-            width = ReadU32BE(chunkData);
-            height = ReadU32BE(chunkData + 4);
-            bitDepth = chunkData[8];
+            width     = ReadU32BE(chunkData);
+            height    = ReadU32BE(chunkData + 4);
+            bitDepth  = chunkData[8];
             colorType = chunkData[9];
         }
         else if (chunkType == ChunkType("IDAT"))
@@ -179,12 +180,12 @@ bool cFormatPng::loadCgBI(cFile& file, sChunkData& chunk, sImageInfo& info)
     uint32_t channels = 0;
     if (colorType == 2) // RGB (stored as BGR in CgBI)
     {
-        channels = 3;
+        channels     = 3;
         chunk.format = ePixelFormat::BGR;
     }
     else if (colorType == 6) // RGBA (stored as BGRA in CgBI)
     {
-        channels = 4;
+        channels     = 4;
         chunk.format = ePixelFormat::BGRA;
     }
     else
@@ -194,10 +195,10 @@ bool cFormatPng::loadCgBI(cFile& file, sChunkData& chunk, sImageInfo& info)
     }
 
     info.bppImage = bitDepth * channels;
-    chunk.bpp = channels * 8;
-    chunk.width = width;
-    chunk.height = height;
-    chunk.pitch = helpers::calculatePitch(width, chunk.bpp);
+    chunk.bpp     = channels * 8;
+    chunk.width   = width;
+    chunk.height  = height;
+    chunk.pitch   = helpers::calculatePitch(width, chunk.bpp);
 
     // Raw scanline includes 1 filter byte per row
     const auto rawSize = static_cast<size_t>(height) * (static_cast<size_t>(width) * channels + 1);
@@ -212,9 +213,9 @@ bool cFormatPng::loadCgBI(cFile& file, sChunkData& chunk, sImageInfo& info)
         return false;
     }
 
-    zs.next_in = compressedData.data();
-    zs.avail_in = static_cast<uInt>(compressedData.size());
-    zs.next_out = rawData.data();
+    zs.next_in   = compressedData.data();
+    zs.avail_in  = static_cast<uInt>(compressedData.size());
+    zs.next_out  = rawData.data();
     zs.avail_out = static_cast<uInt>(rawData.size());
 
     int ret = inflate(&zs, Z_FINISH);
@@ -234,7 +235,7 @@ bool cFormatPng::loadCgBI(cFile& file, sChunkData& chunk, sImageInfo& info)
 
     // Reconstruct PNG-filtered scanlines (BGRA/BGR channel order handled by GPU)
     const uint32_t srcStride = width * channels + 1; // +1 for filter byte
-    const uint8_t* prevRow = nullptr;
+    const uint8_t* prevRow   = nullptr;
 
     for (uint32_t y = 0; y < height; y++)
     {
@@ -243,9 +244,9 @@ bool cFormatPng::loadCgBI(cFile& file, sChunkData& chunk, sImageInfo& info)
             return false;
         }
 
-        const auto* src = rawData.data() + static_cast<size_t>(y) * srcStride;
-        auto* dst = chunk.bitmap.data() + static_cast<size_t>(y) * chunk.pitch;
-        auto filterType = src[0];
+        const auto* src      = rawData.data() + static_cast<size_t>(y) * srcStride;
+        auto* dst            = chunk.bitmap.data() + static_cast<size_t>(y) * chunk.pitch;
+        auto filterType      = src[0];
         const auto* filtered = src + 1;
 
         // Apply PNG filter to reconstruct raw pixel data

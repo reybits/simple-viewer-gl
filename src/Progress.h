@@ -28,13 +28,13 @@ public:
     void render(float bottomRightX, float bottomRightY);
 
 private:
-    bool m_visible = false;
+    bool m_visible    = false;
     double m_showTime = 0.0;
     double m_lastTime = 0.0;
 
     float m_alpha[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     uint32_t m_index = 0;
-    float m_time = 0.0f;
+    float m_time     = 0.0f;
 
     std::string m_statusText;
 };

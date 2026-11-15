@@ -8,10 +8,10 @@
 \**********************************************/
 
 #include "FormatRegistry.h"
+
 #include "Common/File.h"
 #include "Common/Helpers.h"
 #include "Format.h"
-
 #include "FormatAge.h"
 #include "FormatBmp.h"
 #include "FormatDds.h"
@@ -209,7 +209,7 @@ namespace
             uint32_t bitmapOffset;
         };
 #pragma pack(pop)
-        auto h = reinterpret_cast<const BmpHeader*>(data);
+        auto h                 = reinterpret_cast<const BmpHeader*>(data);
         const uint8_t ids[][2] = {
             { 'B', 'M' },
             { 'B', 'A' },
@@ -255,7 +255,7 @@ namespace
             return false;
         }
         // Big-endian header
-        uint32_t headerSize = helpers::read_uint32(data);
+        uint32_t headerSize  = helpers::read_uint32(data);
         uint32_t fileVersion = helpers::read_uint32(data + 4);
         return ((headerSize == 40 && fileVersion == 0x06)      // X10
                 || (headerSize == 100 && fileVersion == 0x07)) // X11
@@ -309,7 +309,7 @@ namespace
 
     // --- Factory functions ---
 
-    template <typename T>
+    template<typename T>
     std::unique_ptr<cFormat> makeFormat(sCallbacks* cb)
     {
         return std::make_unique<T>(cb);

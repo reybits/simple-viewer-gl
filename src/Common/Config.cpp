@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Config.h"
+
 #include "Log/Log.h"
 #include "Viewer.h"
 
@@ -18,14 +19,14 @@
 
 namespace
 {
-    template <typename T>
+    template<typename T>
     T getValue(const char* /*value*/, T def)
     {
         cLog::Error("Unknown config value type.");
         return def;
     }
 
-    template <>
+    template<>
     bool getValue<bool>(const char* value, bool def)
     {
         if (value != nullptr)
@@ -37,49 +38,49 @@ namespace
         return def;
     }
 
-    template <>
+    template<>
     int getValue<int>(const char* value, int def)
     {
         return value != nullptr ? ::atoi(value) : def;
     }
 
-    template <>
+    template<>
     uint32_t getValue<uint32_t>(const char* value, uint32_t def)
     {
         return value != nullptr ? (uint32_t)::atoi(value) : def;
     }
 
-    template <>
+    template<>
     uint8_t getValue<uint8_t>(const char* value, uint8_t def)
     {
         return value != nullptr ? (uint8_t)::atoi(value) : def;
     }
 
-    template <>
+    template<>
     float getValue<float>(const char* value, float def)
     {
         return value != nullptr ? ::atof(value) : def;
     }
 
-    template <>
+    template<>
     std::string getValue<std::string>(const char* value, std::string def)
     {
         return value != nullptr ? value : def;
     }
 
-    const char* CommonSection = "common";
+    const char* CommonSection   = "common";
     const char* PositionSection = "position";
 
-    template <typename T>
+    template<typename T>
     void readValue(const ini::cIni& ini, const char* section, const char* name, T& value)
     {
         auto def = value;
-        value = getValue(ini.getString(section, name), def);
+        value    = getValue(ini.getString(section, name), def);
     }
 
     // Based on
     // https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
-    template <typename... Args>
+    template<typename... Args>
     std::string strfmt(const std::string& format, Args... args)
     {
         auto desiredSize = std::snprintf(nullptr, 0, format.c_str(), args...);

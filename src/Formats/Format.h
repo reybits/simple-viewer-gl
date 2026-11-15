@@ -42,7 +42,7 @@ public:
 
     void setTargetSize(uint32_t width, uint32_t height)
     {
-        m_targetWidth = width;
+        m_targetWidth  = width;
         m_targetHeight = height;
     }
 
@@ -53,8 +53,14 @@ public:
 
     virtual void dump(const sChunkData& chunk, const sImageInfo& info) const;
 
-    double getDecodeMs() const { return m_decodeMs; }
-    double getIccMs() const { return m_iccMs; }
+    double getDecodeMs() const
+    {
+        return m_decodeMs;
+    }
+    double getIccMs() const
+    {
+        return m_iccMs;
+    }
 
     cFormat(sCallbacks* callbacks);
 
@@ -73,13 +79,13 @@ protected:
 private:
     sCallbacks* m_callbacks;
     sChunkData* m_chunk = nullptr;
-    sImageInfo* m_info = nullptr;
-    double m_decodeMs = 0.0;
-    double m_iccMs = 0.0;
+    sImageInfo* m_info  = nullptr;
+    double m_decodeMs   = 0.0;
+    double m_iccMs      = 0.0;
 
 protected:
     const sConfig* m_config = nullptr;
-    bool m_stop = false;
-    uint32_t m_targetWidth = 0;
+    bool m_stop             = false;
+    uint32_t m_targetWidth  = 0;
     uint32_t m_targetHeight = 0;
 };
