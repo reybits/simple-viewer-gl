@@ -13,8 +13,9 @@
 
 #include <memory>
 
-namespace lunasvg {
-class Document;
+namespace lunasvg
+{
+    class Document;
 }
 
 class cFormatSvg final : public cFormat
@@ -32,6 +33,6 @@ private:
     bool rasterize(uint32_t width, uint32_t height, sChunkData& chunk, sImageInfo& info);
 
     std::unique_ptr<lunasvg::Document> m_document;
-    float m_svgWidth = 0.0f;
+    float m_svgWidth  = 0.0f;
     float m_svgHeight = 0.0f;
 };

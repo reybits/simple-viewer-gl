@@ -93,7 +93,7 @@ void cFileBrowser::render()
         if (hasSelected)
         {
             auto selected = m_fileBrowser->GetSelected();
-            m_result = { selected.parent_path(), selected.filename() };
+            m_result      = { selected.parent_path(), selected.filename() };
 
             assert(m_onClosed != nullptr);
             m_onClosed(m_result);
@@ -116,7 +116,7 @@ void cFileBrowser::close()
         if (hasSelected)
         {
             auto selected = m_fileBrowser->GetSelected();
-            m_result = { selected.parent_path(), selected.filename() };
+            m_result      = { selected.parent_path(), selected.filename() };
         }
 
         m_fileBrowser->ClearSelected();

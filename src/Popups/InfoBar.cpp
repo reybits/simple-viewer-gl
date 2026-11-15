@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "InfoBar.h"
+
 #include "Common/Config.h"
 #include "Common/Unicode.h"
 
@@ -19,12 +20,12 @@ namespace
 {
     constexpr ImVec4 ColorActive = { 1.0f, 1.0f, 0.0f, 1.0f };
     constexpr ImVec4 ColorCenter = { 0.1f, 1.0f, 0.1f, 1.0f };
-    constexpr ImVec4 ColorDim = { 0.5f, 0.5f, 0.5f, 1.0f };
+    constexpr ImVec4 ColorDim    = { 0.5f, 0.5f, 0.5f, 1.0f };
 
     const char* getHumanSize(float& size)
     {
         static const char* s[] = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB" };
-        int idx = 0;
+        int idx                = 0;
         for (; size > 1024.0f; size /= 1024.0f)
         {
             idx++;
@@ -55,15 +56,15 @@ void cInfoBar::render()
         | ImGuiWindowFlags_NoResize
         | ImGuiWindowFlags_NoDocking;
 
-    auto& io = ImGui::GetIO();
-    auto& s = ImGui::GetStyle();
-    auto font = ImGui::GetFont();
+    auto& io             = ImGui::GetIO();
+    auto& s              = ImGui::GetStyle();
+    auto font            = ImGui::GetFont();
     const auto barHeight = s.WindowPadding.y * 2.0f + font->LegacySize;
     ImGui::SetNextWindowPos({ 0.0f, io.DisplaySize.y - barHeight });
     ImGui::SetNextWindowSize({ io.DisplaySize.x, barHeight });
 
     const auto oldRounding = s.WindowRounding;
-    s.WindowRounding = 0.0f;
+    s.WindowRounding       = 0.0f;
 
     if (ImGui::Begin("infobar", nullptr, flags))
     {
@@ -156,9 +157,9 @@ void cInfoBar::setSubImage(unsigned current, unsigned images)
 
 void cInfoBar::setMemory(long fileSize, size_t memSize)
 {
-    auto fs = static_cast<float>(fileSize);
+    auto fs  = static_cast<float>(fileSize);
     auto fsu = getHumanSize(fs);
-    auto ms = static_cast<float>(memSize);
+    auto ms  = static_cast<float>(memSize);
     auto msu = getHumanSize(ms);
     m_memory = fmt::format("{:.1f} {} ({:.1f} {})", fs, fsu, ms, msu);
 }
@@ -185,7 +186,7 @@ std::string cInfoBar::shortenFilename(const std::string& path) const
 {
     std::string filename = path;
 
-    const auto* s = reinterpret_cast<const uint8_t*>(path.c_str());
+    const auto* s        = reinterpret_cast<const uint8_t*>(path.c_str());
     const uint32_t count = countCodePoints(s);
 
     const uint32_t maxCount = m_config.fileMaxLength;

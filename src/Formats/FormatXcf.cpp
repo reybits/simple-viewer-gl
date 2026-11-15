@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatXcf.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"

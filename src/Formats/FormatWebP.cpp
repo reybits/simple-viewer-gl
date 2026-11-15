@@ -10,6 +10,7 @@
 #if defined(WEBP_SUPPORT)
 
 #include "FormatWebP.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"
@@ -40,7 +41,7 @@ bool cFormatWebP::isSupported(cFile& file, Buffer& buffer) const
 
     const uint8_t riff[4] = { 'R', 'I', 'F', 'F' };
     const uint8_t webp[4] = { 'W', 'E', 'B', 'P' };
-    auto h = reinterpret_cast<const WebPheader*>(buffer.data());
+    auto h                = reinterpret_cast<const WebPheader*>(buffer.data());
     return h->size == file.getSize() - 8
         && !::memcmp(h->riff, riff, 4)
         && !::memcmp(h->webp, webp, 4);
@@ -70,9 +71,9 @@ bool cFormatWebP::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
         return false;
     }
 
-    info.images = 1;
+    info.images  = 1;
     info.current = 0;
-    chunk.width = features.width;
+    chunk.width  = features.width;
     chunk.height = features.height;
 
 #if defined(WEBPDEMUX_SUPPORT)
@@ -80,7 +81,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
     // (rotation-applied) aspect. WebP decoding does not apply it itself.
     {
         WebPData exifData = { buffer.data(), buffer.size() };
-        auto* exifDemux = WebPDemux(&exifData);
+        auto* exifDemux   = WebPDemux(&exifData);
         if (exifDemux != nullptr)
         {
             WebPChunkIterator exifIter;
@@ -121,7 +122,7 @@ bool cFormatWebP::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
 #if defined(WEBPDEMUX_SUPPORT)
     // Extract ICC profile via demux API
     WebPData webpData = { buffer.data(), buffer.size() };
-    auto demux = WebPDemux(&webpData);
+    auto demux        = WebPDemux(&webpData);
     if (demux != nullptr)
     {
         WebPChunkIterator chunkIter;

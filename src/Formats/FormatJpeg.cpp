@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatJpeg.h"
+
 #include "Common/Callbacks.h"
 #include "Common/ChunkData.h"
 #include "Common/File.h"
@@ -62,18 +63,18 @@ bool cFormatJpeg::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& 
     Buffer in(size);
     file.read(in.data(), size);
 
-    auto progressCb = [this](float p) { updateProgress(p); };
+    auto progressCb  = [this](float p) { updateProgress(p); };
     auto allocatedCb = [this]() { signalBitmapAllocated(); };
     auto imageInfoCb = [this]() { signalImageInfo(); };
-    auto previewCb = [this, &chunk](cJpegDecoder::Bitmap&& thumb) {
+    auto previewCb   = [this, &chunk](cJpegDecoder::Bitmap&& thumb) {
         sPreviewData preview;
-        preview.bitmap = std::move(thumb.data);
-        preview.width = thumb.width;
-        preview.height = thumb.height;
-        preview.pitch = thumb.pitch;
-        preview.bpp = thumb.bpp;
-        preview.format = thumb.format;
-        preview.fullImageWidth = chunk.width;
+        preview.bitmap          = std::move(thumb.data);
+        preview.width           = thumb.width;
+        preview.height          = thumb.height;
+        preview.pitch           = thumb.pitch;
+        preview.bpp             = thumb.bpp;
+        preview.format          = thumb.format;
+        preview.fullImageWidth  = chunk.width;
         preview.fullImageHeight = chunk.height;
         signalPreviewReady(std::move(preview));
     };

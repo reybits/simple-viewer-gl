@@ -9,9 +9,8 @@
 
 #pragma once
 
-#include "Popup.h"
-
 #include "Common/ImageInfo.h"
+#include "Popup.h"
 
 #include <vector>
 

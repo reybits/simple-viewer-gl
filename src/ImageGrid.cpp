@@ -11,6 +11,7 @@
 \**********************************************/
 
 #include "ImageGrid.h"
+
 #include "Renderer.h"
 
 #include <algorithm>
@@ -32,7 +33,7 @@ void cImageGrid::setColor(const cColor& color)
 
 void cImageGrid::render(float x, float y, float w, float h)
 {
-    const float zoom = render::getZoom();
+    const float zoom  = render::getZoom();
     const float alpha = zoom / 16.0f;
     const int alpha_i = std::clamp(static_cast<int>(alpha * 255.0f), 0, 255);
     if ((alpha_i == 0) || (zoom < 2.0f))
@@ -41,7 +42,7 @@ void cImageGrid::render(float x, float y, float w, float h)
     }
 
     cColor color = m_color;
-    color.a = static_cast<uint8_t>(alpha_i);
+    color.a      = static_cast<uint8_t>(alpha_i);
 
     std::vector<Vertex> vertices;
     const auto hLines = static_cast<uint32_t>(h) + 1;

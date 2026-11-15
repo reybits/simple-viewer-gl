@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "QuadImage.h"
+
 #include "Common/Cms.h"
 #include "Common/Helpers.h"
 #include "Log/Log.h"

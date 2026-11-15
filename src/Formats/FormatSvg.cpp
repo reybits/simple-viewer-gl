@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatSvg.h"
+
 #include "Common/ChunkData.h"
 #include "Common/Config.h"
 #include "Common/File.h"

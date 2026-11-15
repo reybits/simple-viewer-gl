@@ -67,14 +67,14 @@ const char* cExifPopup::categoryName(eCategory category)
 
 void cExifPopup::setExifList(const sImageInfo::ExifList& exifList)
 {
-    m_exif = exifList;
+    m_exif      = exifList;
     m_filter[0] = '\0';
     rebuildGroups();
 }
 
 void cExifPopup::setExifList(sImageInfo::ExifList&& exifList)
 {
-    m_exif = std::move(exifList);
+    m_exif      = std::move(exifList);
     m_filter[0] = '\0';
     rebuildGroups();
 }

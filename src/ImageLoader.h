@@ -28,10 +28,10 @@ class cImageLoader final
 public:
     struct Metrics
     {
-        double fileReadMs = 0.0;
-        double decodeMs = 0.0;
-        double iccMs = 0.0;
-        double totalMs = 0.0;
+        double fileReadMs  = 0.0;
+        double decodeMs    = 0.0;
+        double iccMs       = 0.0;
+        double totalMs     = 0.0;
         size_t bitmapBytes = 0;
 
         void reset()

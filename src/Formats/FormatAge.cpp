@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatAge.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"
@@ -128,7 +129,7 @@ bool cFormatAge::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     }
 
     auto version = AGE::getVersion(header);
-    auto format = header.format;
+    auto format  = header.format;
 
     if (version == 1)
     {
@@ -140,14 +141,14 @@ bool cFormatAge::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         }
     }
 
-    const bool isCompressed = AGE::isCompressedFormat(format);
+    const bool isCompressed     = AGE::isCompressedFormat(format);
     unsigned compressedDataSize = 0;
 
     if (isCompressed)
     {
-        auto fmtInfo = getCompressedFormatInfo(format);
-        auto blocksW = (header.w + fmtInfo->blockW - 1) / fmtInfo->blockW;
-        auto blocksH = (header.h + fmtInfo->blockH - 1) / fmtInfo->blockH;
+        auto fmtInfo       = getCompressedFormatInfo(format);
+        auto blocksW       = (header.w + fmtInfo->blockW - 1) / fmtInfo->blockW;
+        auto blocksH       = (header.h + fmtInfo->blockH - 1) / fmtInfo->blockH;
         compressedDataSize = blocksW * blocksH * fmtInfo->blockBytes;
     }
 
@@ -155,27 +156,27 @@ bool cFormatAge::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
     switch (format)
     {
     case AGE::Format::RGBA8888:
-        bytespp = 4;
+        bytespp      = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     case AGE::Format::RGBA5551:
-        bytespp = 2;
+        bytespp      = 2;
         chunk.format = ePixelFormat::RGBA5551;
         break;
     case AGE::Format::RGBA4444:
-        bytespp = 2;
+        bytespp      = 2;
         chunk.format = ePixelFormat::RGBA4444;
         break;
     case AGE::Format::RGB888:
-        bytespp = 3;
+        bytespp      = 3;
         chunk.format = ePixelFormat::RGB;
         break;
     case AGE::Format::RGB565:
-        bytespp = 2;
+        bytespp      = 2;
         chunk.format = ePixelFormat::RGB565;
         break;
     case AGE::Format::A8:
-        bytespp = 1;
+        bytespp      = 1;
         chunk.format = ePixelFormat::Alpha;
         break;
     default:
@@ -185,12 +186,12 @@ bool cFormatAge::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
             return false;
         }
         // compressed formats will be decoded to RGBA
-        bytespp = 4;
+        bytespp      = 4;
         chunk.format = ePixelFormat::RGBA;
         break;
     }
 
-    chunk.width = header.w;
+    chunk.width  = header.w;
     chunk.height = header.h;
 
     // For compressed: first decompress AGE compression into a temp buffer,
@@ -283,9 +284,9 @@ bool cFormatAge::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 if (decoded <= 0)
                 {
                     cLog::Error("Can't decode {}.",
-                               header.compression == AGE::Compression::LZ4
-                                   ? "LZ4"
-                                   : "LZ4HC");
+                                header.compression == AGE::Compression::LZ4
+                                    ? "LZ4"
+                                    : "LZ4HC");
                     return false;
                 }
             }

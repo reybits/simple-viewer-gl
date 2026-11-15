@@ -11,6 +11,7 @@
 \**********************************************/
 
 #include "Renderer.h"
+
 #include "Log/Log.h"
 #include "Types/Matrix.h"
 #include "Types/Vector.h"
@@ -346,14 +347,22 @@ void render::popState()
     GL(glScissor(state.scissorBox[0], state.scissorBox[1], static_cast<GLsizei>(state.scissorBox[2]), static_cast<GLsizei>(state.scissorBox[3])));
 
     if (state.blendEnabled)
+    {
         glEnable(GL_BLEND);
+    }
     else
+    {
         glDisable(GL_BLEND);
+    }
 
     if (state.scissorEnabled)
+    {
         glEnable(GL_SCISSOR_TEST);
+    }
     else
+    {
         glDisable(GL_SCISSOR_TEST);
+    }
 
     Projection = state.projection;
     bindTexture(state.texture);

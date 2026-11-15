@@ -18,7 +18,7 @@ struct sImageInfo;
 
 struct sPreviewData : sBitmap
 {
-    uint32_t fullImageWidth = 0;  // full-resolution dimensions
+    uint32_t fullImageWidth  = 0; // full-resolution dimensions
     uint32_t fullImageHeight = 0;
 };
 

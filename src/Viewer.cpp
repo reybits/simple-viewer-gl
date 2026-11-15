@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "Viewer.h"
+
 #include "Checkerboard.h"
 #include "Common/Config.h"
 #include "Common/Helpers.h"
@@ -1373,8 +1374,8 @@ void cViewer::loadImage(const char* path)
     m_previewData = {};
 
     m_loader->loadImage(path != nullptr
-            ? path
-            : "");
+                            ? path
+                            : "");
     updateInfobar();
 }
 

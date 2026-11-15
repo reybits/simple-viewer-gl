@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatEps.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/Helpers.h"
@@ -109,10 +110,10 @@ bool cFormatEps::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         Buffer decoded;
         if (helpers::base64decode(base64.data(), base64.size(), decoded))
         {
-            auto progressCb = [this](float p) { updateProgress(p); };
+            auto progressCb  = [this](float p) { updateProgress(p); };
             auto allocatedCb = [this]() { signalBitmapAllocated(); };
             auto imageInfoCb = [this]() { signalImageInfo(); };
-            auto result = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), chunk, info, progressCb, allocatedCb, imageInfoCb, nullptr, m_stop);
+            auto result      = m_decoder.decodeJpeg(decoded.data(), static_cast<uint32_t>(decoded.size()), chunk, info, progressCb, allocatedCb, imageInfoCb, nullptr, m_stop);
             if (result.success)
             {
                 // ICC LUT generated inside decodeJpeg() — applied on GPU

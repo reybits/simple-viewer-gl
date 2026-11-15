@@ -22,7 +22,7 @@ namespace
 {
     // --- Big-endian file reading ---
 
-    template <typename T>
+    template<typename T>
     T ReadBE(cFile& file)
     {
         T val{};

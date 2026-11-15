@@ -10,6 +10,7 @@
 #if defined(OPENEXR_SUPPORT)
 
 #include "FormatExr.h"
+
 #include "Common/Callbacks.h"
 #include "Common/ChunkData.h"
 #include "Common/File.h"
@@ -105,16 +106,16 @@ namespace
         bool result = in.isComplete();
         if (result)
         {
-            channels = in.channels();
-            compression = in.compression();
+            channels     = in.channels();
+            compression  = in.compression();
             auto& header = in.header();
             ReadHeader(header, chunk, info);
 
-            auto& dw = in.dataWindow();
-            const auto width = dw.max.x - dw.min.x + 1;
+            auto& dw          = in.dataWindow();
+            const auto width  = dw.max.x - dw.min.x + 1;
             const auto height = dw.max.y - dw.min.y + 1;
-            chunk.width = width;
-            chunk.height = height;
+            chunk.width       = width;
+            chunk.height      = height;
 
             const auto dx = dw.min.x;
             const auto dy = dw.min.y;
@@ -134,16 +135,16 @@ namespace
 
         if (result)
         {
-            channels = in.channels();
-            compression = in.compression();
+            channels     = in.channels();
+            compression  = in.compression();
             auto& header = in.header();
             ReadHeader(header, chunk, info);
 
-            auto& dw = in.dataWindow();
-            const auto width = dw.max.x - dw.min.x + 1;
+            auto& dw          = in.dataWindow();
+            const auto width  = dw.max.x - dw.min.x + 1;
             const auto height = dw.max.y - dw.min.y + 1;
-            chunk.width = width;
-            chunk.height = height;
+            chunk.width       = width;
+            chunk.height      = height;
 
             const auto dx = dw.min.x;
             const auto dy = dw.min.y;
@@ -159,8 +160,8 @@ namespace
     void ReadDimensions(const Imf::Header& header, uint32_t& width, uint32_t& height)
     {
         auto& dw = header.dataWindow();
-        width = static_cast<uint32_t>(dw.max.x - dw.min.x + 1);
-        height = static_cast<uint32_t>(dw.max.y - dw.min.y + 1);
+        width    = static_cast<uint32_t>(dw.max.x - dw.min.x + 1);
+        height   = static_cast<uint32_t>(dw.max.y - dw.min.y + 1);
     }
 } // namespace
 
@@ -182,7 +183,7 @@ void cFormatExr::decodePreview(const char* filename)
         Imf::RgbaInputFile in(filename);
         auto& header = in.header();
 
-        uint32_t fullWidth = 0;
+        uint32_t fullWidth  = 0;
         uint32_t fullHeight = 0;
         ReadDimensions(header, fullWidth, fullHeight);
 
@@ -192,8 +193,8 @@ void cFormatExr::decodePreview(const char* filename)
         }
 
         const auto& preview = header.previewImage();
-        const auto width = preview.width();
-        const auto height = preview.height();
+        const auto width    = preview.width();
+        const auto height   = preview.height();
 
         if (width == 0 || height == 0)
         {
@@ -201,15 +202,15 @@ void cFormatExr::decodePreview(const char* filename)
         }
 
         constexpr uint32_t bpp = 32;
-        const uint32_t pitch = width * (bpp / 8);
+        const uint32_t pitch   = width * (bpp / 8);
 
         sPreviewData data;
-        data.width = width;
-        data.height = height;
-        data.pitch = pitch;
-        data.bpp = bpp;
-        data.format = ePixelFormat::RGBA;
-        data.fullImageWidth = fullWidth;
+        data.width           = width;
+        data.height          = height;
+        data.pitch           = pitch;
+        data.bpp             = bpp;
+        data.format          = ePixelFormat::RGBA;
+        data.fullImageWidth  = fullWidth;
         data.fullImageHeight = fullHeight;
         data.bitmap.resize(pitch * height);
 
@@ -219,10 +220,10 @@ void cFormatExr::decodePreview(const char* filename)
             for (uint32_t x = 0; x < width; x++)
             {
                 const auto& p = preview.pixel(x, y);
-                dst->r = p.r;
-                dst->g = p.g;
-                dst->b = p.b;
-                dst->a = p.a;
+                dst->r        = p.r;
+                dst->g        = p.g;
+                dst->b        = p.b;
+                dst->a        = p.a;
                 dst++;
             }
         }
@@ -275,7 +276,7 @@ bool cFormatExr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
     if (result)
     {
-        info.images = 1;
+        info.images  = 1;
         info.current = 0;
 
         // WRITE_R    = 0x01, // Red
@@ -303,10 +304,10 @@ bool cFormatExr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
 
         info.bppImage = chCount * 8;
 
-        const bool hasA = (channels & Imf::WRITE_A) != 0;
+        const bool hasA      = (channels & Imf::WRITE_A) != 0;
         const uint32_t bytes = hasA ? 4 : 3;
-        chunk.bpp = bytes * 8;
-        chunk.format = hasA ? ePixelFormat::RGBA : ePixelFormat::RGB;
+        chunk.bpp            = bytes * 8;
+        chunk.format         = hasA ? ePixelFormat::RGBA : ePixelFormat::RGB;
         chunk.allocate(chunk.width, chunk.height, chunk.bpp, chunk.format);
 
         if (hasA)
@@ -318,10 +319,10 @@ bool cFormatExr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 for (uint32_t x = 0; x < chunk.width; x++)
                 {
                     const auto& i = *src++;
-                    dst[x].r = HalfToUint8(i.r);
-                    dst[x].g = HalfToUint8(i.g);
-                    dst[x].b = HalfToUint8(i.b);
-                    dst[x].a = HalfToUint8(i.a);
+                    dst[x].r      = HalfToUint8(i.r);
+                    dst[x].g      = HalfToUint8(i.g);
+                    dst[x].b      = HalfToUint8(i.b);
+                    dst[x].a      = HalfToUint8(i.a);
                 }
             }
         }
@@ -334,9 +335,9 @@ bool cFormatExr::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
                 for (uint32_t x = 0; x < chunk.width; x++)
                 {
                     const auto& i = *src++;
-                    dst[x].r = HalfToUint8(i.r);
-                    dst[x].g = HalfToUint8(i.g);
-                    dst[x].b = HalfToUint8(i.b);
+                    dst[x].r      = HalfToUint8(i.r);
+                    dst[x].g      = HalfToUint8(i.g);
+                    dst[x].b      = HalfToUint8(i.b);
                 }
             }
         }

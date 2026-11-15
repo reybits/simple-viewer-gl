@@ -17,8 +17,8 @@
 // the only feature lost is drag-and-drop file opening onto the app icon.
 #ifdef __clang__
 
-#import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
+#import <Foundation/Foundation.h>
 
 NS_ASSUME_NONNULL_BEGIN
 

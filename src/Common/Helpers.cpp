@@ -108,7 +108,7 @@ namespace helpers
     {
         // texture pitch should be multiple by 4
         auto bytesPerPixel = (bitsPerPixel + 7) / 8;
-        auto rawPitch = width * bytesPerPixel;
+        auto rawPitch      = width * bytesPerPixel;
         return (rawPitch + 3) & ~3u;
     }
 
@@ -152,7 +152,7 @@ namespace helpers
 
         {
             const char* bufend = &buf[size - findlen + 1];
-            const char* c = buf;
+            const char* c      = buf;
             for (; c < bufend; c++)
             {
                 if (*c == *tofind)
@@ -237,7 +237,7 @@ namespace helpers
         if (path != nullptr)
         {
             std::string fullPath = path;
-            auto pos = fullPath.find_last_of("/\\");
+            auto pos             = fullPath.find_last_of("/\\");
             if (pos != std::string::npos)
             {
                 return fullPath.substr(0, pos);

@@ -10,7 +10,6 @@
 #pragma once
 
 #include "Popup.h"
-
 #include "QuadSeries.h"
 #include "Types/Color.h"
 #include "Types/Rect.h"
@@ -30,12 +29,12 @@ struct sPixelInfo
 
     void reset()
     {
-        mouse = { 0.0f, 0.0f };
-        point = { 0.0f, 0.0f };
-        imgWidth = 0;
+        mouse     = { 0.0f, 0.0f };
+        point     = { 0.0f, 0.0f };
+        imgWidth  = 0;
         imgHeight = 0;
-        bpp = 0;
-        color = { 0, 0, 0, 0 };
+        bpp       = 0;
+        color     = { 0, 0, 0, 0 };
         rc.clear();
     }
 

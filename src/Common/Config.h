@@ -23,16 +23,16 @@ struct sConfig
 
     std::string className = "sviewgl";
 
-    bool hideInfobar = false;
-    bool showPixelInfo = false;
-    bool showExif = false;
-    bool fitImage = false;
+    bool hideInfobar     = false;
+    bool showPixelInfo   = false;
+    bool showExif        = false;
+    bool fitImage        = false;
     bool showImageBorder = false;
-    bool showImageGrid = false;
-    bool recursiveScan = false;
-    bool centerWindow = false;
-    bool fullScreen = false;
-    bool skipFilter = false;
+    bool showImageGrid   = false;
+    bool recursiveScan   = false;
+    bool centerWindow    = false;
+    bool fullScreen      = false;
+    bool skipFilter      = false;
 #if defined(__APPLE__)
     bool wheelZoom = false;
 #else
@@ -48,7 +48,7 @@ struct sConfig
 
     float panRatio = 10.0f; // if wheelZoom is false
 
-    float shiftInPixels = 10.0f;
+    float shiftInPixels  = 10.0f;
     float shiftInPercent = 0.5f;
 
     float minSvgSize = 256.0f;

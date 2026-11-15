@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FilesList.h"
+
 #include "Log/Log.h"
 
 #include <algorithm>
@@ -122,11 +123,11 @@ void cFilesList::locateFile(const char* path)
     }
 
     const std::string name = path;
-    const auto len = name.length();
+    const auto len         = name.length();
     for (size_t i = 0, count = m_files.size(); i < count; i++)
     {
         const auto& file = m_files[i];
-        const auto slen = file.path.length();
+        const auto slen  = file.path.length();
         if (slen >= len && file.path.substr(slen - len, len) == name)
         {
             m_position = i;
@@ -155,7 +156,7 @@ void cFilesList::scanDirectory(const std::string& root)
     const std::filesystem::directory_iterator end;
     while (it != end)
     {
-        const auto& entry = *it;
+        const auto& entry      = *it;
         const std::string path = entry.path().string();
         if (entry.is_directory(ec) == true)
         {
@@ -179,7 +180,7 @@ void cFilesList::scanDirectory(const std::string& root)
 
 namespace
 {
-    template <typename T = size_t>
+    template<typename T = size_t>
     constexpr T length(const char* const str, T size = 0) noexcept
     {
         return *str != 0
@@ -297,7 +298,7 @@ bool cFilesList::isValidExt(const char* path)
     std::string tr = path;
     std::transform(tr.begin(), tr.end(), tr.begin(), ::tolower);
 
-    auto ptr = tr.c_str();
+    auto ptr        = tr.c_str();
     const auto size = tr.length();
 
     for (auto& e : ValidExts)
@@ -360,7 +361,7 @@ void cFilesList::toggleDeletionMark()
 {
     if (m_position < m_files.size())
     {
-        auto& file = m_files[m_position];
+        auto& file        = m_files[m_position];
         file.deletionMark = !file.deletionMark;
     }
 }

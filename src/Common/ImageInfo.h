@@ -15,16 +15,16 @@
 
 struct sImageInfo
 {
-    uint32_t bppImage = 0;            // bit per pixel of original image
-    long fileSize = -1;               // file size on disk
+    uint32_t bppImage      = 0;       // bit per pixel of original image
+    long fileSize          = -1;      // file size on disk
     const char* formatName = nullptr; // format identifier (e.g. "png", "jpeg/icc")
 
-    uint32_t images = 0;
+    uint32_t images  = 0;
     uint32_t current = 0;
 
     bool isAnimation = false;
-    bool isVector = false; // vector format that supports re-rasterization at different sizes
-    uint32_t delay = 0; // frame animation delay
+    bool isVector    = false; // vector format that supports re-rasterization at different sizes
+    uint32_t delay   = 0;     // frame animation delay
 
     enum class ExifCategory : uint8_t
     {

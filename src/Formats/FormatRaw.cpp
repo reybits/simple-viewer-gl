@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatRaw.h"
+
 #include "Common/ChunkData.h"
 #include "Common/File.h"
 #include "Common/ImageInfo.h"
@@ -100,17 +101,17 @@ bool cFormatRaw::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
 
-    bool rle = true;
+    bool rle         = true;
     unsigned bytespp = 0;
     switch (header.format)
     {
     case FORMAT_RGB:
         bytespp = 3;
-        rle = false;
+        rle     = false;
         break;
     case FORMAT_RGBA:
         bytespp = 4;
-        rle = false;
+        rle     = false;
         break;
     case FORMAT_RGB_RLE:
     case FORMAT_RGB_RLE4:
@@ -125,8 +126,8 @@ bool cFormatRaw::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         return false;
     }
     info.bppImage = bytespp * 8;
-    chunk.width = header.w;
-    chunk.height = header.h;
+    chunk.width   = header.w;
+    chunk.height  = header.h;
     chunk.allocate(chunk.width, chunk.height, bytespp * 8, bytespp == 3 ? ePixelFormat::RGB : ePixelFormat::RGBA);
 
     if (rle)
@@ -143,12 +144,12 @@ bool cFormatRaw::LoadImpl(const char* filename, sChunkData& chunk, sImageInfo& i
         unsigned decoded = 0;
         if (header.format == FORMAT_RGB_RLE4 || header.format == FORMAT_RGBA_RLE4)
         {
-            decoded = decoder.decodeBy4((unsigned*)&rle[0], rle.size() / 4, (unsigned*)&chunk.bitmap[0], chunk.bitmap.size() / 4);
+            decoded         = decoder.decodeBy4((unsigned*)&rle[0], rle.size() / 4, (unsigned*)&chunk.bitmap[0], chunk.bitmap.size() / 4);
             info.formatName = "raw/rle32";
         }
         else
         {
-            decoded = decoder.decode(&rle[0], rle.size(), &chunk.bitmap[0], chunk.bitmap.size());
+            decoded         = decoder.decode(&rle[0], rle.size(), &chunk.bitmap[0], chunk.bitmap.size());
             info.formatName = "raw/rle";
         }
         if (!decoded)

@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "PngReader.h"
+
 #include "Common/ChunkData.h"
 #include "Common/Cms.h"
 #include "Common/File.h"

@@ -30,10 +30,10 @@ namespace
         if (x < width && y < height)
         {
             auto p = dst + (y * width + x) * 4;
-            p[0] = c.r;
-            p[1] = c.g;
-            p[2] = c.b;
-            p[3] = c.a;
+            p[0]   = c.r;
+            p[1]   = c.g;
+            p[2]   = c.b;
+            p[3]   = c.a;
         }
     }
 
@@ -136,7 +136,7 @@ namespace
             for (int i = 0; i < bits; i++)
             {
                 int byteIdx = pos >> 3;
-                int bitIdx = pos & 7;
+                int bitIdx  = pos & 7;
                 val |= ((data[byteIdx] >> bitIdx) & 1) << i;
                 pos++;
             }
@@ -515,12 +515,12 @@ namespace
         const auto& mi = Bc7Modes[mode];
 
         uint32_t partition = br.read(mi.pb);
-        uint32_t rotation = br.read(mi.rb);
-        uint32_t idxSel = br.read(mi.isb);
+        uint32_t rotation  = br.read(mi.rb);
+        uint32_t idxSel    = br.read(mi.isb);
 
         // read endpoints
         uint8_t endpoints[6][4] = {}; // [subset*2][rgba]
-        int numEndpoints = mi.ns * 2;
+        int numEndpoints        = mi.ns * 2;
 
         // color
         for (int c = 0; c < 3; c++)
@@ -578,7 +578,7 @@ namespace
         }
 
         // read index data
-        uint8_t indices[16] = {};
+        uint8_t indices[16]  = {};
         uint8_t indices2[16] = {};
 
         int ib1 = mi.ib;
@@ -664,11 +664,17 @@ namespace
             if (rotation)
             {
                 if (rotation == 1)
+                {
                     std::swap(pixels[i].a, pixels[i].r);
+                }
                 else if (rotation == 2)
+                {
                     std::swap(pixels[i].a, pixels[i].g);
+                }
                 else if (rotation == 3)
+                {
                     std::swap(pixels[i].a, pixels[i].b);
+                }
             }
         }
     }
@@ -705,9 +711,9 @@ namespace
 
     void decodeEACAlpha(const uint8_t* src, uint8_t alphas[16])
     {
-        int base = src[0];
+        int base       = src[0];
         int multiplier = (src[1] >> 4) & 0x0f;
-        int tableIdx = src[1] & 0x0f;
+        int tableIdx   = src[1] & 0x0f;
 
         // 48 bits of 3-bit indices in bytes 2-7 (big-endian)
         uint64_t bits = 0;
@@ -721,11 +727,11 @@ namespace
         {
             for (int y = 0; y < 4; y++)
             {
-                int pixelIdx = x * 4 + y;
-                int shift = 45 - 3 * pixelIdx;
-                int idx = (bits >> shift) & 7;
-                int modifier = EacModifier[tableIdx][idx];
-                int value = base + modifier * multiplier;
+                int pixelIdx      = x * 4 + y;
+                int shift         = 45 - 3 * pixelIdx;
+                int idx           = (bits >> shift) & 7;
+                int modifier      = EacModifier[tableIdx][idx];
+                int value         = base + modifier * multiplier;
                 alphas[y * 4 + x] = clampByte(value);
             }
         }
@@ -744,36 +750,42 @@ namespace
 
         int baseR[2], baseG[2], baseB[2];
 
-        bool tMode = false;
-        bool hMode = false;
+        bool tMode  = false;
+        bool hMode  = false;
         bool planar = false;
 
         if (diffBit)
         {
-            int r = (block >> 59) & 0x1f;
+            int r  = (block >> 59) & 0x1f;
             int dr = (block >> 56) & 0x07;
             if (dr >= 4)
+            {
                 dr -= 8;
+            }
             int rr = r + dr;
             if (rr < 0 || rr > 31)
             {
                 tMode = true;
             }
 
-            int g = (block >> 51) & 0x1f;
+            int g  = (block >> 51) & 0x1f;
             int dg = (block >> 48) & 0x07;
             if (dg >= 4)
+            {
                 dg -= 8;
+            }
             int gg = g + dg;
             if (!tMode && (gg < 0 || gg > 31))
             {
                 hMode = true;
             }
 
-            int b = (block >> 43) & 0x1f;
+            int b  = (block >> 43) & 0x1f;
             int db = (block >> 40) & 0x07;
             if (db >= 4)
+            {
                 db -= 8;
+            }
             int bb = b + db;
             if (!tMode && !hMode && (bb < 0 || bb > 31))
             {
@@ -802,20 +814,20 @@ namespace
 
         if (tMode)
         {
-            int r1 = ((src[0] >> 1) & 0x0c) | (src[0] & 0x03);
-            r1 = (r1 << 4) | r1;
-            int g1 = (src[1] >> 4) & 0x0f;
-            g1 = (g1 << 4) | g1;
-            int b1 = src[1] & 0x0f;
-            b1 = (b1 << 4) | b1;
-            int r2 = (src[2] >> 4) & 0x0f;
-            r2 = (r2 << 4) | r2;
-            int g2 = (src[2]) & 0x0f;
-            g2 = (g2 << 4) | g2;
-            int b2 = (src[3] >> 4) & 0x0f;
-            b2 = (b2 << 4) | b2;
+            int r1   = ((src[0] >> 1) & 0x0c) | (src[0] & 0x03);
+            r1       = (r1 << 4) | r1;
+            int g1   = (src[1] >> 4) & 0x0f;
+            g1       = (g1 << 4) | g1;
+            int b1   = src[1] & 0x0f;
+            b1       = (b1 << 4) | b1;
+            int r2   = (src[2] >> 4) & 0x0f;
+            r2       = (r2 << 4) | r2;
+            int g2   = (src[2]) & 0x0f;
+            g2       = (g2 << 4) | g2;
+            int b2   = (src[3] >> 4) & 0x0f;
+            b2       = (b2 << 4) | b2;
             int dIdx = ((src[3] >> 1) & 6) | (src[3] & 1);
-            int d = Etc2DistanceTable[dIdx];
+            int d    = Etc2DistanceTable[dIdx];
 
             Rgba paint[4];
             paint[0] = { static_cast<uint8_t>(r1), static_cast<uint8_t>(g1), static_cast<uint8_t>(b1), 255 };
@@ -827,8 +839,8 @@ namespace
             {
                 int col = i >> 2, row = i & 3;
                 int bitIdx = col * 4 + row;
-                int msb = (src[4 + (bitIdx >> 3)] >> (7 - (bitIdx & 7))) & 1;
-                int lsb = (src[4 + ((bitIdx + 16) >> 3)] >> (7 - ((bitIdx + 16) & 7))) & 1;
+                int msb    = (src[4 + (bitIdx >> 3)] >> (7 - (bitIdx & 7))) & 1;
+                int lsb    = (src[4 + ((bitIdx + 16) >> 3)] >> (7 - ((bitIdx + 16) & 7))) & 1;
                 // Note: the mapping for T-mode: msb | lsb << 1
                 pixels[row * 4 + col] = paint[msb | (lsb << 1)];
             }
@@ -842,14 +854,14 @@ namespace
             int g1 = ((src[0] & 7) << 1) | ((src[1] >> 4) & 1);
             g1 |= (g1 << 4);
             int b1 = ((src[1] & 8) << 0) | ((src[1] >> 0) & 3) | ((src[2] >> 5) & 4);
-            b1 = (b1 << 4) | b1;
+            b1     = (b1 << 4) | b1;
             int r2 = (src[2] >> 3) & 0x0f;
             r2 |= (r2 << 4);
             int g2 = ((src[2] & 7) << 1) | (src[3] >> 7);
             g2 |= (g2 << 4);
             int b2 = (src[3] >> 3) & 0x0f;
             b2 |= (b2 << 4);
-            int dIdx = (src[3] & 4) | ((src[3] & 1) << 1);
+            int dIdx     = (src[3] & 4) | ((src[3] & 1) << 1);
             int orderBit = ((r1 << 16) + (g1 << 8) + b1) >= ((r2 << 16) + (g2 << 8) + b2) ? 1 : 0;
             dIdx |= orderBit;
             int d = Etc2DistanceTable[dIdx];
@@ -863,9 +875,9 @@ namespace
             for (int i = 0; i < 16; i++)
             {
                 int col = i >> 2, row = i & 3;
-                int bitIdx = col * 4 + row;
-                int msb = (src[4 + (bitIdx >> 3)] >> (7 - (bitIdx & 7))) & 1;
-                int lsb = (src[4 + ((bitIdx + 16) >> 3)] >> (7 - ((bitIdx + 16) & 7))) & 1;
+                int bitIdx            = col * 4 + row;
+                int msb               = (src[4 + (bitIdx >> 3)] >> (7 - (bitIdx & 7))) & 1;
+                int lsb               = (src[4 + ((bitIdx + 16) >> 3)] >> (7 - ((bitIdx + 16) & 7))) & 1;
                 pixels[row * 4 + col] = paint[msb | (lsb << 1)];
             }
             return;
@@ -875,9 +887,9 @@ namespace
         {
             int ro = ((src[0] >> 1) & 0x3f);
             int go = ((src[0] & 1) << 6) | ((src[1] >> 1) & 0x3f) | (src[1] & 1);
-            go = (go >> 1) & 0x7f;
+            go     = (go >> 1) & 0x7f;
             int bo = ((src[1] & 1) << 5) | ((src[2] >> 3) & 0x1f) | ((src[2] & 1) << 0);
-            bo = ((src[1] & 1) << 5) | ((src[2] >> 1) & 0x18) | ((src[2] & 1) << 2) | ((src[3] >> 6) & 0x03);
+            bo     = ((src[1] & 1) << 5) | ((src[2] >> 1) & 0x18) | ((src[2] & 1) << 2) | ((src[3] >> 6) & 0x03);
             int rh = ((src[3] >> 1) & 0x1f) | ((src[3] & 1) << 5);
             int gh = ((src[4] >> 1) & 0x7f);
             int bh = ((src[4] & 1) << 5) | ((src[5] >> 3) & 0x1f);
@@ -899,9 +911,9 @@ namespace
             {
                 for (int x = 0; x < 4; x++)
                 {
-                    int r = (x * (rh - ro) + y * (rv - ro) + 4 * ro + 2) >> 2;
-                    int g = (x * (gh - go) + y * (gv - go) + 4 * go + 2) >> 2;
-                    int b = (x * (bh - bo) + y * (bv - bo) + 4 * bo + 2) >> 2;
+                    int r             = (x * (rh - ro) + y * (rv - ro) + 4 * ro + 2) >> 2;
+                    int g             = (x * (gh - go) + y * (gv - go) + 4 * go + 2) >> 2;
+                    int b             = (x * (bh - bo) + y * (bv - bo) + 4 * bo + 2) >> 2;
                     pixels[y * 4 + x] = { clampByte(r), clampByte(g), clampByte(b), 255 };
                 }
             }
@@ -916,11 +928,11 @@ namespace
         for (int i = 0; i < 16; i++)
         {
             int col = i >> 2, row = i & 3;
-            int sub = flipBit ? (row >= 2 ? 1 : 0) : (col >= 2 ? 1 : 0);
+            int sub    = flipBit ? (row >= 2 ? 1 : 0) : (col >= 2 ? 1 : 0);
             int bitIdx = col * 4 + row;
-            int msb = (src[4 + (bitIdx >> 3)] >> (7 - (bitIdx & 7))) & 1;
-            int lsb = (src[4 + ((bitIdx + 16) >> 3)] >> (7 - ((bitIdx + 16) & 7))) & 1;
-            int idx = msb | (lsb << 1);
+            int msb    = (src[4 + (bitIdx >> 3)] >> (7 - (bitIdx & 7))) & 1;
+            int lsb    = (src[4 + ((bitIdx + 16) >> 3)] >> (7 - ((bitIdx + 16) & 7))) & 1;
+            int idx    = msb | (lsb << 1);
 
             int mod = 0;
             switch (idx)
@@ -997,10 +1009,10 @@ namespace gpu_decode
                 {
                     for (int px = 0; px < 4; px++)
                     {
-                        int i = py * 4 + px;
+                        int i       = py * 4 + px;
                         int byteIdx = i / 2;
-                        int shift = (i & 1) * 4;
-                        uint8_t a4 = (alphaBlock[byteIdx] >> shift) & 0x0f;
+                        int shift   = (i & 1) * 4;
+                        uint8_t a4  = (alphaBlock[byteIdx] >> shift) & 0x0f;
                         pixels[i].a = static_cast<uint8_t>(a4 | (a4 << 4));
                         writePixel(dst, bx * 4 + px, by * 4 + py, width, height, pixels[i]);
                     }
@@ -1029,7 +1041,7 @@ namespace gpu_decode
                 {
                     for (int px = 0; px < 4; px++)
                     {
-                        int i = py * 4 + px;
+                        int i       = py * 4 + px;
                         pixels[i].a = alphas[i];
                         writePixel(dst, bx * 4 + px, by * 4 + py, width, height, pixels[i]);
                     }
@@ -1055,7 +1067,7 @@ namespace gpu_decode
                 {
                     for (int px = 0; px < 4; px++)
                     {
-                        int i = py * 4 + px;
+                        int i  = py * 4 + px;
                         Rgba c = { values[i], 0, 0, 255 };
                         writePixel(dst, bx * 4 + px, by * 4 + py, width, height, c);
                     }
@@ -1083,7 +1095,7 @@ namespace gpu_decode
                 {
                     for (int px = 0; px < 4; px++)
                     {
-                        int i = py * 4 + px;
+                        int i  = py * 4 + px;
                         Rgba c = { red[i], green[i], 0, 255 };
                         writePixel(dst, bx * 4 + px, by * 4 + py, width, height, c);
                     }
@@ -1162,7 +1174,7 @@ namespace gpu_decode
                 {
                     for (int px = 0; px < 4; px++)
                     {
-                        int i = py * 4 + px;
+                        int i       = py * 4 + px;
                         pixels[i].a = alphas[i];
                         writePixel(dst, bx * 4 + px, by * 4 + py, width, height, pixels[i]);
                     }
@@ -1194,36 +1206,42 @@ namespace gpu_decode
 
                 int baseR[2], baseG[2], baseB[2];
 
-                bool tMode = false;
-                bool hMode = false;
+                bool tMode  = false;
+                bool hMode  = false;
                 bool planar = false;
 
                 if (diffBit)
                 {
-                    int r = (block >> 59) & 0x1f;
+                    int r  = (block >> 59) & 0x1f;
                     int dr = (block >> 56) & 0x07;
                     if (dr >= 4)
+                    {
                         dr -= 8;
+                    }
                     int rr = r + dr;
                     if (rr < 0 || rr > 31)
                     {
                         tMode = true;
                     }
 
-                    int g = (block >> 51) & 0x1f;
+                    int g  = (block >> 51) & 0x1f;
                     int dg = (block >> 48) & 0x07;
                     if (dg >= 4)
+                    {
                         dg -= 8;
+                    }
                     int gg = g + dg;
                     if (!tMode && (gg < 0 || gg > 31))
                     {
                         hMode = true;
                     }
 
-                    int b = (block >> 43) & 0x1f;
+                    int b  = (block >> 43) & 0x1f;
                     int db = (block >> 40) & 0x07;
                     if (db >= 4)
+                    {
                         db -= 8;
+                    }
                     int bb = b + db;
                     if (!tMode && !hMode && (bb < 0 || bb > 31))
                     {
@@ -1277,13 +1295,13 @@ namespace gpu_decode
                 for (int i = 0; i < 16; i++)
                 {
                     int col = i >> 2, row = i & 3;
-                    int sub = flipBit
+                    int sub    = flipBit
                         ? (row >= 2 ? 1 : 0)
                         : (col >= 2 ? 1 : 0);
                     int bitIdx = col * 4 + row;
-                    int msb = (src[4 + (bitIdx >> 3)] >> (7 - (bitIdx & 7))) & 1;
-                    int lsb = (src[4 + ((bitIdx + 16) >> 3)] >> (7 - ((bitIdx + 16) & 7))) & 1;
-                    int idx = msb | (lsb << 1);
+                    int msb    = (src[4 + (bitIdx >> 3)] >> (7 - (bitIdx & 7))) & 1;
+                    int lsb    = (src[4 + ((bitIdx + 16) >> 3)] >> (7 - ((bitIdx + 16) & 7))) & 1;
+                    int idx    = msb | (lsb << 1);
 
                     // In punchthrough mode, index 2 (msb=0, lsb=1) = transparent black
                     if (idx == 2)
@@ -1344,7 +1362,7 @@ namespace gpu_decode
                 {
                     for (int px = 0; px < 4; px++)
                     {
-                        int i = py * 4 + px;
+                        int i  = py * 4 + px;
                         Rgba c = { values[i], values[i], values[i], 255 };
                         writePixel(dst, bx * 4 + px, by * 4 + py, width, height, c);
                     }
@@ -1372,7 +1390,7 @@ namespace gpu_decode
                 {
                     for (int px = 0; px < 4; px++)
                     {
-                        int i = py * 4 + px;
+                        int i  = py * 4 + px;
                         Rgba c = { red[i], green[i], 0, 255 };
                         writePixel(dst, bx * 4 + px, by * 4 + py, width, height, c);
                     }
@@ -1394,7 +1412,7 @@ namespace gpu_decode
         }
 
         astcenc_context* context = nullptr;
-        status = astcenc_context_alloc(&config, 1, &context);
+        status                   = astcenc_context_alloc(&config, 1, &context);
         if (status != ASTCENC_SUCCESS)
         {
             ::memset(dst, 0, width * height * 4);
@@ -1402,15 +1420,15 @@ namespace gpu_decode
         }
 
         astcenc_image image{};
-        image.dim_x = width;
-        image.dim_y = height;
-        image.dim_z = 1;
+        image.dim_x     = width;
+        image.dim_y     = height;
+        image.dim_z     = 1;
         image.data_type = ASTCENC_TYPE_U8;
-        image.data = reinterpret_cast<void**>(&dst);
+        image.data      = reinterpret_cast<void**>(&dst);
 
         uint32_t blocksW_ = (width + blockW - 1) / blockW;
         uint32_t blocksH_ = (height + blockH - 1) / blockH;
-        size_t dataLen = static_cast<size_t>(blocksW_) * blocksH_ * 16;
+        size_t dataLen    = static_cast<size_t>(blocksW_) * blocksH_ * 16;
 
         astcenc_swizzle swizzle{ ASTCENC_SWZ_R, ASTCENC_SWZ_G, ASTCENC_SWZ_B, ASTCENC_SWZ_A };
         astcenc_decompress_image(context, src, dataLen, &image, &swizzle, 0);

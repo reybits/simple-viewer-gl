@@ -8,6 +8,7 @@
 \**********************************************/
 
 #include "FormatPsd.h"
+
 #include "Common/Callbacks.h"
 #include "Common/ChunkData.h"
 #include "Common/Cms.h"
@@ -80,8 +81,8 @@ namespace
 
     enum class CompressionMethod : uint16_t
     {
-        RAW = 0,         // Raw image data
-        RLE = 1,         // RLE compressed the image data starts with the byte counts
+        RAW         = 0, // Raw image data
+        RLE         = 1, // RLE compressed the image data starts with the byte counts
                          // for all the scan lines (rows * channels), with each count
                          // stored as a two-byte value. The RLE compressed data follows,
                          // with each scan line compressed separately. The RLE compression

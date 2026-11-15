@@ -13,6 +13,7 @@
 #ifdef __clang__
 
 #import "GLFWCustomDelegate.h"
+
 #import <objc/runtime.h>
 
 extern void AddFile(const char* filename);
@@ -22,26 +23,24 @@ extern void AddFile(const char* filename);
 + (void)load
 {
     static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^
-    {
+    dispatch_once(&onceToken, ^{
         Class class = objc_getClass("GLFWApplicationDelegate");
 
-        [GLFWCustomDelegate swizzle: class src: @selector(application: openFile:) tgt: @selector(swz_application: openFile:)];
-        [GLFWCustomDelegate swizzle: class src: @selector(application: openFiles:) tgt: @selector(swz_application: openFiles:)];
+        [GLFWCustomDelegate swizzle:class src:@selector(application:openFile:) tgt:@selector(swz_application:openFile:)];
+        [GLFWCustomDelegate swizzle:class src:@selector(application:openFiles:) tgt:@selector(swz_application:openFiles:)];
     });
 }
 
-+ (void) swizzle: (Class) original_c src: (SEL)original_s tgt: (SEL)target_s
++ (void)swizzle:(Class)original_c src:(SEL)original_s tgt:(SEL)target_s
 {
-    Class target_c = [GLFWCustomDelegate class];
+    Class target_c        = [GLFWCustomDelegate class];
     Method originalMethod = class_getInstanceMethod(original_c, original_s);
     Method swizzledMethod = class_getInstanceMethod(target_c, target_s);
 
-    BOOL didAddMethod =
-        class_addMethod(original_c,
-                        original_s,
-                        method_getImplementation(swizzledMethod),
-                        method_getTypeEncoding(swizzledMethod));
+    BOOL didAddMethod = class_addMethod(original_c,
+                                        original_s,
+                                        method_getImplementation(swizzledMethod),
+                                        method_getTypeEncoding(swizzledMethod));
 
     if (didAddMethod)
     {
@@ -56,13 +55,13 @@ extern void AddFile(const char* filename);
     }
 }
 
-- (BOOL)swz_application: (NSApplication*)sender openFile: (NSString*)filename
+- (BOOL)swz_application:(NSApplication*)sender openFile:(NSString*)filename
 {
     AddFile(filename.UTF8String);
     return true;
 }
 
-- (void)swz_application: (NSApplication*)sender openFiles: (NSArray<NSString*>*)filenames
+- (void)swz_application:(NSApplication*)sender openFiles:(NSArray<NSString*>*)filenames
 {
     for (NSString* filename in filenames)
     {
