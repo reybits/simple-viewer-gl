@@ -115,6 +115,9 @@ if(glfw3_FOUND OR GLFW3_FOUND)
     endif()
     link_directories(${GLFW3_LIBRARY_DIRS})
     include_directories(${GLFW3_INCLUDE_DIRS})
+    # GL comes from glad: keep glfw3.h from including the system GL header,
+    # so the include order of glad and GLFW does not matter.
+    add_definitions(-DGLFW_INCLUDE_NONE)
 else()
     pretty_print("* " "[ ] GLFW3 not found" " *" " " "<")
     message(FATAL_ERROR "GLFW3 not found. Install libglfw3-dev (apt) or glfw (brew).")
