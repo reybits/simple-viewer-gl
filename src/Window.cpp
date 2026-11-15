@@ -369,6 +369,11 @@ Vectorf cWindow::getCursorPos() const
     return { static_cast<float>(x), static_cast<float>(y) };
 }
 
+bool cWindow::isHovered() const
+{
+    return m_window != nullptr && glfwGetWindowAttrib(m_window, GLFW_HOVERED) == GLFW_TRUE;
+}
+
 void cWindow::setSize(const Vectori& size)
 {
     if (m_window != nullptr)

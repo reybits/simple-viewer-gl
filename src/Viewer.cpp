@@ -212,8 +212,9 @@ void cViewer::onRender()
             m_deletionMark->render();
         }
 
-        if (m_config.showPixelInfo && m_cursorInside && m_angle == 0)
+        if (m_config.showPixelInfo && m_angle == 0 && m_window.isHovered())
         {
+            updatePixelInfo(calculateMousePosition(m_window.getCursorPos()));
             m_pixelPopup->render();
         }
     }
@@ -628,7 +629,6 @@ void cViewer::onResize(const Vectori& winSize, const Vectori& fbSize)
 
     m_fileSelector->setWindowSize(width, height);
 
-    updatePixelInfo(m_lastMouse);
     updateInfobar();
 }
 
@@ -665,7 +665,7 @@ void cViewer::onMouseMove(const Vectorf& pos)
 
     if (m_fileSelector->isVisible() || m_imgui->wantCaptureMouse())
     {
-        updateCursorState(true);
+        m_window.setCursorVisible(true);
         return;
     }
 
@@ -673,8 +673,10 @@ void cViewer::onMouseMove(const Vectorf& pos)
 
     if (m_mouseMB || m_mouseRB)
     {
-        const Vectorf diff(m_lastMouse - posFixed);
-        m_lastMouse = posFixed;
+        // Both ends are converted at the current scale, so a zoom in the
+        // middle of a drag does not turn into a camera jump.
+        const auto diff = calculateMousePosition(m_dragPos) - posFixed;
+        m_dragPos       = pos;
 
         if (diff != Vectorf())
         {
@@ -683,7 +685,7 @@ void cViewer::onMouseMove(const Vectorf& pos)
     }
 
     auto isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
-    updateCursorState(isHovered || m_config.showPixelInfo == false);
+    m_window.setCursorVisible(isHovered || m_config.showPixelInfo == false);
     if (m_config.showPixelInfo)
     {
         const int cursor = m_selection->getCursor();
@@ -691,8 +693,6 @@ void cViewer::onMouseMove(const Vectorf& pos)
 
         const Vectorf point = screenToImage(posFixed);
         m_selection->mouseMove(point, getRenderScale());
-
-        updatePixelInfo(posFixed);
     }
 }
 
@@ -730,21 +730,16 @@ void cViewer::onMouseButton(int button, int action, int /*mods*/)
         return;
     }
 
-    updateMousePosition();
+    const auto cursorPos = m_window.getCursorPos();
+    m_dragPos            = cursorPos;
 
     switch (button)
     {
     case GLFW_MOUSE_BUTTON_LEFT: {
         auto pressed        = (action == GLFW_PRESS);
         auto isHovered      = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
-        const Vectorf point = screenToImage(m_lastMouse);
+        const Vectorf point = screenToImage(calculateMousePosition(cursorPos));
         m_selection->mouseButton(point, getRenderScale(), pressed && isHovered == false);
-
-        auto& rect = m_selection->getRect();
-        if (rect.isSet() == false)
-        {
-            updatePixelInfo(m_lastMouse);
-        }
     }
     break;
 
@@ -948,9 +943,9 @@ void cViewer::onKeyEvent(int key, int scancode, int action, int mods)
         {
             m_angle = (m_angle + 360 - 90) % 360;
         }
-        updateCursorState(m_angle == 0
-                              ? m_config.showPixelInfo == false
-                              : true);
+        m_window.setCursorVisible(m_angle == 0
+                                      ? m_config.showPixelInfo == false
+                                      : true);
         break;
 
     case GLFW_KEY_F:
@@ -1487,16 +1482,6 @@ void cViewer::updatePixelInfo(const Vectorf& pos)
     m_pixelPopup->setPixelInfo(pixelInfo);
 }
 
-void cViewer::updateCursorState(bool show)
-{
-    auto cursorPos = m_window.getCursorPos();
-
-    auto& size     = m_config.windowSize;
-    m_cursorInside = !(cursorPos.x < 0.0f || cursorPos.x >= size.w || cursorPos.y < 0.0f || cursorPos.y >= size.h);
-
-    m_window.setCursorVisible(show);
-}
-
 void cViewer::startLoading()
 {
     if (m_anim.isAnimated == false && m_loader->getMode() != cImageLoader::Mode::Rerasterize)
@@ -1553,19 +1538,8 @@ void cViewer::endLoading()
     m_imagePrepared.store(true, std::memory_order_release);
 }
 
-void cViewer::updateMousePosition()
-{
-    auto cursorPos = m_window.getCursorPos();
-    m_lastMouse    = calculateMousePosition(cursorPos);
-}
-
 void cViewer::enablePixelInfo(bool show)
 {
-    if (show)
-    {
-        updateMousePosition();
-        updatePixelInfo(m_lastMouse);
-    }
     m_config.showPixelInfo = show;
-    updateCursorState(show == false);
+    m_window.setCursorVisible(show == false);
 }
