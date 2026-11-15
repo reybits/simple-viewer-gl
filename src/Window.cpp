@@ -151,13 +151,20 @@ void cWindow::setupCallbacks()
             dispatch(Instance->m_handler, Instance->m_handler->onWindowPosition, Vectori{ x, y });
         });
     }
-    glfwSetWindowRefreshCallback(m_window, [](GLFWwindow*) {
-        if (Instance == nullptr)
-        {
-            return;
-        }
-        dispatch(Instance->m_handler, Instance->m_handler->onWindowRefresh);
-    });
+    // glfwPollEvents() blocks during live resize on Cocoa and Win32, so redraw
+    // from the refresh callback there. Elsewhere the main loop already renders
+    // every frame, and an extra render inside the poll stalls resize (issue #36).
+    if (helpers::getPlatform() == helpers::Platform::Cocoa
+        || helpers::getPlatform() == helpers::Platform::Win32)
+    {
+        glfwSetWindowRefreshCallback(m_window, [](GLFWwindow*) {
+            if (Instance == nullptr)
+            {
+                return;
+            }
+            dispatch(Instance->m_handler, Instance->m_handler->onWindowRefresh);
+        });
+    }
     glfwSetKeyCallback(m_window, [](GLFWwindow*, int key, int scancode, int action, int mods) {
         if (Instance == nullptr)
         {
