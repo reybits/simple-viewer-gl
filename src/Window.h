@@ -51,6 +51,7 @@ public:
     Vectori getScreenOrigin() const;
     Vectorf getPixelRatio() const;
     Vectorf getCursorPos() const;
+    bool isHovered() const;
 
     // Manipulation
     void setSize(const Vectori& size);

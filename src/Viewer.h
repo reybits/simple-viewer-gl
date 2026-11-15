@@ -119,8 +119,6 @@ private:
     void clampCamera();
     Vectorf screenToImage(const Vectorf& pos) const;
     Vectorf calculateMousePosition(const Vectorf& pos) const;
-    void updateMousePosition();
-    void updateCursorState(bool visible);
     void enablePixelInfo(bool show);
 
 private:
@@ -149,13 +147,13 @@ private:
     bool m_uploadFinal       = false;
     double m_uploadStartTime = 0.0;
     cScale m_scale;
-    bool m_cursorInside        = false;
     bool m_mouseMB             = false;
     bool m_mouseRB             = false;
     bool m_fullscreenRequested = false;
     bool m_skipEnterEvents     = false;
     bool m_centerAfterToggle   = false;
-    Vectorf m_lastMouse;
+    // Cursor position in window coordinates at the previous camera-drag step.
+    Vectorf m_dragPos;
     Vectorf m_camera;
     int m_angle  = 0;
     bool m_flipH = false;

@@ -98,9 +98,11 @@ void cPixelPopup::renderCursor()
 
 void cPixelPopup::renderInfo()
 {
+    // Follow the crosshair rather than io.MousePos, which only moves with
+    // mouse events while the crosshair tracks the live cursor position.
     auto& io     = ImGui::GetIO();
-    float x      = io.MousePos.x;
-    float y      = io.MousePos.y;
+    float x      = m_pixelInfo.mouse.x / io.DisplayFramebufferScale.x;
+    float y      = m_pixelInfo.mouse.y / io.DisplayFramebufferScale.y;
     float width  = io.DisplaySize.x;
     float height = io.DisplaySize.y;
 
