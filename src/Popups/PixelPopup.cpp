@@ -13,6 +13,7 @@
 #include "Assets/img-pointer-cross.c"
 #include "Renderer.h"
 
+#include <algorithm>
 #include <cstring>
 #include <fmt/core.h>
 #include <imgui/imgui.h>
@@ -107,10 +108,16 @@ void cPixelPopup::renderInfo()
     float height = io.DisplaySize.y;
 
     const float offset = 10.0f;
-    const ImVec2 pos{
-        std::min<float>(x + offset, width - m_size.x),
-        std::min<float>(y + offset, height - m_size.y)
+    // Put the bubble on the side of the cursor that faces the window center,
+    // so near the right or bottom edge it is not pushed under the cursor.
+    // When it fits on neither side, keep it inside the window.
+    auto place = [offset](float cursor, float extent, float size) {
+        const float origin = cursor > extent * 0.5f
+            ? cursor - offset - size
+            : cursor + offset;
+        return std::max(0.0f, std::min(origin, extent - size));
     };
+    const ImVec2 pos{ place(x, width, m_size.x), place(y, height, m_size.y) };
 
     ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
 
