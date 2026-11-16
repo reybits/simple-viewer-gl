@@ -82,6 +82,4 @@ private:
 
     std::unique_ptr<cQuadSeries> m_pointer;
     std::unique_ptr<cQuadSeries> m_icons;
-
-    ImVec2 m_size;
 };
