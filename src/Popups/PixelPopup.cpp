@@ -13,7 +13,6 @@
 #include "Assets/img-pointer-cross.c"
 #include "Renderer.h"
 
-#include <algorithm>
 #include <cstring>
 #include <fmt/core.h>
 #include <imgui/imgui.h>
@@ -102,24 +101,32 @@ void cPixelPopup::renderInfo()
     // Follow the crosshair rather than io.MousePos, which only moves with
     // mouse events while the crosshair tracks the live cursor position.
     auto& io     = ImGui::GetIO();
-    float x      = m_pixelInfo.mouse.x / io.DisplayFramebufferScale.x;
-    float y      = m_pixelInfo.mouse.y / io.DisplayFramebufferScale.y;
-    float width  = io.DisplaySize.x;
-    float height = io.DisplaySize.y;
+    const auto x = m_pixelInfo.mouse.x / io.DisplayFramebufferScale.x;
+    const auto y = m_pixelInfo.mouse.y / io.DisplayFramebufferScale.y;
 
-    const float offset = 10.0f;
+    const auto offset = 10.0f;
     // Put the bubble on the side of the cursor that faces the window center,
     // so near the right or bottom edge it is not pushed under the cursor.
-    // When it fits on neither side, keep it inside the window.
-    auto place = [offset](float cursor, float extent, float size) {
-        const float origin = cursor > extent * 0.5f
-            ? cursor - offset - size
-            : cursor + offset;
-        return std::max(0.0f, std::min(origin, extent - size));
-    };
-    const ImVec2 pos{ place(x, width, m_size.x), place(y, height, m_size.y) };
+    // Left of or above the cursor, a pivot of 1 pins the bubble's right or
+    // bottom edge, and ImGui applies it with this frame's bubble size.
+    ImVec2 pos{ x + offset, y + offset };
+    ImVec2 pivot{ 0.0f, 0.0f };
 
-    ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
+    const auto width = io.DisplaySize.x;
+    if (x > width * 0.5f)
+    {
+        pos.x   = x - offset;
+        pivot.x = 1.0f;
+    }
+
+    const auto height = io.DisplaySize.y;
+    if (y > height * 0.5f)
+    {
+        pos.y   = y - offset;
+        pivot.y = 1.0f;
+    }
+
+    ImGui::SetNextWindowPos(pos, ImGuiCond_Always, pivot);
 
     const int flags = ImGuiWindowFlags_NoTitleBar
         | ImGuiWindowFlags_AlwaysAutoResize
@@ -140,8 +147,6 @@ void cPixelPopup::renderInfo()
             ImGui::TextColored(s.color, "%s", s.text.c_str());
         }
     }
-
-    m_size = ImGui::GetWindowSize();
 
     ImGui::End();
 }
